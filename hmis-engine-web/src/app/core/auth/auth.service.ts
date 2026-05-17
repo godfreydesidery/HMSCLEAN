@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
-import { LoginRequest, LoginResponse, TokenPair, UserSummary } from './auth.types';
+import { ChangePasswordRequest, LoginRequest, LoginResponse, TokenPair, UserSummary } from './auth.types';
 
 const STORAGE_KEY = 'hmis.session';
 
@@ -13,6 +13,7 @@ interface PersistedSession {
   user: UserSummary;
   roles: string[];
   privileges: string[];
+  passwordMustChange: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -33,6 +34,7 @@ export class AuthService {
   });
   readonly privileges = computed(() => this.sessionSignal()?.privileges ?? []);
   readonly roles = computed(() => this.sessionSignal()?.roles ?? []);
+  readonly passwordMustChange = computed(() => this.sessionSignal()?.passwordMustChange ?? false);
 
   login(request: LoginRequest): Observable<LoginResponse> {
     return this.http
@@ -40,7 +42,24 @@ export class AuthService {
       .pipe(tap((response) => this.persist(response)));
   }
 
+  changePassword(request: ChangePasswordRequest): Observable<void> {
+    return this.http
+      .post<void>(`${environment.apiUrl}/auth/change-password`, request)
+      .pipe(tap(() => {
+        // The server has invalidated all prior refresh tokens. Clear the
+        // must-change flag locally; the access token is still valid until
+        // it expires, after which the user will re-log in cleanly.
+        const s = this.sessionSignal();
+        if (s) this.sessionSignal.set({ ...s, passwordMustChange: false });
+      }));
+  }
+
   logout(): void {
+    const refresh = this.sessionSignal()?.tokens.refreshToken;
+    if (refresh) {
+      this.http.post(`${environment.apiUrl}/auth/logout`, { refreshToken: refresh })
+        .subscribe({ next: () => {}, error: () => {} });
+    }
     localStorage.removeItem(STORAGE_KEY);
     this.sessionSignal.set(null);
     void this.router.navigate(['/login']);
@@ -71,7 +90,8 @@ export class AuthService {
       tokens: response.tokens,
       user: response.user,
       roles: response.roles,
-      privileges: response.privileges
+      privileges: response.privileges,
+      passwordMustChange: response.passwordMustChange
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
     this.sessionSignal.set(session);

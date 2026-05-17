@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 import javax.crypto.SecretKey;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -50,6 +51,20 @@ public class JwtTokenService {
         return raw == null ? TokenType.ACCESS : TokenType.valueOf(raw);
     }
 
+    public String jtiOf(Claims claims) {
+        return claims.getId();
+    }
+
+    public Instant issuedAtOf(Claims claims) {
+        Date d = claims.getIssuedAt();
+        return d == null ? null : d.toInstant();
+    }
+
+    public Instant expirationOf(Claims claims) {
+        Date d = claims.getExpiration();
+        return d == null ? null : d.toInstant();
+    }
+
     @SuppressWarnings("unchecked")
     public List<String> rolesOf(Claims claims) {
         Object value = claims.get(CLAIM_ROLES);
@@ -65,6 +80,7 @@ public class JwtTokenService {
     private String buildToken(String subject, List<String> roles, List<String> privileges, TokenType type, long ttlMs) {
         Instant now = Instant.now();
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .issuer(properties.issuer())
                 .subject(subject)
                 .issuedAt(Date.from(now))

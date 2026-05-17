@@ -6,5 +6,6 @@ public record LoginResponse(
         TokenPair tokens,
         UserSummary user,
         List<String> roles,
-        List<String> privileges) {
+        List<String> privileges,
+        boolean passwordMustChange) {
 }

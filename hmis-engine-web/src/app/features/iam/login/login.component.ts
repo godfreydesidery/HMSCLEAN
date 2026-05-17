@@ -43,7 +43,13 @@ export class LoginComponent {
       .login(this.form.getRawValue())
       .pipe(finalize(() => this.submitting.set(false)))
       .subscribe({
-        next: () => void this.router.navigate(['/dashboard']),
+        next: (response) => {
+          if (response.passwordMustChange) {
+            void this.router.navigate(['/change-password']);
+          } else {
+            void this.router.navigate(['/dashboard']);
+          }
+        },
         error: (err) => {
           const message = err?.error?.message ?? 'Invalid username or password.';
           this.errorMessage.set(message);

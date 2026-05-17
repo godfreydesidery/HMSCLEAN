@@ -1,5 +1,6 @@
 package com.otapp.hmis.engine.iam.infrastructure.security;
 
+import com.otapp.hmis.engine.iam.domain.RevokedTokenRepository;
 import com.otapp.hmis.engine.iam.infrastructure.jwt.JwtTokenService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -26,6 +27,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER = "Bearer ";
 
     private final JwtTokenService tokenService;
+    private final RevokedTokenRepository revokedTokenRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -41,6 +43,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             Claims claims = tokenService.parse(token);
             if (tokenService.typeOf(claims) != JwtTokenService.TokenType.ACCESS) {
+                chain.doFilter(request, response);
+                return;
+            }
+            String jti = tokenService.jtiOf(claims);
+            if (jti != null && revokedTokenRepository.existsByJti(jti)) {
+                SecurityContextHolder.clearContext();
                 chain.doFilter(request, response);
                 return;
             }

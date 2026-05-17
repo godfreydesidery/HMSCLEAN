@@ -26,6 +26,11 @@ export const routes: Routes = [
           import('./features/iam/dashboard/dashboard.component').then((m) => m.DashboardComponent)
       },
       {
+        path: 'change-password',
+        loadComponent: () =>
+          import('./features/iam/change-password/change-password.component').then((m) => m.ChangePasswordComponent)
+      },
+      {
         path: 'iam',
         loadChildren: () => import('./features/iam/iam.routes').then((m) => m.IAM_ROUTES)
       },

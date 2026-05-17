@@ -6,6 +6,8 @@ import com.otapp.hmis.engine.iam.application.dto.CreateUserRequest;
 import com.otapp.hmis.engine.iam.application.dto.UserSummary;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -57,5 +59,20 @@ public class UserController {
         return ResponseEntity.ok(userService.replaceRoles(uid, roleNames));
     }
 
+    @PostMapping("/{uid}/reset-password")
+    @PreAuthorize("hasAuthority('USER_UPDATE')")
+    public ResponseEntity<UserSummary> resetPassword(@PathVariable String uid,
+                                                     @Valid @RequestBody ResetPasswordRequest request) {
+        return ResponseEntity.ok(userService.resetPassword(uid, request.newPassword()));
+    }
+
+    @PostMapping("/{uid}/unlock")
+    @PreAuthorize("hasAuthority('USER_UPDATE')")
+    public ResponseEntity<UserSummary> unlock(@PathVariable String uid) {
+        return ResponseEntity.ok(userService.unlock(uid));
+    }
+
     public record EnabledRequest(boolean enabled) {}
+
+    public record ResetPasswordRequest(@NotBlank @Size(min = 8, max = 128) String newPassword) {}
 }

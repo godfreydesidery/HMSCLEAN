@@ -62,7 +62,8 @@ export class ShellComponent {
       items: [
         { label: 'Master Data', path: '/masterdata',  icon: 'bi-collection',       privileges: ['MASTERDATA_MANAGE'] },
         { label: 'Users',       path: '/iam/users',   icon: 'bi-person-gear',      privileges: ['USER_READ'] },
-        { label: 'Roles',       path: '/iam/roles',   icon: 'bi-shield-lock',      privileges: ['ROLE_READ'] }
+        { label: 'Roles',       path: '/iam/roles',   icon: 'bi-shield-lock',      privileges: ['ROLE_READ'] },
+        { label: 'Login audit', path: '/iam/audit',   icon: 'bi-shield-check',     privileges: ['USER_READ'] }
       ]
     }
   ];

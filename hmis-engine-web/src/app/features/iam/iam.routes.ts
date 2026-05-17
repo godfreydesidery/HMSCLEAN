@@ -12,5 +12,10 @@ export const IAM_ROUTES: Routes = [
     path: 'roles',
     canActivate: [hasPrivilegeGuard('ROLE_READ')],
     loadComponent: () => import('./roles/roles.component').then((m) => m.RolesComponent)
+  },
+  {
+    path: 'audit',
+    canActivate: [hasPrivilegeGuard('USER_READ')],
+    loadComponent: () => import('./audit/audit-log.component').then((m) => m.AuditLogComponent)
   }
 ];

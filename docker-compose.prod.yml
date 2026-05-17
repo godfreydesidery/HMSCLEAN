@@ -1,0 +1,73 @@
+# Production-style compose: postgres + api + web. The api and web images are
+# built from the Dockerfiles in each project. The web container exposes the
+# public port (8080 on the host by default) and proxies /api/* internally.
+#
+# Bring up:    docker compose -f docker-compose.prod.yml up -d --build
+# Tail logs:   docker compose -f docker-compose.prod.yml logs -f
+# Tear down:   docker compose -f docker-compose.prod.yml down
+#
+# Secrets that MUST be overridden in production (set in a .env file or in
+# your orchestrator):
+#   HMIS_DB_PASSWORD                — Postgres password for the hmis user.
+#   HMIS_SECURITY_JWT_SECRET        — JWT signing secret (>= 32 chars).
+#   HMIS_BOOTSTRAP_ROOT_PASSWORD    — initial root account password.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hmis-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hmis_engine
+      POSTGRES_USER: hmis
+      POSTGRES_PASSWORD: ${HMIS_DB_PASSWORD:-hmis}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hmis -d hmis_engine"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - hmis
+
+  api:
+    build:
+      context: ./hmis-engine-api
+    image: hmis-engine-api:latest
+    container_name: hmis-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      HMIS_DB_URL: jdbc:postgresql://postgres:5432/hmis_engine
+      HMIS_DB_USERNAME: hmis
+      HMIS_DB_PASSWORD: ${HMIS_DB_PASSWORD:-hmis}
+      HMIS_SECURITY_JWT_SECRET: ${HMIS_SECURITY_JWT_SECRET:-change-me-change-me-change-me-change-me-32+chars}
+      HMIS_CORS_ALLOWED_ORIGINS: ${HMIS_CORS_ALLOWED_ORIGINS:-http://localhost:8080}
+      HMIS_BOOTSTRAP_ROOT_PASSWORD: ${HMIS_BOOTSTRAP_ROOT_PASSWORD:-ChangeMe!123}
+    networks:
+      - hmis
+
+  web:
+    build:
+      context: ./hmis-engine-web
+    image: hmis-engine-web:latest
+    container_name: hmis-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${HMIS_WEB_PORT:-8080}:80"
+    networks:
+      - hmis
+
+networks:
+  hmis:
+    driver: bridge
+
+volumes:
+  postgres-data:

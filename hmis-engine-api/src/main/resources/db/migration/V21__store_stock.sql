@@ -81,19 +81,5 @@ CREATE INDEX idx_store_stock_movement_kind      ON store_stock_movement(kind);
 CREATE INDEX idx_store_stock_movement_reference ON store_stock_movement(reference_uid);
 CREATE INDEX idx_store_stock_movement_batch     ON store_stock_movement(batch_uid);
 
--- ----------------------------------------------------------------------------
--- IAM: STORE_ACCESS privilege guards the new /store/** endpoints. Granted to
--- ROOT (gets everything anyway) and STORE_PERSON (the actual storekeeper role).
--- PROCUREMENT also needs it to record GRNs against store stock.
--- ----------------------------------------------------------------------------
-
-INSERT INTO iam_privilege (uid, name, description, created_at, updated_at, created_by, updated_by, version)
-VALUES ('01J5KQRPCD0000000000000PVJ', 'STORE_ACCESS', 'Access the central store module',
-        NOW(), NOW(), 'system', 'system', 0);
-
-INSERT INTO iam_role_privilege (role_id, privilege_id)
-SELECT r.id, p.id
-FROM iam_role r
-CROSS JOIN iam_privilege p
-WHERE p.name = 'STORE_ACCESS'
-  AND r.name IN ('ROOT', 'STORE_PERSON', 'PROCUREMENT');
+-- The STORE_ACCESS privilege guarding /store/** is seeded with the other
+-- *_ACCESS privileges in V2__iam_seed.sql.

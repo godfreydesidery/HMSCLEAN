@@ -3,13 +3,20 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
-import { finalize } from 'rxjs';
+import { finalize, forkJoin } from 'rxjs';
 
-import { PAYMENT_TYPES, PaymentType } from '../../patient/patient.types';
+import { RecordPaymentComponent } from '../../billing/record-payment.component';
+import { InvoiceService } from '../../billing/invoice.service';
+import { INVOICE_STATUSES, Invoice, InvoiceStatus } from '../../billing/invoice.types';
 import { WardService } from '../../masterdata/wards/ward.service';
 import { Ward } from '../../masterdata/wards/ward.types';
+import { PAYMENT_TYPES, PaymentType } from '../../patient/patient.types';
 import { AdmissionService } from './admission.service';
 import { ADMISSION_STATUSES, Admission, AdmissionStatus } from './admission.types';
+import { ProgressNoteService } from './progress-note.service';
+import { PROGRESS_NOTE_KINDS, ProgressNote, ProgressNoteKind } from './progress-note.types';
+
+type TabKey = 'overview' | 'notes' | 'billing';
 
 @Component({
   selector: 'app-admission-detail',
@@ -22,18 +29,29 @@ export class AdmissionDetailComponent {
   private readonly router = inject(Router);
   private readonly admissionService = inject(AdmissionService);
   private readonly wardService = inject(WardService);
+  private readonly noteService = inject(ProgressNoteService);
+  private readonly invoiceService = inject(InvoiceService);
   private readonly modal = inject(NgbModal);
   private readonly fb = inject(FormBuilder);
 
   readonly statuses = ADMISSION_STATUSES;
   readonly paymentTypes = PAYMENT_TYPES;
+  readonly noteKinds = PROGRESS_NOTE_KINDS;
+  readonly invoiceStatuses = INVOICE_STATUSES;
 
   readonly admission = signal<Admission | null>(null);
   readonly wards = signal<Ward[]>([]);
+  readonly notes = signal<ProgressNote[]>([]);
+  readonly invoice = signal<Invoice | null>(null);
+
   readonly loading = signal(true);
+  readonly notesLoading = signal(false);
+  readonly invoiceLoading = signal(false);
   readonly busy = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly actionMessage = signal<string | null>(null);
+
+  readonly activeTab = signal<TabKey>('overview');
 
   readonly isActive = computed(() => this.admission()?.status === 'ADMITTED');
 
@@ -46,6 +64,10 @@ export class AdmissionDetailComponent {
   });
   readonly cancelForm = this.fb.nonNullable.group({
     reason: ['', [Validators.maxLength(255)]]
+  });
+  readonly noteForm = this.fb.nonNullable.group({
+    kind: ['DOCTOR' as ProgressNoteKind, [Validators.required]],
+    body: ['', [Validators.required, Validators.maxLength(8000)]]
   });
 
   constructor() {
@@ -63,11 +85,29 @@ export class AdmissionDetailComponent {
 
   private load(uid: string): void {
     this.loading.set(true);
-    this.admissionService.findByUid(uid).pipe(finalize(() => this.loading.set(false))).subscribe({
-      next: (a) => this.admission.set(a),
+    this.notesLoading.set(true);
+    this.invoiceLoading.set(true);
+    forkJoin({
+      admission: this.admissionService.findByUid(uid),
+      notes: this.noteService.list(uid),
+      invoice: this.invoiceService.findForAdmission(uid)
+    }).pipe(finalize(() => {
+      this.loading.set(false);
+      this.notesLoading.set(false);
+      this.invoiceLoading.set(false);
+    })).subscribe({
+      next: ({ admission, notes, invoice }) => {
+        this.admission.set(admission);
+        this.notes.set(notes);
+        this.invoice.set(invoice);
+      },
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load admission.')
     });
   }
+
+  setTab(tab: TabKey): void { this.activeTab.set(tab); }
+
+  // ----- ward transfer / discharge / cancel --------------------------------
 
   openTransfer(content: unknown): void {
     const a = this.admission();
@@ -126,7 +166,78 @@ export class AdmissionDetailComponent {
     });
   }
 
+  // ----- progress notes ----------------------------------------------------
+
+  addNote(): void {
+    const a = this.admission(); if (!a) return;
+    if (this.noteForm.invalid) { this.noteForm.markAllAsTouched(); return; }
+    const raw = this.noteForm.getRawValue();
+    this.busy.set(true);
+    this.noteService.add(a.uid, { kind: raw.kind, body: raw.body.trim() })
+      .pipe(finalize(() => this.busy.set(false))).subscribe({
+        next: (note) => {
+          this.notes.update((arr) => [note, ...arr]);
+          this.noteForm.reset({ kind: raw.kind, body: '' });
+          this.actionMessage.set('Progress note recorded.');
+        },
+        error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not save note.')
+      });
+  }
+
+  deleteNote(note: ProgressNote): void {
+    const reason = globalThis.prompt('Reason for removing this note?')?.trim() ?? null;
+    if (reason === null) return;
+    this.noteService.softDelete(note.uid, reason || null).subscribe({
+      next: (updated) => this.notes.update((arr) => arr.map((n) => n.uid === updated.uid ? updated : n)),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not remove note.')
+    });
+  }
+
+  // ----- billing -----------------------------------------------------------
+
+  generateInvoice(): void {
+    const a = this.admission(); if (!a) return;
+    this.invoiceLoading.set(true);
+    this.invoiceService.generateForAdmission(a.uid)
+      .pipe(finalize(() => this.invoiceLoading.set(false))).subscribe({
+        next: (inv) => { this.invoice.set(inv); this.actionMessage.set('Invoice generated.'); },
+        error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not generate invoice.')
+      });
+  }
+
+  issueInvoice(): void {
+    const inv = this.invoice(); if (!inv) return;
+    this.invoiceService.issue(inv.uid).subscribe({
+      next: (updated) => { this.invoice.set(updated); this.actionMessage.set('Invoice issued.'); },
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not issue invoice.')
+    });
+  }
+
+  cancelInvoice(): void {
+    const inv = this.invoice(); if (!inv) return;
+    const reason = globalThis.prompt('Reason for cancelling this invoice?')?.trim() ?? null;
+    this.invoiceService.cancel(inv.uid, reason).subscribe({
+      next: (updated) => { this.invoice.set(updated); this.actionMessage.set('Invoice cancelled.'); },
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not cancel invoice.')
+    });
+  }
+
+  recordInvoicePayment(): void {
+    const inv = this.invoice(); if (!inv) return;
+    const ref = this.modal.open(RecordPaymentComponent, { backdrop: 'static' });
+    const inst = ref.componentInstance as RecordPaymentComponent;
+    inst.invoice = inv;
+    ref.closed.subscribe((updated: Invoice | undefined) => {
+      if (updated) {
+        this.invoice.set(updated);
+        this.actionMessage.set('Payment recorded.');
+      }
+    });
+  }
+
   backToList(): void { void this.router.navigate(['/encounters', 'admissions']); }
+
+  // ----- helpers -----------------------------------------------------------
 
   statusBadgeClass(s: AdmissionStatus): string {
     return 'badge ' + (this.statuses.find((x) => x.value === s)?.badgeClass ?? '');
@@ -136,6 +247,21 @@ export class AdmissionDetailComponent {
   }
   paymentLabel(p: PaymentType): string {
     return this.paymentTypes.find((x) => x.value === p)?.label ?? p;
+  }
+  noteKindBadgeClass(k: ProgressNoteKind): string {
+    return 'badge d-inline-flex align-items-center gap-1 ' + (this.noteKinds.find((x) => x.value === k)?.badgeClass ?? '');
+  }
+  noteKindIcon(k: ProgressNoteKind): string {
+    return this.noteKinds.find((x) => x.value === k)?.icon ?? 'bi-journal-text';
+  }
+  noteKindLabel(k: ProgressNoteKind): string {
+    return this.noteKinds.find((x) => x.value === k)?.label ?? k;
+  }
+  invoiceStatusBadgeClass(s: InvoiceStatus): string {
+    return 'badge ' + (this.invoiceStatuses.find((x) => x.value === s)?.badgeClass ?? '');
+  }
+  invoiceStatusLabel(s: InvoiceStatus): string {
+    return this.invoiceStatuses.find((x) => x.value === s)?.label ?? s;
   }
   patientInitials(a: Admission): string {
     const parts = (a.patientName ?? '').split(' ').filter((p) => p.length > 0);

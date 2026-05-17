@@ -14,8 +14,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "invoice",
        uniqueConstraints = {
-               @UniqueConstraint(name = "uk_invoice_no",            columnNames = "invoice_no"),
-               @UniqueConstraint(name = "uk_invoice_consultation",  columnNames = "consultation_uid")
+               @UniqueConstraint(name = "uk_invoice_no", columnNames = "invoice_no")
        },
        indexes = {
                @Index(name = "idx_invoice_patient",   columnList = "patient_uid"),
@@ -33,7 +32,10 @@ public class Invoice extends AuditableEntity {
     @Column(name = "invoice_no", nullable = false, length = 32)
     private String invoiceNo;
 
-    @Column(name = "consultation_uid", nullable = false, length = 26) private String consultationUid;
+    /** Set when the invoice is raised from an outpatient consultation. */
+    @Column(name = "consultation_uid", length = 26) private String consultationUid;
+    /** Set when the invoice is raised from an inpatient admission. */
+    @Column(name = "admission_uid",    length = 26) private String admissionUid;
     @Column(name = "patient_uid",      nullable = false, length = 26) private String patientUid;
 
     @Setter
@@ -57,14 +59,29 @@ public class Invoice extends AuditableEntity {
     @Setter @Column(name = "cancelled_at") private Instant cancelledAt;
     @Setter @Column(name = "cancel_reason", length = 255) private String cancelReason;
 
-    public Invoice(String invoiceNo, String consultationUid, String patientUid,
-                   PaymentType paymentType, String insurancePlanUid, String currency) {
+    private Invoice(String invoiceNo, String consultationUid, String admissionUid, String patientUid,
+                    PaymentType paymentType, String insurancePlanUid, String currency) {
+        if ((consultationUid == null) == (admissionUid == null)) {
+            throw new BusinessRuleException(
+                    "An invoice must reference exactly one of consultation or admission");
+        }
         this.invoiceNo = invoiceNo;
         this.consultationUid = consultationUid;
+        this.admissionUid = admissionUid;
         this.patientUid = patientUid;
         this.paymentType = paymentType;
         this.insurancePlanUid = insurancePlanUid;
         this.currency = currency;
+    }
+
+    public static Invoice forConsultation(String invoiceNo, String consultationUid, String patientUid,
+                                          PaymentType paymentType, String insurancePlanUid, String currency) {
+        return new Invoice(invoiceNo, consultationUid, null, patientUid, paymentType, insurancePlanUid, currency);
+    }
+
+    public static Invoice forAdmission(String invoiceNo, String admissionUid, String patientUid,
+                                       PaymentType paymentType, String insurancePlanUid, String currency) {
+        return new Invoice(invoiceNo, null, admissionUid, patientUid, paymentType, insurancePlanUid, currency);
     }
 
     public BigDecimal balance() {

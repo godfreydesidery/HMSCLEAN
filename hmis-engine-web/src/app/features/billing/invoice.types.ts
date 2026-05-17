@@ -49,7 +49,8 @@ export interface Payment {
 export interface Invoice {
   uid: string;
   invoiceNo: string;
-  consultationUid: string;
+  consultationUid: string | null;
+  admissionUid: string | null;
   patientUid: string;
   patientName: string | null;
   patientNo: string | null;
@@ -74,7 +75,8 @@ export interface Invoice {
 export interface InvoiceSummary {
   uid: string;
   invoiceNo: string;
-  consultationUid: string;
+  consultationUid: string | null;
+  admissionUid: string | null;
   patientUid: string;
   patientName: string | null;
   patientNo: string | null;

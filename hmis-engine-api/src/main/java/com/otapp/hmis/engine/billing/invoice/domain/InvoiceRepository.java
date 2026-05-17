@@ -13,6 +13,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     Optional<Invoice> findByConsultationUid(String consultationUid);
 
+    Optional<Invoice> findByAdmissionUid(String admissionUid);
+
     @Query("""
             SELECT i FROM Invoice i
             WHERE (:search IS NULL OR :search = ''

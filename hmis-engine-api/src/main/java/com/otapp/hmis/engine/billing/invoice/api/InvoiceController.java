@@ -49,6 +49,17 @@ public class InvoiceController {
         return ResponseEntity.ok(invoiceService.generateForConsultation(consultationUid));
     }
 
+    @GetMapping("/billing/admissions/{admissionUid}/invoice")
+    public ResponseEntity<InvoiceDto> findForAdmission(@PathVariable String admissionUid) {
+        InvoiceDto dto = invoiceService.findForAdmission(admissionUid);
+        return dto == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(dto);
+    }
+
+    @PostMapping("/billing/admissions/{admissionUid}/invoice")
+    public ResponseEntity<InvoiceDto> generateForAdmission(@PathVariable String admissionUid) {
+        return ResponseEntity.ok(invoiceService.generateForAdmission(admissionUid));
+    }
+
     @PostMapping("/billing/invoices/{uid}/issue")
     public ResponseEntity<InvoiceDto> issue(@PathVariable String uid) {
         return ResponseEntity.ok(invoiceService.issue(uid));

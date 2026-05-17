@@ -19,6 +19,9 @@ import com.otapp.hmis.engine.billing.payment.infrastructure.PaymentNumberGenerat
 import com.otapp.hmis.engine.common.api.PageResponse;
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
+import com.otapp.hmis.engine.encounter.admission.domain.Admission;
+import com.otapp.hmis.engine.encounter.admission.domain.AdmissionRepository;
+import com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrder;
@@ -41,9 +44,14 @@ import com.otapp.hmis.engine.masterdata.procedure.domain.ProcedureType;
 import com.otapp.hmis.engine.masterdata.procedure.domain.ProcedureTypeRepository;
 import com.otapp.hmis.engine.masterdata.radiology.domain.RadiologyType;
 import com.otapp.hmis.engine.masterdata.radiology.domain.RadiologyTypeRepository;
+import com.otapp.hmis.engine.masterdata.ward.domain.Ward;
+import com.otapp.hmis.engine.masterdata.ward.domain.WardRepository;
 import com.otapp.hmis.engine.patient.domain.Patient;
 import com.otapp.hmis.engine.patient.domain.PatientRepository;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -61,9 +69,11 @@ public class InvoiceService {
     private final InvoiceLineRepository invoiceLineRepository;
     private final PaymentRepository paymentRepository;
     private final ConsultationRepository consultationRepository;
+    private final AdmissionRepository admissionRepository;
     private final ClinicalOrderRepository clinicalOrderRepository;
     private final PrescriptionRepository prescriptionRepository;
     private final ClinicRepository clinicRepository;
+    private final WardRepository wardRepository;
     private final LabTestTypeRepository labTestTypeRepository;
     private final RadiologyTypeRepository radiologyTypeRepository;
     private final ProcedureTypeRepository procedureTypeRepository;
@@ -89,7 +99,7 @@ public class InvoiceService {
             throw new BusinessRuleException("Invoice is already " + invoice.getStatus() + " and cannot be regenerated");
         }
         if (invoice == null) {
-            invoice = new Invoice(
+            invoice = Invoice.forConsultation(
                     invoiceNumberGenerator.next(),
                     consultation.getUid(),
                     consultation.getPatientUid(),
@@ -158,6 +168,78 @@ public class InvoiceService {
         return toDto(invoice);
     }
 
+    /**
+     * Generates or regenerates the invoice for an admission. Pulls the
+     * per-night ward rate, every COMPLETED clinical order raised during the
+     * admission, and every DISPENSED prescription. Only allowed while the
+     * invoice is still DRAFT.
+     */
+    @Transactional
+    public InvoiceDto generateForAdmission(String admissionUid) {
+        Admission admission = admissionRepository.findByUid(admissionUid)
+                .orElseThrow(() -> new NotFoundException("Admission not found: " + admissionUid));
+        if (admission.getStatus() == AdmissionStatus.CANCELLED) {
+            throw new BusinessRuleException("Cannot bill a cancelled admission");
+        }
+
+        Invoice invoice = invoiceRepository.findByAdmissionUid(admissionUid).orElse(null);
+        if (invoice != null && invoice.getStatus() != InvoiceStatus.DRAFT) {
+            throw new BusinessRuleException("Invoice is already " + invoice.getStatus() + " and cannot be regenerated");
+        }
+        if (invoice == null) {
+            invoice = Invoice.forAdmission(
+                    invoiceNumberGenerator.next(),
+                    admission.getUid(),
+                    admission.getPatientUid(),
+                    admission.getPaymentType(),
+                    admission.getInsurancePlanUid(),
+                    DEFAULT_CURRENCY);
+            invoiceRepository.save(invoice);
+        } else {
+            invoiceLineRepository.deleteAllByInvoiceUid(invoice.getUid());
+            invoice.setSubtotal(BigDecimal.ZERO);
+            invoice.setPaymentType(admission.getPaymentType());
+            invoice.setInsurancePlanUid(admission.getInsurancePlanUid());
+        }
+
+        List<InvoiceLine> lines = new ArrayList<>();
+        BigDecimal subtotal = BigDecimal.ZERO;
+        String currency = invoice.getCurrency();
+
+        // 1) Ward-day charge: days occupied between admit and discharge (or now).
+        Ward ward = wardRepository.findByUid(admission.getWardUid()).orElse(null);
+        if (ward != null) {
+            BigDecimal days = ceilDaysBetween(admission.getAdmittedAt(),
+                    admission.getDischargedAt() == null ? Instant.now() : admission.getDischargedAt());
+            PriceLookup.Resolved r = priceLookup.resolve(ServiceKind.WARD, ward.getUid(), admission.getInsurancePlanUid(), currency);
+            currency = r.currency();
+            BigDecimal amount = r.amount().multiply(days);
+            lines.add(new InvoiceLine(invoice.getUid(), InvoiceLineKind.WARD,
+                    ward.getUid(), admission.getUid(),
+                    "Ward stay — " + ward.getName() + " (" + days + " day" + (days.compareTo(BigDecimal.ONE) == 0 ? "" : "s") + ")",
+                    days, r.amount(), amount));
+            subtotal = subtotal.add(amount);
+        }
+
+        // NOTE: clinical orders and prescriptions are still scoped to a
+        // consultation, so they are billed on the source-consultation invoice
+        // (if any), not the admission invoice. A future iteration can add
+        // admission-scoped orders and pick them up here.
+
+        invoiceLineRepository.saveAll(lines);
+        invoice.setSubtotal(subtotal);
+        invoice.setCurrency(currency);
+        return toDto(invoice);
+    }
+
+    /** Inclusive whole-day count; an admission with no overnight stay is still one day. */
+    private static BigDecimal ceilDaysBetween(Instant from, Instant to) {
+        long seconds = Math.max(0L, Duration.between(from, to).getSeconds());
+        BigDecimal days = BigDecimal.valueOf(seconds)
+                .divide(BigDecimal.valueOf(86_400L), 0, RoundingMode.CEILING);
+        return days.signum() <= 0 ? BigDecimal.ONE : days;
+    }
+
     @Transactional
     public InvoiceDto issue(String uid) {
         Invoice invoice = loadOrThrow(uid);
@@ -200,6 +282,12 @@ public class InvoiceService {
     @Transactional(readOnly = true)
     public InvoiceDto findForConsultation(String consultationUid) {
         Invoice invoice = invoiceRepository.findByConsultationUid(consultationUid).orElse(null);
+        return invoice == null ? null : toDto(invoice);
+    }
+
+    @Transactional(readOnly = true)
+    public InvoiceDto findForAdmission(String admissionUid) {
+        Invoice invoice = invoiceRepository.findByAdmissionUid(admissionUid).orElse(null);
         return invoice == null ? null : toDto(invoice);
     }
 
@@ -256,6 +344,7 @@ public class InvoiceService {
                 invoice.getUid(),
                 invoice.getInvoiceNo(),
                 invoice.getConsultationUid(),
+                invoice.getAdmissionUid(),
                 invoice.getPatientUid(),
                 patient == null ? null : patient.fullName(),
                 patient == null ? null : patient.getPatientNo(),
@@ -283,6 +372,7 @@ public class InvoiceService {
                 i.getUid(),
                 i.getInvoiceNo(),
                 i.getConsultationUid(),
+                i.getAdmissionUid(),
                 i.getPatientUid(),
                 patient == null ? null : patient.fullName(),
                 patient == null ? null : patient.getPatientNo(),

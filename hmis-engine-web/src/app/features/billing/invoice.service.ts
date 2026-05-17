@@ -1,6 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 import { environment } from '../../../environments/environment';
 import { PageResponse } from '../../core/http/page.types';
@@ -29,11 +30,23 @@ export class InvoiceService {
   }
 
   findForConsultation(consultationUid: string): Observable<Invoice | null> {
-    return this.http.get<Invoice | null>(`${this.base}/consultations/${consultationUid}/invoice`);
+    return this.http
+      .get<Invoice>(`${this.base}/consultations/${consultationUid}/invoice`, { observe: 'response' })
+      .pipe(map((res) => (res.status === 204 ? null : res.body)));
   }
 
   generateForConsultation(consultationUid: string): Observable<Invoice> {
     return this.http.post<Invoice>(`${this.base}/consultations/${consultationUid}/invoice`, {});
+  }
+
+  findForAdmission(admissionUid: string): Observable<Invoice | null> {
+    return this.http
+      .get<Invoice>(`${this.base}/admissions/${admissionUid}/invoice`, { observe: 'response' })
+      .pipe(map((res) => (res.status === 204 ? null : res.body)));
+  }
+
+  generateForAdmission(admissionUid: string): Observable<Invoice> {
+    return this.http.post<Invoice>(`${this.base}/admissions/${admissionUid}/invoice`, {});
   }
 
   issue(uid: string): Observable<Invoice> {

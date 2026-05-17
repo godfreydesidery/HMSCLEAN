@@ -64,6 +64,11 @@
               <select id="pf-type" name="type" class="form-select" formControlName="type">
                 @for (t of patientTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
               </select>
+              <div class="form-text">
+                @for (t of patientTypes; track t.value) {
+                  @if (form.controls.type.value === t.value) { <span>{{ t.description }}</span> }
+                }
+              </div>
             </div>
             <div class="col-md-6">
               <label class="form-label" for="pf-nationality">Nationality</label>

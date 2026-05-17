@@ -44,6 +44,10 @@ public class ConsultationService {
         if (!patient.isActive()) {
             throw new BusinessRuleException("Cannot start a consultation for an inactive patient");
         }
+        if (patient.getType() == com.otapp.hmis.engine.patient.domain.PatientType.OUTSIDER) {
+            throw new BusinessRuleException(
+                    "Patient is registered as OUTSIDER; convert to OUTPATIENT before booking a consultation");
+        }
         Clinic clinic = clinicRepository.findByUid(request.clinicUid())
                 .orElseThrow(() -> new NotFoundException("Clinic not found: " + request.clinicUid()));
         if (!clinic.isActive()) {

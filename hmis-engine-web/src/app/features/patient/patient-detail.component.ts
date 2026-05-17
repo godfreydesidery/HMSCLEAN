@@ -1,12 +1,15 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { finalize, forkJoin } from 'rxjs';
 
 import { ConsultationService } from '../encounter/consultation/consultation.service';
 import {
   CONSULTATION_STATUSES, ConsultationStatus, ConsultationSummary
 } from '../encounter/consultation/consultation.types';
+import { AddOrderComponent } from '../encounter/order/add-order.component';
+import { AddPrescriptionComponent } from '../encounter/prescription/add-prescription.component';
 import { PatientService } from './patient.service';
 import { GENDERS, Gender, PATIENT_TYPES, PAYMENT_TYPES, Patient, PatientType, PaymentType } from './patient.types';
 
@@ -22,6 +25,7 @@ export class PatientDetailComponent {
   private readonly router = inject(Router);
   private readonly patientService = inject(PatientService);
   private readonly consultationService = inject(ConsultationService);
+  private readonly modal = inject(NgbModal);
 
   readonly statuses = CONSULTATION_STATUSES;
   readonly patient = signal<Patient | null>(null);
@@ -87,6 +91,38 @@ export class PatientDetailComponent {
     });
   }
 
+  /**
+   * Flip the patient between OUTPATIENT and OUTSIDER routing. Doesn't
+   * touch past encounters — only changes what is allowed going forward
+   * (consultations are blocked for OUTSIDER, outsider-direct orders /
+   * prescriptions are blocked for OUTPATIENT).
+   */
+  toggleType(): void {
+    const p = this.patient();
+    if (!p) return;
+    const next: PatientType = p.type === 'OUTSIDER' ? 'OUTPATIENT' : 'OUTSIDER';
+    const verb = next === 'OUTSIDER' ? 'mark as walk-in (OUTSIDER)' : 'restore to OUTPATIENT';
+    if (!globalThis.confirm(`Are you sure you want to ${verb}?`)) return;
+    this.patientService.changeType(p.uid, next).subscribe({
+      next: (updated) => this.patient.set(updated),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not change patient type.')
+    });
+  }
+
+  raiseOutsiderOrder(): void {
+    const p = this.patient();
+    if (!p) return;
+    const ref = this.modal.open(AddOrderComponent, { size: 'lg', backdrop: 'static' });
+    (ref.componentInstance as AddOrderComponent).outsiderPatientUid = p.uid;
+  }
+
+  raiseOutsiderPrescription(): void {
+    const p = this.patient();
+    if (!p) return;
+    const ref = this.modal.open(AddPrescriptionComponent, { size: 'lg', backdrop: 'static' });
+    (ref.componentInstance as AddPrescriptionComponent).outsiderPatientUid = p.uid;
+  }
+
   startConsultation(): void {
     const p = this.patient();
     if (!p) return;
@@ -105,6 +141,9 @@ export class PatientDetailComponent {
 
   genderLabel(g: Gender): string { return GENDERS.find((x) => x.value === g)?.label ?? g; }
   typeLabel(t: PatientType): string { return PATIENT_TYPES.find((x) => x.value === t)?.label ?? t; }
+  typeBadgeClass(t: PatientType): string {
+    return 'badge ' + (PATIENT_TYPES.find((x) => x.value === t)?.badgeClass ?? '');
+  }
   paymentLabel(p: PaymentType): string { return PAYMENT_TYPES.find((x) => x.value === p)?.label ?? p; }
 
   statusBadgeClass(s: ConsultationStatus): string {

@@ -11,22 +11,30 @@ export class ClinicalOrderService {
   private readonly apiBase = `${environment.apiUrl}/encounters`;
 
   list(consultationUid: string): Observable<ClinicalOrder[]> {
-    return this.http.get<ClinicalOrder[]>(`${this.apiBase}/consultations/${consultationUid}/orders`);
+    return this.http.get<ClinicalOrder[]>(`${this.apiBase}/consultations/uid/${consultationUid}/orders`);
   }
 
   request(consultationUid: string, req: CreateOrderRequest): Observable<ClinicalOrder> {
-    return this.http.post<ClinicalOrder>(`${this.apiBase}/consultations/${consultationUid}/orders`, req);
+    return this.http.post<ClinicalOrder>(`${this.apiBase}/consultations/uid/${consultationUid}/orders`, req);
   }
 
-  start(uid: string): Observable<ClinicalOrder> {
-    return this.http.post<ClinicalOrder>(`${this.apiBase}/orders/${uid}/start`, {});
+  listOutsiderForPatient(patientUid: string): Observable<ClinicalOrder[]> {
+    return this.http.get<ClinicalOrder[]>(`${this.apiBase}/patients/uid/${patientUid}/outsider-orders`);
   }
 
-  complete(uid: string, result: string | null): Observable<ClinicalOrder> {
-    return this.http.post<ClinicalOrder>(`${this.apiBase}/orders/${uid}/complete`, { result });
+  requestForOutsider(patientUid: string, req: CreateOrderRequest): Observable<ClinicalOrder> {
+    return this.http.post<ClinicalOrder>(`${this.apiBase}/patients/uid/${patientUid}/outsider-orders`, req);
   }
 
-  cancel(uid: string, reason: string | null): Observable<ClinicalOrder> {
-    return this.http.post<ClinicalOrder>(`${this.apiBase}/orders/${uid}/cancel`, { reason });
+  start(orderUid: string): Observable<ClinicalOrder> {
+    return this.http.post<ClinicalOrder>(`${this.apiBase}/orders/uid/${orderUid}/start`, {});
+  }
+
+  complete(orderUid: string, result: string | null): Observable<ClinicalOrder> {
+    return this.http.post<ClinicalOrder>(`${this.apiBase}/orders/uid/${orderUid}/complete`, { result });
+  }
+
+  cancel(orderUid: string, reason: string | null): Observable<ClinicalOrder> {
+    return this.http.post<ClinicalOrder>(`${this.apiBase}/orders/uid/${orderUid}/cancel`, { reason });
   }
 }

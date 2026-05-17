@@ -33,7 +33,8 @@ public class Prescription extends AuditableEntity {
     @Column(name = "prescription_no", nullable = false, length = 32)
     private String prescriptionNo;
 
-    @Column(name = "consultation_uid", nullable = false, length = 26) private String consultationUid;
+    /** Null for OUTSIDER (walk-in) prescriptions raised directly against the patient. */
+    @Column(name = "consultation_uid", length = 26) private String consultationUid;
     @Column(name = "patient_uid",      nullable = false, length = 26) private String patientUid;
     @Column(name = "medicine_uid",     nullable = false, length = 26) private String medicineUid;
 

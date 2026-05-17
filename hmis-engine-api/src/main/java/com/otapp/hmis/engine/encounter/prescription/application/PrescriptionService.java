@@ -1,8 +1,12 @@
 package com.otapp.hmis.engine.encounter.prescription.application;
 
+import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
+import com.otapp.hmis.engine.patient.domain.Patient;
+import com.otapp.hmis.engine.patient.domain.PatientRepository;
+import com.otapp.hmis.engine.patient.domain.PatientType;
 import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos.CancelPrescriptionRequest;
 import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos.CreatePrescriptionRequest;
 import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos.PrescriptionDto;
@@ -22,6 +26,7 @@ public class PrescriptionService {
 
     private final PrescriptionRepository prescriptionRepository;
     private final ConsultationRepository consultationRepository;
+    private final PatientRepository patientRepository;
     private final MedicineRepository medicineRepository;
     private final PrescriptionNumberGenerator numberGenerator;
 
@@ -44,6 +49,45 @@ public class PrescriptionService {
                 emptyToNull(request.instructions()));
         prescriptionRepository.save(prescription);
         return toDto(prescription, medicine);
+    }
+
+    /**
+     * Raise a prescription directly against an OUTSIDER (walk-in) patient,
+     * bypassing consultation. Used for retail / OTC sales workflow.
+     */
+    @Transactional
+    public PrescriptionDto prescribeForOutsider(String patientUid, CreatePrescriptionRequest request) {
+        Patient patient = patientRepository.findByUid(patientUid)
+                .orElseThrow(() -> new NotFoundException("Patient not found: " + patientUid));
+        if (!patient.isActive()) {
+            throw new BusinessRuleException("Cannot prescribe for an inactive patient");
+        }
+        if (patient.getType() != PatientType.OUTSIDER) {
+            throw new BusinessRuleException(
+                    "Direct prescriptions are for OUTSIDER patients only; OUTPATIENT raises Rx inside a consultation");
+        }
+        Medicine medicine = medicineRepository.findByUid(request.medicineUid())
+                .orElseThrow(() -> new NotFoundException("Medicine not found: " + request.medicineUid()));
+
+        Prescription prescription = new Prescription(
+                numberGenerator.next(),
+                null,
+                patient.getUid(),
+                medicine.getUid(),
+                request.dose().trim(),
+                request.frequency().trim(),
+                request.durationDays(),
+                request.quantity(),
+                emptyToNull(request.instructions()));
+        prescriptionRepository.save(prescription);
+        return toDto(prescription, medicine);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PrescriptionDto> listOutsiderForPatient(String patientUid) {
+        return prescriptionRepository.findAllByPatientUidAndConsultationUidIsNullOrderByRequestedAtDesc(patientUid).stream()
+                .map(this::toDto)
+                .toList();
     }
 
     @Transactional

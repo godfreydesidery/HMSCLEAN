@@ -90,6 +90,7 @@
                   <span class="patient-avatar">{{ initials(p) }}</span>
                   <div>
                     <div class="fw-semibold">{{ fullName(p) }}</div>
+                    <div class="small mt-1"><span [class]="typeBadgeClass(p.type)">{{ typeLabel(p.type) }}</span></div>
                   </div>
                 </div>
               </td>

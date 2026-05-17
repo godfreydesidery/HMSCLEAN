@@ -22,31 +22,42 @@ public class ClinicalOrderController {
 
     private final ClinicalOrderService orderService;
 
-    @GetMapping("/encounters/consultations/{consultationUid}/orders")
+    @GetMapping("/encounters/consultations/uid/{consultationUid}/orders")
     public ResponseEntity<List<ClinicalOrderDto>> list(@PathVariable String consultationUid) {
         return ResponseEntity.ok(orderService.listForConsultation(consultationUid));
     }
 
-    @PostMapping("/encounters/consultations/{consultationUid}/orders")
+    @PostMapping("/encounters/consultations/uid/{consultationUid}/orders")
     public ResponseEntity<ClinicalOrderDto> request(@PathVariable String consultationUid,
                                                     @Valid @RequestBody CreateOrderRequest request) {
         return ResponseEntity.ok(orderService.request(consultationUid, request));
     }
 
-    @PostMapping("/encounters/orders/{uid}/start")
-    public ResponseEntity<ClinicalOrderDto> markInProgress(@PathVariable String uid) {
-        return ResponseEntity.ok(orderService.markInProgress(uid));
+    @GetMapping("/encounters/patients/uid/{patientUid}/outsider-orders")
+    public ResponseEntity<List<ClinicalOrderDto>> listOutsiderForPatient(@PathVariable String patientUid) {
+        return ResponseEntity.ok(orderService.listOutsiderForPatient(patientUid));
     }
 
-    @PostMapping("/encounters/orders/{uid}/complete")
-    public ResponseEntity<ClinicalOrderDto> complete(@PathVariable String uid,
+    @PostMapping("/encounters/patients/uid/{patientUid}/outsider-orders")
+    public ResponseEntity<ClinicalOrderDto> requestForOutsider(@PathVariable String patientUid,
+                                                               @Valid @RequestBody CreateOrderRequest request) {
+        return ResponseEntity.ok(orderService.requestForOutsider(patientUid, request));
+    }
+
+    @PostMapping("/encounters/orders/uid/{orderUid}/start")
+    public ResponseEntity<ClinicalOrderDto> markInProgress(@PathVariable String orderUid) {
+        return ResponseEntity.ok(orderService.markInProgress(orderUid));
+    }
+
+    @PostMapping("/encounters/orders/uid/{orderUid}/complete")
+    public ResponseEntity<ClinicalOrderDto> complete(@PathVariable String orderUid,
                                                      @Valid @RequestBody(required = false) CompleteOrderRequest request) {
-        return ResponseEntity.ok(orderService.complete(uid, request));
+        return ResponseEntity.ok(orderService.complete(orderUid, request));
     }
 
-    @PostMapping("/encounters/orders/{uid}/cancel")
-    public ResponseEntity<ClinicalOrderDto> cancel(@PathVariable String uid,
+    @PostMapping("/encounters/orders/uid/{orderUid}/cancel")
+    public ResponseEntity<ClinicalOrderDto> cancel(@PathVariable String orderUid,
                                                    @Valid @RequestBody(required = false) CancelOrderRequest request) {
-        return ResponseEntity.ok(orderService.cancel(uid, request));
+        return ResponseEntity.ok(orderService.cancel(orderUid, request));
     }
 }

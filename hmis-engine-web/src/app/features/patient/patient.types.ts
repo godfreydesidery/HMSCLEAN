@@ -1,6 +1,6 @@
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'UNKNOWN';
 export type PaymentType = 'CASH' | 'INSURANCE' | 'MIXED' | 'CORPORATE' | 'EXEMPT';
-export type PatientType = 'NEW' | 'RETURNING' | 'REFERRAL' | 'STAFF' | 'DEPENDENT';
+export type PatientType = 'OUTPATIENT' | 'OUTSIDER';
 
 export const GENDERS: { value: Gender; label: string }[] = [
   { value: 'MALE',    label: 'Male' },
@@ -17,12 +17,9 @@ export const PAYMENT_TYPES: { value: PaymentType; label: string }[] = [
   { value: 'EXEMPT',    label: 'Exempt' }
 ];
 
-export const PATIENT_TYPES: { value: PatientType; label: string }[] = [
-  { value: 'NEW',       label: 'New' },
-  { value: 'RETURNING', label: 'Returning' },
-  { value: 'REFERRAL',  label: 'Referral' },
-  { value: 'STAFF',     label: 'Staff' },
-  { value: 'DEPENDENT', label: 'Dependent' }
+export const PATIENT_TYPES: { value: PatientType; label: string; description: string; badgeClass: string }[] = [
+  { value: 'OUTPATIENT', label: 'Outpatient', description: 'Flows through a clinic consultation',                    badgeClass: 'text-bg-primary-subtle text-primary border border-primary-subtle' },
+  { value: 'OUTSIDER',   label: 'Outsider',   description: 'Walk-in. Labs / radiology / Rx raised directly, no clinic', badgeClass: 'text-bg-warning-subtle text-warning-emphasis border border-warning-subtle' }
 ];
 
 export interface Patient {
@@ -67,6 +64,7 @@ export interface PatientSummary {
   lastName: string;
   dateOfBirth: string;
   gender: Gender;
+  type: PatientType;
   paymentType: PaymentType;
   phoneNo: string | null;
   active: boolean;

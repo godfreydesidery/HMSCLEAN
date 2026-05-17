@@ -19,6 +19,7 @@ final class PatientMapper {
                 p.getLastName(),
                 p.getDateOfBirth(),
                 p.getGender(),
+                p.getType(),
                 p.getPaymentType(),
                 p.getPhoneNo(),
                 p.isActive());

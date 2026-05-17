@@ -27,12 +27,24 @@
       <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="edit()">
         <i class="bi bi-pencil"></i>Edit
       </button>
-      <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="admit()" [disabled]="!p.active">
-        <i class="bi bi-hospital"></i>Admit
+      <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="toggleType()" title="Switch routing between OUTPATIENT and OUTSIDER">
+        <i class="bi bi-arrow-left-right"></i>{{ p.type === 'OUTSIDER' ? 'Restore to outpatient' : 'Mark as walk-in' }}
       </button>
-      <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="startConsultation()" [disabled]="!p.active">
-        <i class="bi bi-clipboard2-pulse"></i>Start consultation
-      </button>
+      @if (p.type === 'OUTSIDER') {
+        <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="raiseOutsiderOrder()" [disabled]="!p.active">
+          <i class="bi bi-card-list"></i>Raise order
+        </button>
+        <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="raiseOutsiderPrescription()" [disabled]="!p.active">
+          <i class="bi bi-capsule"></i>Raise prescription
+        </button>
+      } @else {
+        <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="admit()" [disabled]="!p.active">
+          <i class="bi bi-hospital"></i>Admit
+        </button>
+        <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="startConsultation()" [disabled]="!p.active">
+          <i class="bi bi-clipboard2-pulse"></i>Start consultation
+        </button>
+      }
     </div>
   </div>
 
@@ -43,7 +55,7 @@
         <div class="card-body">
           <dl class="row mb-0 patient-detail__dl">
             <dt class="col-sm-5">Date of birth</dt><dd class="col-sm-7">{{ p.dateOfBirth }}</dd>
-            <dt class="col-sm-5">Patient type</dt> <dd class="col-sm-7">{{ typeLabel(p.type) }}</dd>
+            <dt class="col-sm-5">Patient type</dt> <dd class="col-sm-7"><span [class]="typeBadgeClass(p.type)">{{ typeLabel(p.type) }}</span></dd>
             <dt class="col-sm-5">Nationality</dt>  <dd class="col-sm-7">{{ p.nationality || '—' }}</dd>
             <dt class="col-sm-5">National ID</dt>  <dd class="col-sm-7">{{ p.nationalId || '—' }}</dd>
             <dt class="col-sm-5">Passport</dt>     <dd class="col-sm-7">{{ p.passportNo || '—' }}</dd>

@@ -1,0 +1,32 @@
+<div class="shell">
+  <aside class="shell__sidebar">
+    <div class="shell__brand">{{ appName }}</div>
+    <nav class="shell__nav">
+      @for (item of navItems(); track item.path) {
+        <a
+          class="shell__nav-link"
+          [routerLink]="item.path"
+          routerLinkActive="shell__nav-link--active"
+        >
+          {{ item.label }}
+        </a>
+      }
+    </nav>
+  </aside>
+
+  <div class="shell__main">
+    <header class="shell__topbar">
+      @if (user(); as u) {
+        <div class="shell__user">
+          <span class="shell__user-name">{{ u.firstName }} {{ u.lastName }}</span>
+          <span class="shell__user-username">{{ u.username }}</span>
+        </div>
+      }
+      <button class="shell__logout" type="button" (click)="logout()">Sign out</button>
+    </header>
+
+    <main class="shell__content">
+      <router-outlet />
+    </main>
+  </div>
+</div>

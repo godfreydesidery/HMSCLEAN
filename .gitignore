@@ -1,0 +1,55 @@
+# --- OS / Editors ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.iml
+.classpath
+.project
+.settings/
+.factorypath
+
+# --- Java / Maven ---
+target/
+build/
+out/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+.mvn/wrapper/maven-wrapper.jar
+
+# --- Node / Angular ---
+node_modules/
+dist/
+tmp/
+.angular/
+.nx/
+coverage/
+*.tsbuildinfo
+.npm/
+
+# --- Env / Secrets ---
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+!*.example
+
+# --- Logs ---
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Docker volumes ---
+.docker-data/

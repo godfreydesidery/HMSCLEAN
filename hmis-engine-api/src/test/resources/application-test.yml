@@ -1,0 +1,25 @@
+spring:
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+hmis:
+  security:
+    jwt:
+      secret: integration-test-secret-key-with-at-least-32-chars
+      access-token-ttl: PT15M
+      refresh-token-ttl: PT1H
+      issuer: hmis-engine-test
+  cors:
+    allowed-origins: http://localhost:4200
+  bootstrap:
+    root-username: root
+    root-password: TestRoot!123
+
+logging:
+  level:
+    com.otapp.hmis.engine: INFO

@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    url: ${HMIS_DB_URL}
+    username: ${HMIS_DB_USERNAME}
+    password: ${HMIS_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+logging:
+  level:
+    com.otapp.hmis.engine: INFO
+    org.hibernate.SQL: WARN

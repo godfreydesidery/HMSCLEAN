@@ -1,7 +1,5 @@
 /**
  * Patient registration, demographics, identifiers, and visits.
- *
- * <p>Module not yet implemented.
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Patient",

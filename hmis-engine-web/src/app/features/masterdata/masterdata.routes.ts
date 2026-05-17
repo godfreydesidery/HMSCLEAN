@@ -46,6 +46,14 @@ export const MASTERDATA_ROUTES: Routes = [
       {
         path: 'insurance',
         loadComponent: () => import('./insurance/insurance-list.component').then((m) => m.InsuranceListComponent)
+      },
+      {
+        path: 'insurance-plans',
+        loadComponent: () => import('./insurance-plans/insurance-plan-list.component').then((m) => m.InsurancePlanListComponent)
+      },
+      {
+        path: 'pricing',
+        loadComponent: () => import('./pricing/price-list.component').then((m) => m.PriceListComponent)
       }
     ]
   }

@@ -1,0 +1,67 @@
+<div class="modal-header">
+  <h5 class="modal-title d-flex align-items-center gap-2">
+    <i class="bi" [class.bi-pencil-square]="isEdit" [class.bi-plus-circle]="!isEdit"></i>{{ title }}
+  </h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss()"></button>
+</div>
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-body">
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3" role="alert"><i class="bi bi-exclamation-circle"></i><span class="small">{{ errorMessage() }}</span></div>
+    }
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label" for="pr-plan">Insurance plan</label>
+        <select id="pr-plan" name="planUid" class="form-select" formControlName="planUid">
+          <option value="">— Cash / public price —</option>
+          @for (p of plans(); track p.uid) {
+            <option [value]="p.uid">{{ p.name }} ({{ p.providerName || p.code }})</option>
+          }
+        </select>
+        <div class="form-text">Leave blank to set the cash / out-of-pocket price.</div>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label" for="pr-kind">Service type <span class="text-danger">*</span></label>
+        <select id="pr-kind" name="kind" class="form-select" formControlName="kind">
+          @for (k of serviceKinds; track k.value) { <option [value]="k.value">{{ k.label }}</option> }
+        </select>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label" for="pr-service">Service <span class="text-danger">*</span></label>
+        <select id="pr-service" name="serviceUid" class="form-select" formControlName="serviceUid">
+          <option value="" disabled>{{ servicesLoading() ? 'Loading…' : '— Select a service —' }}</option>
+          @for (s of serviceOptions(); track s.uid) {
+            <option [value]="s.uid">{{ s.label }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="col-md-8">
+        <label class="form-label" for="pr-amount">Amount <span class="text-danger">*</span></label>
+        <input id="pr-amount" name="amount" type="number" min="0" step="0.01" class="form-control" formControlName="amount">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="pr-currency">Currency <span class="text-danger">*</span></label>
+        <input id="pr-currency" name="currency" type="text" maxlength="3" class="form-control text-uppercase" formControlName="currency">
+      </div>
+
+      <div class="col-12">
+        <label class="form-label" for="pr-note">Note</label>
+        <input id="pr-note" name="note" type="text" class="form-control" formControlName="note" autocomplete="off">
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+    <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting()">
+      @if (submitting()) {
+        <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output>Saving…
+      } @else {
+        <i class="bi bi-check2"></i>{{ isEdit ? 'Save changes' : 'Save price' }}
+      }
+    </button>
+  </div>
+</form>

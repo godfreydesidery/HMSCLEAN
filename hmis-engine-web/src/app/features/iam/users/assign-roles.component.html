@@ -1,0 +1,46 @@
+<div class="modal-header">
+  <div>
+    <h5 class="modal-title">Assign roles</h5>
+    <div class="hmis-muted small mt-1">{{ user.firstName }} {{ user.lastName }} · {{ user.username }}</div>
+  </div>
+  <button type="button" class="btn-close" (click)="activeModal.dismiss()" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  }
+
+  @if (loading()) {
+    <div class="hmis-muted small"><span class="spinner-border spinner-border-sm me-2"></span>Loading roles…</div>
+  } @else if (roles().length === 0) {
+    <div class="hmis-muted small">No roles defined yet.</div>
+  } @else {
+    <ul class="list-group list-group-flush">
+      @for (r of roles(); track r.uid) {
+        <li class="list-group-item d-flex align-items-start gap-2">
+          <input class="form-check-input mt-1" type="checkbox" [id]="'ar-' + r.name" [checked]="isSelected(r.name)" (change)="toggle(r.name, $any($event.target).checked)">
+          <label class="form-check-label flex-grow-1" [for]="'ar-' + r.name">
+            <div class="fw-semibold">{{ r.name }}</div>
+            @if (r.description) { <div class="hmis-muted small">{{ r.description }}</div> }
+            @if (r.privileges.length > 0) {
+              <div class="d-flex flex-wrap gap-1 mt-1">
+                @for (p of r.privileges; track p) {
+                  <span class="badge text-bg-light border small">{{ p }}</span>
+                }
+              </div>
+            }
+          </label>
+        </li>
+      }
+    </ul>
+  }
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+  <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="save()" [disabled]="submitting() || loading()">
+    @if (submitting()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }
+    <i class="bi bi-check2"></i>Save assignment
+  </button>
+</div>

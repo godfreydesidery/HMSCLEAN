@@ -1,0 +1,18 @@
+.patient-form {
+  &__section {
+    border-color: var(--hmis-border);
+  }
+
+  &__step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2563eb, #4f46e5);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.78rem;
+  }
+}

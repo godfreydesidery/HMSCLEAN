@@ -1,0 +1,57 @@
+<div class="modal-header">
+  <h5 class="modal-title">Add role</h5>
+  <button type="button" class="btn-close" (click)="activeModal.dismiss()" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  }
+
+  <form [formGroup]="form" novalidate>
+    <div class="row g-3 mb-3">
+      <div class="col-md-5">
+        <label class="form-label" for="rf-name">Name <span class="text-danger">*</span></label>
+        <input id="rf-name" name="name" type="text" class="form-control" formControlName="name" minlength="2" maxlength="64" autocomplete="off" placeholder="e.g. CLINICIAN">
+      </div>
+      <div class="col-md-7">
+        <label class="form-label" for="rf-desc">Description</label>
+        <input id="rf-desc" name="description" type="text" class="form-control" formControlName="description" maxlength="255">
+      </div>
+    </div>
+  </form>
+
+  <label class="form-label d-block fw-semibold">Privileges <span class="hmis-muted fw-normal small">({{ selected().length }} selected)</span></label>
+  <div class="input-group input-group-sm mb-2">
+    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search hmis-muted"></i></span>
+    <input type="search" class="form-control border-start-0 ps-0" placeholder="Filter privileges…" [value]="query()" (input)="setQuery($any($event.target).value)">
+  </div>
+
+  @if (loadingPrivs()) {
+    <div class="hmis-muted small"><span class="spinner-border spinner-border-sm me-2"></span>Loading privileges…</div>
+  } @else if (filteredPrivileges().length === 0) {
+    <div class="hmis-muted small">No privileges match.</div>
+  } @else {
+    <div class="border rounded" style="max-height: 320px; overflow-y: auto;">
+      <ul class="list-group list-group-flush">
+        @for (p of filteredPrivileges(); track p.uid) {
+          <li class="list-group-item d-flex align-items-start gap-2 py-2">
+            <input class="form-check-input mt-1" type="checkbox" [id]="'rf-priv-' + p.name" [checked]="isSelected(p.name)" (change)="toggle(p.name, $any($event.target).checked)">
+            <label class="form-check-label flex-grow-1" [for]="'rf-priv-' + p.name">
+              <span class="hmis-code">{{ p.name }}</span>
+              @if (p.description) { <span class="hmis-muted small ms-2">{{ p.description }}</span> }
+            </label>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+  <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="submit()" [disabled]="submitting() || loadingPrivs()">
+    @if (submitting()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }
+    <i class="bi bi-check2"></i>Create role
+  </button>
+</div>

@@ -42,16 +42,16 @@ public class RoleService {
     }
 
     @Transactional(readOnly = true)
-    public RoleDto findById(Long id) {
-        return roleRepository.findById(id)
+    public RoleDto findByUid(String uid) {
+        return roleRepository.findByUid(uid)
                 .map(IamMapper::toDto)
-                .orElseThrow(() -> new NotFoundException("Role not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Role not found: " + uid));
     }
 
     @Transactional
-    public RoleDto replacePrivileges(Long roleId, Set<String> privilegeNames) {
-        Role role = roleRepository.findById(roleId)
-                .orElseThrow(() -> new NotFoundException("Role not found: " + roleId));
+    public RoleDto replacePrivileges(String uid, Set<String> privilegeNames) {
+        Role role = roleRepository.findByUid(uid)
+                .orElseThrow(() -> new NotFoundException("Role not found: " + uid));
         role.getPrivileges().clear();
         attachPrivileges(role, privilegeNames);
         return IamMapper.toDto(role);

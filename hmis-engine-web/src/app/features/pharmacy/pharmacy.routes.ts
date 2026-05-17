@@ -1,10 +1,11 @@
 import { Routes } from '@angular/router';
 
 export const PHARMACY_ROUTES: Routes = [
+  { path: '', pathMatch: 'full', redirectTo: 'stock' },
   {
-    path: '',
+    path: 'stock',
     loadComponent: () =>
-      import('../placeholder/placeholder.component').then((m) => m.PlaceholderComponent),
-    data: { title: 'Pharmacy & Inventory' }
+      import('./stock/stock-list.component').then((m) => m.StockListComponent),
+    data: { title: 'Pharmacy stock' }
   }
 ];

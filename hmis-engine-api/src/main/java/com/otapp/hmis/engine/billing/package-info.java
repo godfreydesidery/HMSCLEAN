@@ -1,10 +1,8 @@
 /**
  * Billing, invoicing, payments, credit notes, and insurance claim submission.
- *
- * <p>Module not yet implemented.
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Billing",
-        allowedDependencies = {"common", "common.*", "iam", "masterdata", "patient", "encounter", "orders", "pharmacy"}
+        allowedDependencies = {"common", "common.*", "iam", "masterdata", "patient", "encounter"}
 )
 package com.otapp.hmis.engine.billing;

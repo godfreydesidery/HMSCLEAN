@@ -1,0 +1,57 @@
+<div class="modal-header">
+  <h5 class="modal-title d-flex align-items-center gap-2">
+    <i class="bi" [class.bi-pencil-square]="isEdit" [class.bi-plus-circle]="!isEdit"></i>
+    {{ title }}
+  </h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss()"></button>
+</div>
+
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-body">
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3" role="alert">
+        <i class="bi bi-exclamation-circle"></i><span class="small">{{ errorMessage() }}</span>
+      </div>
+    }
+
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label" for="ward-code">Code <span class="text-danger">*</span></label>
+        <input id="ward-code" name="code" type="text" class="form-control text-uppercase" formControlName="code" autocomplete="off" placeholder="e.g. GENW">
+      </div>
+      <div class="col-md-8">
+        <label class="form-label" for="ward-name">Name <span class="text-danger">*</span></label>
+        <input id="ward-name" name="name" type="text" class="form-control" formControlName="name" autocomplete="off">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="ward-category">Category <span class="text-danger">*</span></label>
+        <select id="ward-category" name="category" class="form-select" formControlName="category">
+          @for (c of categories; track c.value) { <option [value]="c.value">{{ c.label }}</option> }
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="ward-capacity">Capacity <span class="text-danger">*</span></label>
+        <input id="ward-capacity" name="capacity" type="number" min="0" class="form-control" formControlName="capacity">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="ward-location">Location</label>
+        <input id="ward-location" name="location" type="text" class="form-control" formControlName="location" autocomplete="off">
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="ward-description">Description</label>
+        <textarea id="ward-description" name="description" rows="3" class="form-control" formControlName="description"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+    <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting()">
+      @if (submitting()) {
+        <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output>Saving…
+      } @else {
+        <i class="bi bi-check2"></i>{{ isEdit ? 'Save changes' : 'Create ward' }}
+      }
+    </button>
+  </div>
+</form>

@@ -6,6 +6,8 @@ import com.otapp.hmis.engine.iam.application.dto.CreateUserRequest;
 import com.otapp.hmis.engine.iam.application.dto.UserSummary;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -35,27 +37,45 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('USER_READ')")
-    public ResponseEntity<PageResponse<UserSummary>> list(Pageable pageable) {
-        return ResponseEntity.ok(userService.list(pageable));
+    public ResponseEntity<PageResponse<UserSummary>> search(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String query,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Boolean enabled,
+            Pageable pageable) {
+        return ResponseEntity.ok(userService.search(query, enabled, pageable));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{uid}")
     @PreAuthorize("hasAuthority('USER_READ')")
-    public ResponseEntity<UserSummary> findById(@PathVariable Long id) {
-        return ResponseEntity.ok(userService.findById(id));
+    public ResponseEntity<UserSummary> findByUid(@PathVariable String uid) {
+        return ResponseEntity.ok(userService.findByUid(uid));
     }
 
-    @PutMapping("/{id}/enabled")
+    @PutMapping("/{uid}/enabled")
     @PreAuthorize("hasAuthority('USER_UPDATE')")
-    public ResponseEntity<UserSummary> setEnabled(@PathVariable Long id, @RequestBody EnabledRequest request) {
-        return ResponseEntity.ok(userService.setEnabled(id, request.enabled()));
+    public ResponseEntity<UserSummary> setEnabled(@PathVariable String uid, @RequestBody EnabledRequest request) {
+        return ResponseEntity.ok(userService.setEnabled(uid, request.enabled()));
     }
 
-    @PutMapping("/{id}/roles")
+    @PutMapping("/{uid}/roles")
     @PreAuthorize("hasAuthority('USER_UPDATE')")
-    public ResponseEntity<UserSummary> replaceRoles(@PathVariable Long id, @RequestBody Set<String> roleNames) {
-        return ResponseEntity.ok(userService.replaceRoles(id, roleNames));
+    public ResponseEntity<UserSummary> replaceRoles(@PathVariable String uid, @RequestBody Set<String> roleNames) {
+        return ResponseEntity.ok(userService.replaceRoles(uid, roleNames));
+    }
+
+    @PostMapping("/{uid}/reset-password")
+    @PreAuthorize("hasAuthority('USER_UPDATE')")
+    public ResponseEntity<UserSummary> resetPassword(@PathVariable String uid,
+                                                     @Valid @RequestBody ResetPasswordRequest request) {
+        return ResponseEntity.ok(userService.resetPassword(uid, request.newPassword()));
+    }
+
+    @PostMapping("/{uid}/unlock")
+    @PreAuthorize("hasAuthority('USER_UPDATE')")
+    public ResponseEntity<UserSummary> unlock(@PathVariable String uid) {
+        return ResponseEntity.ok(userService.unlock(uid));
     }
 
     public record EnabledRequest(boolean enabled) {}
+
+    public record ResetPasswordRequest(@NotBlank @Size(min = 8, max = 128) String newPassword) {}
 }

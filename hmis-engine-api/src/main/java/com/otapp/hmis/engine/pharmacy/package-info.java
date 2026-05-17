@@ -1,11 +1,9 @@
 /**
- * Pharmacy operations: dispensing, stock cards, batch tracking, and the
- * inter-store / inter-pharmacy transfer matrix (RO / TO / RN documents).
- *
- * <p>Module not yet implemented.
+ * Pharmacy operations: stock balances, stock movements, and dispensing
+ * prescriptions raised in the encounter module.
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Pharmacy & Inventory",
-        allowedDependencies = {"common", "common.*", "iam", "masterdata", "orders"}
+        allowedDependencies = {"common", "common.*", "iam", "masterdata", "encounter"}
 )
 package com.otapp.hmis.engine.pharmacy;

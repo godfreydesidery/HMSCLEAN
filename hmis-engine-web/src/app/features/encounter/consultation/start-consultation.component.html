@@ -1,0 +1,99 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">Start consultation</h1>
+    <p class="hmis-muted mb-0 small">Book a clinician encounter for a patient at a specific clinic.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-light border" (click)="cancel()" [disabled]="submitting()">Cancel</button>
+    <button type="submit" form="start-consultation-form" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting() || loadingLookups()">
+      @if (submitting()) {
+        <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output>Saving…
+      } @else {
+        <i class="bi bi-check2"></i>Book consultation
+      }
+    </button>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+    <i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span>
+  </div>
+}
+
+@if (patient(); as p) {
+  <div class="card mb-3 start-consultation__patient">
+    <div class="card-body d-flex align-items-center gap-3">
+      <span class="patient-avatar">{{ ((p.firstName[0] || '') + (p.lastName[0] || '')) | uppercase }}</span>
+      <div>
+        <div class="fw-semibold">{{ p.firstName }} {{ p.middleName }} {{ p.lastName }}</div>
+        <div class="hmis-muted small d-flex gap-3">
+          <span><span class="hmis-code">{{ p.patientNo }}</span></span>
+          <span>{{ p.gender }}</span>
+          @if (p.phoneNo) { <span><i class="bi bi-telephone me-1"></i>{{ p.phoneNo }}</span> }
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<form id="start-consultation-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label" for="sc-patient">Patient UID <span class="text-danger">*</span></label>
+      <input id="sc-patient" name="patientUid" type="text" class="form-control" formControlName="patientUid" autocomplete="off" placeholder="Paste patient uid or open this page from a patient profile">
+      <div class="form-text">Tip: from a patient's profile, click "Start consultation" to pre-fill this field.</div>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label" for="sc-clinic">Clinic <span class="text-danger">*</span></label>
+      <select id="sc-clinic" name="clinicUid" class="form-select" formControlName="clinicUid">
+        <option value="" disabled>{{ loadingLookups() ? 'Loading…' : '— Select a clinic —' }}</option>
+        @for (c of clinics(); track c.uid) {
+          <option [value]="c.uid">{{ c.name }} ({{ c.code }})</option>
+        }
+      </select>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label" for="sc-clinician">Clinician <span class="text-danger">*</span></label>
+      <select id="sc-clinician" name="clinicianUsername" class="form-select" formControlName="clinicianUsername">
+        <option value="" disabled>{{ loadingLookups() ? 'Loading…' : '— Select a clinician —' }}</option>
+        @for (c of clinicians(); track c.username) {
+          <option [value]="c.username">{{ c.fullName }} ({{ c.username }})</option>
+        }
+      </select>
+      @if (!loadingLookups() && clinicians().length === 0) {
+        <div class="form-text text-warning">No users with the CLINICIAN role are enabled. Assign a user to the CLINICIAN role to populate this list.</div>
+      }
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label" for="sc-payment">Payment type <span class="text-danger">*</span></label>
+      <select id="sc-payment" name="paymentType" class="form-select" formControlName="paymentType">
+        @for (p of paymentTypes; track p.value) { <option [value]="p.value">{{ p.label }}</option> }
+      </select>
+    </div>
+
+    <div class="col-12">
+      <label class="form-label" for="sc-plan">
+        Insurance plan
+        @if (insuranceRequired) { <span class="text-danger">*</span> }
+      </label>
+      <select id="sc-plan" name="insurancePlanUid" class="form-select" formControlName="insurancePlanUid">
+        <option value="">— No plan —</option>
+        @for (pl of plans(); track pl.uid) {
+          <option [value]="pl.uid">{{ pl.name }} ({{ pl.providerName || pl.code }})</option>
+        }
+      </select>
+      @if (form.controls.insurancePlanUid.errors?.['required'] && form.controls.insurancePlanUid.touched) {
+        <div class="invalid-feedback d-block">An insurance plan is required for this payment type.</div>
+      }
+    </div>
+
+    <div class="col-12">
+      <label class="form-label" for="sc-reason">Reason for visit</label>
+      <textarea id="sc-reason" name="reason" rows="3" class="form-control" formControlName="reason" placeholder="Chief complaint, presenting symptoms…"></textarea>
+    </div>
+  </div>
+</form>

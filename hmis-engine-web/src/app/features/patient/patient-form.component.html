@@ -1,0 +1,195 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">{{ title }}</h1>
+    <p class="hmis-muted mb-0 small">Capture patient demographics, contact and insurance details.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-light border" (click)="cancel()" [disabled]="submitting()">Cancel</button>
+    <button type="submit" form="patient-form" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting()">
+      @if (submitting()) {
+        <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output>Saving…
+      } @else {
+        <i class="bi bi-check2"></i>{{ isEdit ? 'Save changes' : 'Register patient' }}
+      }
+    </button>
+  </div>
+</div>
+
+<form id="patient-form" class="patient-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span>
+    </div>
+  }
+
+  <div class="row g-3">
+    <!-- ====== Personal ====== -->
+    <div class="col-lg-6">
+      <section class="card patient-form__section h-100">
+        <header class="card-header bg-white d-flex align-items-center gap-2">
+          <span class="patient-form__step-num">1</span>
+          <div>
+            <div class="fw-semibold">Personal details</div>
+            <div class="hmis-muted small">Identity and demographic information.</div>
+          </div>
+        </header>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label" for="pf-first">First name <span class="text-danger">*</span></label>
+              <input id="pf-first" name="firstName" type="text" class="form-control" formControlName="firstName" autocomplete="given-name">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="pf-middle">Middle name</label>
+              <input id="pf-middle" name="middleName" type="text" class="form-control" formControlName="middleName" autocomplete="additional-name">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="pf-last">Last name <span class="text-danger">*</span></label>
+              <input id="pf-last" name="lastName" type="text" class="form-control" formControlName="lastName" autocomplete="family-name">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label" for="pf-dob">Date of birth <span class="text-danger">*</span></label>
+              <input id="pf-dob" name="dateOfBirth" type="date" class="form-control" formControlName="dateOfBirth">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="pf-gender">Gender <span class="text-danger">*</span></label>
+              <select id="pf-gender" name="gender" class="form-select" formControlName="gender">
+                @for (g of genders; track g.value) { <option [value]="g.value">{{ g.label }}</option> }
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label" for="pf-type">Patient type <span class="text-danger">*</span></label>
+              <select id="pf-type" name="type" class="form-select" formControlName="type">
+                @for (t of patientTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="pf-nationality">Nationality</label>
+              <input id="pf-nationality" name="nationality" type="text" class="form-control" formControlName="nationality" autocomplete="country-name">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label" for="pf-natid">National ID</label>
+              <input id="pf-natid" name="nationalId" type="text" class="form-control" formControlName="nationalId" autocomplete="off">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="pf-passport">Passport number</label>
+              <input id="pf-passport" name="passportNo" type="text" class="form-control" formControlName="passportNo" autocomplete="off">
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ====== Contact ====== -->
+    <div class="col-lg-6">
+      <section class="card patient-form__section h-100">
+        <header class="card-header bg-white d-flex align-items-center gap-2">
+          <span class="patient-form__step-num">2</span>
+          <div>
+            <div class="fw-semibold">Contact</div>
+            <div class="hmis-muted small">How can we reach this patient?</div>
+          </div>
+        </header>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="pf-phone">Phone</label>
+              <div class="input-group">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-telephone hmis-muted"></i></span>
+                <input id="pf-phone" name="phoneNo" type="tel" class="form-control border-start-0 ps-0" formControlName="phoneNo" autocomplete="tel">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="pf-email">Email</label>
+              <div class="input-group">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-envelope hmis-muted"></i></span>
+                <input id="pf-email" name="email" type="email" class="form-control border-start-0 ps-0" formControlName="email" autocomplete="email">
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="pf-address">Address</label>
+              <input id="pf-address" name="address" type="text" class="form-control" formControlName="address" autocomplete="street-address">
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ====== Insurance ====== -->
+    <div class="col-lg-6">
+      <section class="card patient-form__section h-100">
+        <header class="card-header bg-white d-flex align-items-center gap-2">
+          <span class="patient-form__step-num">3</span>
+          <div>
+            <div class="fw-semibold">Billing &amp; insurance</div>
+            <div class="hmis-muted small">Default payment behaviour for visits.</div>
+          </div>
+        </header>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="pf-payment">Payment type <span class="text-danger">*</span></label>
+              <select id="pf-payment" name="paymentType" class="form-select" formControlName="paymentType">
+                @for (p of paymentTypes; track p.value) { <option [value]="p.value">{{ p.label }}</option> }
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="pf-plan">
+                Insurance plan
+                @if (insuranceRequiredBool()) { <span class="text-danger">*</span> }
+              </label>
+              <select id="pf-plan" name="insurancePlanUid" class="form-select" formControlName="insurancePlanUid">
+                <option value="">— No plan —</option>
+                @for (pl of insurancePlans(); track pl.uid) {
+                  <option [value]="pl.uid">{{ pl.name }} ({{ pl.providerName || pl.code }})</option>
+                }
+              </select>
+              @if (form.controls.insurancePlanUid.errors?.['required'] && form.controls.insurancePlanUid.touched) {
+                <div class="invalid-feedback d-block">An insurance plan is required for this payment type.</div>
+              }
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="pf-membership">Membership number</label>
+              <input id="pf-membership" name="membershipNo" type="text" class="form-control" formControlName="membershipNo" autocomplete="off">
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ====== Next of kin ====== -->
+    <div class="col-lg-6">
+      <section class="card patient-form__section h-100">
+        <header class="card-header bg-white d-flex align-items-center gap-2">
+          <span class="patient-form__step-num">4</span>
+          <div>
+            <div class="fw-semibold">Next of kin</div>
+            <div class="hmis-muted small">Emergency contact details.</div>
+          </div>
+        </header>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-7">
+              <label class="form-label" for="pf-kin-name">Full name</label>
+              <input id="pf-kin-name" name="kinFullName" type="text" class="form-control" formControlName="kinFullName" autocomplete="off">
+            </div>
+            <div class="col-md-5">
+              <label class="form-label" for="pf-kin-rel">Relationship</label>
+              <input id="pf-kin-rel" name="kinRelationship" type="text" class="form-control" formControlName="kinRelationship" autocomplete="off">
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="pf-kin-phone">Phone</label>
+              <div class="input-group">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-telephone hmis-muted"></i></span>
+                <input id="pf-kin-phone" name="kinPhoneNo" type="tel" class="form-control border-start-0 ps-0" formControlName="kinPhoneNo" autocomplete="off">
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</form>

@@ -1,0 +1,78 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">Login audit</h1>
+    <p class="hmis-muted mb-0 small">Every authentication attempt — successes and failures — with IP and user agent.</p>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <div class="row g-2 align-items-center">
+      <div class="col-md-6">
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0"><i class="bi bi-search hmis-muted"></i></span>
+          <input type="search" name="username" autocomplete="off" class="form-control border-start-0 ps-0" placeholder="Search by username…" [formControl]="username" aria-label="Search">
+        </div>
+      </div>
+      <div class="col-md-auto ms-md-auto">
+        <fieldset class="btn-group btn-group-sm border-0 p-0 m-0">
+          <legend class="visually-hidden">Outcome filter</legend>
+          <button type="button" class="btn btn-outline-secondary" [class.active]="outcomeFilter() === 'ALL'" (click)="setOutcomeFilter('ALL')">All</button>
+          @for (o of outcomes; track o.value) {
+            <button type="button" class="btn btn-outline-secondary" [class.active]="outcomeFilter() === o.value" (click)="setOutcomeFilter(o.value)">{{ o.label }}</button>
+          }
+        </fieldset>
+      </div>
+    </div>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0 hmis-table">
+      <thead><tr><th>When</th><th>Username</th><th>Outcome</th><th>IP</th><th>User agent</th></tr></thead>
+      <tbody>
+        @if (loading()) {
+          @for (i of [1,2,3,4,5,6,7,8]; track i) {
+            <tr><td><span class="hmis-skeleton" style="width:160px;"></span></td><td><span class="hmis-skeleton" style="width:120px;"></span></td><td><span class="hmis-skeleton" style="width:100px;"></span></td><td><span class="hmis-skeleton" style="width:100px;"></span></td><td><span class="hmis-skeleton" style="width:240px;"></span></td></tr>
+          }
+        } @else if (items().length === 0) {
+          <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-shield-check"></i><div class="fw-semibold mb-1">No login activity yet</div><div class="small">Successful and failed sign-ins will appear here.</div></div></td></tr>
+        } @else {
+          @for (a of items(); track a.uid) {
+            <tr>
+              <td class="hmis-muted small">{{ a.attemptedAt | date:'medium' }}</td>
+              <td><div class="fw-semibold">{{ a.username }}</div></td>
+              <td><span [class]="outcomeBadgeClass(a.outcome)">{{ outcomeLabel(a.outcome) }}</span></td>
+              <td class="hmis-muted small">{{ a.ipAddress || '—' }}</td>
+              <td class="hmis-muted small text-truncate" style="max-width:340px;">{{ a.userAgent || '—' }}</td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (!loading() && items().length > 0) {
+    <div class="card-footer bg-white d-flex flex-wrap align-items-center gap-2">
+      <div class="hmis-muted small">Showing {{ items().length }} of {{ totalElements() }}</div>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <label class="hmis-muted small mb-0" for="aud-page-size">Rows</label>
+        <select id="aud-page-size" name="pageSize" class="form-select form-select-sm" style="width:auto;" [value]="pageSize()" (change)="changePageSize(+$any($event.target).value)">
+          <option [value]="25">25</option><option [value]="50">50</option><option [value]="100">100</option>
+        </select>
+        <nav aria-label="Pagination" class="ms-2">
+          <ul class="pagination pagination-sm mb-0">
+            <li class="page-item" [class.disabled]="page() === 0"><button type="button" class="page-link" (click)="goToPage(page() - 1)" aria-label="Previous"><i class="bi bi-chevron-left"></i></button></li>
+            @for (p of pageWindow(); track p) { <li class="page-item" [class.active]="p === page()"><button type="button" class="page-link" (click)="goToPage(p)">{{ p + 1 }}</button></li> }
+            <li class="page-item" [class.disabled]="page() >= totalPages() - 1"><button type="button" class="page-link" (click)="goToPage(page() + 1)" aria-label="Next"><i class="bi bi-chevron-right"></i></button></li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+  }
+</div>

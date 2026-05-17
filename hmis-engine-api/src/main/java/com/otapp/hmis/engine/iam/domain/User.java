@@ -12,6 +12,7 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.AccessLevel;
@@ -52,6 +53,29 @@ public class User extends AuditableEntity {
     @Column(nullable = false)
     private boolean enabled = true;
 
+    /** Set to true after an admin reset; user must change password before doing anything else. */
+    @Setter
+    @Column(name = "password_must_change", nullable = false)
+    private boolean passwordMustChange = false;
+
+    @Setter
+    @Column(name = "password_changed_at")
+    private Instant passwordChangedAt;
+
+    /** Counter of consecutive failed login attempts since last success. Reset on successful login. */
+    @Setter
+    @Column(name = "failed_login_attempts", nullable = false)
+    private int failedLoginAttempts = 0;
+
+    /** Account is locked while {@code locked_until > now()}. */
+    @Setter
+    @Column(name = "locked_until")
+    private Instant lockedUntil;
+
+    @Setter
+    @Column(name = "last_login_at")
+    private Instant lastLoginAt;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "iam_user_role",
@@ -78,5 +102,9 @@ public class User extends AuditableEntity {
 
     public String fullName() {
         return firstName + " " + lastName;
+    }
+
+    public boolean isLocked() {
+        return lockedUntil != null && Instant.now().isBefore(lockedUntil);
     }
 }

@@ -1,0 +1,304 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title d-flex align-items-center gap-2">
+      <i class="bi bi-hospital text-primary"></i>
+      @if (admission(); as a) { <span class="hmis-code">{{ a.admissionNo }}</span> } @else { <span>Admission</span> }
+    </h1>
+    <p class="hmis-muted mb-0 small">Inpatient admission record.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-light border" (click)="backToList()"><i class="bi bi-arrow-left me-1"></i>Back</button>
+    @if (admission(); as a) {
+      <div ngbDropdown class="d-inline-block" placement="bottom-end">
+        <button class="btn btn-outline-secondary d-flex align-items-center gap-2" ngbDropdownToggle [disabled]="busy()">
+          <i class="bi bi-three-dots-vertical"></i>Actions
+        </button>
+        <div ngbDropdownMenu>
+          <button ngbDropdownItem [disabled]="!isActive()" (click)="openTransfer(transferModal)"><i class="bi bi-arrow-left-right me-2"></i>Transfer ward / bed</button>
+          <button ngbDropdownItem [disabled]="!isActive()" (click)="openDischarge(dischargeModal, 'discharge')"><i class="bi bi-box-arrow-right me-2 text-success"></i>Discharge</button>
+          <button ngbDropdownItem [disabled]="!isActive()" (click)="openDischarge(dischargeModal, 'transferOut')"><i class="bi bi-truck me-2 text-info"></i>Transfer out to another facility</button>
+          <button ngbDropdownItem [disabled]="!isActive()" (click)="openDischarge(dischargeModal, 'deceased')"><i class="bi bi-heartbreak me-2 text-dark"></i>Mark deceased</button>
+          <div class="dropdown-divider"></div>
+          <button ngbDropdownItem [disabled]="!isActive()" class="text-danger" (click)="openCancel(cancelModal)"><i class="bi bi-x-octagon me-2"></i>Cancel admission</button>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+@if (actionMessage()) {
+  <div class="alert alert-success d-flex align-items-center gap-2" role="alert"><i class="bi bi-check-circle"></i><span>{{ actionMessage() }}</span></div>
+}
+
+@if (loading()) {
+  <div class="card"><div class="card-body p-4"><span class="hmis-skeleton" style="width:280px;"></span></div></div>
+} @else { @if (admission(); as a) {
+  <ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'overview'" (click)="setTab('overview')"><i class="bi bi-info-circle me-1"></i>Overview</button></li>
+    <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'notes'" (click)="setTab('notes')"><i class="bi bi-journal-text me-1"></i>Progress notes <span class="badge text-bg-light border ms-1">{{ notes().length }}</span></button></li>
+    <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'billing'" (click)="setTab('billing')"><i class="bi bi-cash-coin me-1"></i>Billing @if (invoice()) { <i class="bi bi-check-circle text-success ms-1"></i> }</button></li>
+  </ul>
+
+  @switch (activeTab()) {
+    @case ('overview') {
+      <div class="row g-3">
+        <div class="col-lg-8">
+          <div class="card mb-3">
+            <div class="card-header bg-white d-flex align-items-center gap-3 py-3">
+              <span class="patient-avatar">{{ patientInitials(a) }}</span>
+              <div class="flex-grow-1">
+                <div class="fw-semibold">{{ a.patientName || a.patientUid }}</div>
+                <div class="hmis-muted small">{{ a.patientNo || '—' }}</div>
+              </div>
+              <span [class]="statusBadgeClass(a.status)">{{ statusLabel(a.status) }}</span>
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-md-4"><div class="hmis-muted small">Ward</div><div class="fw-semibold">{{ a.wardName || '—' }}</div></div>
+                <div class="col-md-4"><div class="hmis-muted small">Bed</div><div class="fw-semibold">{{ a.bedLabel || '—' }}</div></div>
+                <div class="col-md-4"><div class="hmis-muted small">Admitting clinician</div><div class="fw-semibold">{{ a.admittingClinicianName || a.admittingClinicianUsername }}</div></div>
+                <div class="col-md-4"><div class="hmis-muted small">Payment</div><div class="fw-semibold">{{ paymentLabel(a.paymentType) }}</div></div>
+                <div class="col-md-8"><div class="hmis-muted small">Insurance plan</div><div class="fw-semibold">{{ a.insurancePlanName || '—' }}</div></div>
+                <div class="col-12">
+                  <div class="hmis-muted small">Reason for admission</div>
+                  <div>{{ a.admissionReason || '—' }}</div>
+                </div>
+                @if (a.consultationNo) {
+                  <div class="col-12">
+                    <div class="hmis-muted small">Source consultation</div>
+                    <a class="hmis-code" [routerLink]="['/encounters', 'consultations', a.consultationUid]">{{ a.consultationNo }}</a>
+                  </div>
+                }
+                @if (a.dischargeSummary) {
+                  <div class="col-12">
+                    <div class="hmis-muted small">Discharge / closing summary</div>
+                    <div>{{ a.dischargeSummary }}</div>
+                  </div>
+                }
+                @if (a.cancelReason) {
+                  <div class="col-12">
+                    <div class="hmis-muted small">Cancellation reason</div>
+                    <div class="text-danger">{{ a.cancelReason }}</div>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4">
+          <div class="card">
+            <div class="card-header bg-white py-3"><span class="fw-semibold"><i class="bi bi-clock-history me-2 text-primary"></i>Timeline</span></div>
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item d-flex justify-content-between"><span class="hmis-muted small">Admitted</span><span class="small">{{ a.admittedAt | date:'medium' }}</span></li>
+              @if (a.dischargedAt) {
+                <li class="list-group-item d-flex justify-content-between"><span class="hmis-muted small">{{ a.status === 'DECEASED' ? 'Deceased' : (a.status === 'TRANSFERRED' ? 'Transferred out' : 'Discharged') }}</span><span class="small">{{ a.dischargedAt | date:'medium' }}</span></li>
+              }
+              @if (a.cancelledAt) {
+                <li class="list-group-item d-flex justify-content-between"><span class="hmis-muted small">Cancelled</span><span class="small">{{ a.cancelledAt | date:'medium' }}</span></li>
+              }
+              <li class="list-group-item d-flex justify-content-between"><span class="hmis-muted small">Created</span><span class="small">{{ a.createdAt | date:'medium' }}</span></li>
+              <li class="list-group-item d-flex justify-content-between"><span class="hmis-muted small">Updated</span><span class="small">{{ a.updatedAt | date:'medium' }}</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    }
+
+    @case ('notes') {
+      <div class="card mb-3">
+        <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-pencil-square me-2 text-primary"></i>Add a progress note</div>
+        <div class="card-body">
+          <form [formGroup]="noteForm" (ngSubmit)="addNote()" novalidate>
+            <div class="row g-2 mb-2">
+              <div class="col-md-4">
+                <label class="form-label" for="pn-kind">Kind</label>
+                <select id="pn-kind" name="kind" class="form-select" formControlName="kind">
+                  @for (k of noteKinds; track k.value) { <option [value]="k.value">{{ k.label }}</option> }
+                </select>
+              </div>
+            </div>
+            <div class="mb-2">
+              <label class="form-label" for="pn-body">Body</label>
+              <textarea id="pn-body" name="body" rows="4" class="form-control" formControlName="body" maxlength="8000" placeholder="What happened on this round / observation / handover?"></textarea>
+            </div>
+            <div class="d-flex justify-content-end">
+              <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="busy() || noteForm.invalid || !isActive()">
+                @if (busy()) { <span class="spinner-border spinner-border-sm"></span> }
+                <i class="bi bi-plus-lg"></i>Save note
+              </button>
+            </div>
+            @if (!isActive()) {
+              <div class="form-text mt-2"><i class="bi bi-info-circle me-1"></i>This admission is closed — notes cannot be added.</div>
+            }
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-journal-text me-2 text-primary"></i>Timeline ({{ notes().length }})</div>
+        @if (notesLoading()) {
+          <div class="card-body"><span class="hmis-skeleton" style="width:240px;"></span></div>
+        } @else if (notes().length === 0) {
+          <div class="card-body"><div class="hmis-empty"><i class="bi bi-journal-text"></i><div class="small">No notes recorded yet.</div></div></div>
+        } @else {
+          <ul class="list-group list-group-flush">
+            @for (n of notes(); track n.uid) {
+              <li class="list-group-item" [class.opacity-50]="n.deleted">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                  <div class="flex-grow-1">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                      <span [class]="noteKindBadgeClass(n.kind)"><i class="bi {{ noteKindIcon(n.kind) }}"></i>{{ noteKindLabel(n.kind) }}</span>
+                      <span class="hmis-muted small">{{ n.recordedAt | date:'medium' }} · {{ n.authorName || n.authorUsername }}</span>
+                      @if (n.deleted) { <span class="badge text-bg-light border text-danger"><i class="bi bi-trash me-1"></i>removed</span> }
+                    </div>
+                    <div style="white-space: pre-wrap;">{{ n.body }}</div>
+                    @if (n.deleted && n.deletedReason) {
+                      <div class="form-text mt-1"><strong>Removed:</strong> {{ n.deletedReason }}</div>
+                    }
+                  </div>
+                  @if (!n.deleted) {
+                    <button type="button" class="btn btn-sm btn-light border" (click)="deleteNote(n)" title="Remove note"><i class="bi bi-trash"></i></button>
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    }
+
+    @case ('billing') {
+      @if (invoiceLoading() && !invoice()) {
+        <div class="card"><div class="card-body p-4"><span class="hmis-skeleton" style="width:240px;"></span></div></div>
+      } @else if (!invoice()) {
+        <div class="card">
+          <div class="card-body text-center py-5">
+            <i class="bi bi-receipt fs-1 text-primary mb-2 d-block"></i>
+            <h5 class="mb-1">No invoice yet</h5>
+            <p class="hmis-muted small">Generate an inpatient invoice now to bill the ward stay.</p>
+            <button type="button" class="btn btn-primary d-flex align-items-center gap-2 mx-auto" (click)="generateInvoice()" [disabled]="invoiceLoading()">
+              @if (invoiceLoading()) { <span class="spinner-border spinner-border-sm"></span> } @else { <i class="bi bi-cash-coin"></i> }
+              Generate invoice
+            </button>
+          </div>
+        </div>
+      } @else { @if (invoice(); as inv) {
+        <div class="card mb-3">
+          <div class="card-header bg-white d-flex flex-wrap align-items-center gap-2 py-3">
+            <span class="fw-semibold hmis-code">{{ inv.invoiceNo }}</span>
+            <span [class]="invoiceStatusBadgeClass(inv.status)">{{ invoiceStatusLabel(inv.status) }}</span>
+            <div class="ms-auto d-flex flex-wrap gap-2">
+              @if (inv.status === 'DRAFT') {
+                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="generateInvoice()" [disabled]="invoiceLoading()"><i class="bi bi-arrow-clockwise me-1"></i>Regenerate</button>
+                <button type="button" class="btn btn-sm btn-primary" (click)="issueInvoice()"><i class="bi bi-send me-1"></i>Issue</button>
+              }
+              @if (inv.status === 'ISSUED' || inv.status === 'PARTIALLY_PAID') {
+                <button type="button" class="btn btn-sm btn-success" (click)="recordInvoicePayment()"><i class="bi bi-cash me-1"></i>Record payment</button>
+              }
+              @if (inv.status !== 'PAID' && inv.status !== 'CANCELLED') {
+                <button type="button" class="btn btn-sm btn-outline-danger" (click)="cancelInvoice()"><i class="bi bi-x-octagon me-1"></i>Cancel</button>
+              }
+              <a class="btn btn-sm btn-light border" [routerLink]="['/billing', inv.uid]"><i class="bi bi-box-arrow-up-right me-1"></i>Open full view</a>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit price</th><th class="text-end">Amount</th></tr></thead>
+                <tbody>
+                  @if (inv.lines.length === 0) {
+                    <tr><td colspan="4" class="text-center hmis-muted small py-3">No lines yet — regenerate to compute.</td></tr>
+                  } @else {
+                    @for (line of inv.lines; track line.uid) {
+                      <tr>
+                        <td>{{ line.description }}</td>
+                        <td class="text-end">{{ line.quantity }}</td>
+                        <td class="text-end">{{ line.unitPrice | number:'1.2-2' }}</td>
+                        <td class="text-end">{{ line.amount | number:'1.2-2' }}</td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+                <tfoot>
+                  <tr><td colspan="3" class="text-end fw-semibold">Subtotal</td><td class="text-end fw-semibold">{{ inv.currency }} {{ inv.subtotal | number:'1.2-2' }}</td></tr>
+                  <tr><td colspan="3" class="text-end">Paid</td><td class="text-end">{{ inv.currency }} {{ inv.totalPaid | number:'1.2-2' }}</td></tr>
+                  <tr><td colspan="3" class="text-end fw-semibold">Balance</td><td class="text-end fw-semibold">{{ inv.currency }} {{ inv.balance | number:'1.2-2' }}</td></tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+      } }
+    }
+  }
+} }
+
+<ng-template #transferModal let-modal>
+  <div class="modal-header">
+    <h5 class="modal-title">Transfer ward or bed</h5>
+    <button type="button" class="btn-close" (click)="modal.dismiss()" aria-label="Close"></button>
+  </div>
+  <div class="modal-body">
+    <form [formGroup]="transferForm" novalidate>
+      <div class="mb-3">
+        <label class="form-label" for="tr-ward">Ward <span class="text-danger">*</span></label>
+        <select id="tr-ward" name="wardUid" class="form-select" formControlName="wardUid">
+          <option value="" disabled>— Select ward —</option>
+          @for (w of wards(); track w.uid) {
+            <option [value]="w.uid">{{ w.name }} ({{ w.code }})</option>
+          }
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="tr-bed">Bed label</label>
+        <input id="tr-bed" name="bedLabel" type="text" class="form-control" formControlName="bedLabel" maxlength="32">
+      </div>
+    </form>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="modal.dismiss()" [disabled]="busy()">Cancel</button>
+    <button type="button" class="btn btn-primary" (click)="confirmTransfer(modal)" [disabled]="busy() || transferForm.invalid">Save</button>
+  </div>
+</ng-template>
+
+<ng-template #dischargeModal let-modal>
+  <div class="modal-header">
+    <h5 class="modal-title">Close admission</h5>
+    <button type="button" class="btn-close" (click)="modal.dismiss()" aria-label="Close"></button>
+  </div>
+  <div class="modal-body">
+    <p class="hmis-muted small">Pick the outcome and record a short summary. This action is final.</p>
+    <form [formGroup]="dischargeForm" novalidate>
+      <label class="form-label" for="dc-summary">Summary</label>
+      <textarea id="dc-summary" name="summary" rows="4" class="form-control" formControlName="summary" maxlength="1000" placeholder="Discharge summary, condition on discharge, follow-up instructions…"></textarea>
+    </form>
+  </div>
+  <div class="modal-footer flex-wrap">
+    <button type="button" class="btn btn-light border" (click)="modal.dismiss()" [disabled]="busy()">Back</button>
+    <button type="button" class="btn btn-info" (click)="modal.close('transferOut')" [disabled]="busy()"><i class="bi bi-truck me-1"></i>Transfer out</button>
+    <button type="button" class="btn btn-dark" (click)="modal.close('deceased')" [disabled]="busy()"><i class="bi bi-heartbreak me-1"></i>Mark deceased</button>
+    <button type="button" class="btn btn-success" (click)="modal.close('discharge')" [disabled]="busy()"><i class="bi bi-box-arrow-right me-1"></i>Discharge</button>
+  </div>
+</ng-template>
+
+<ng-template #cancelModal let-modal>
+  <div class="modal-header">
+    <h5 class="modal-title">Cancel admission</h5>
+    <button type="button" class="btn-close" (click)="modal.dismiss()" aria-label="Close"></button>
+  </div>
+  <div class="modal-body">
+    <p class="hmis-muted small">Use this when an admission was entered in error. Discharged or deceased admissions cannot be cancelled.</p>
+    <form [formGroup]="cancelForm" novalidate>
+      <label class="form-label" for="cn-reason">Reason</label>
+      <input id="cn-reason" name="reason" type="text" class="form-control" formControlName="reason" maxlength="255" placeholder="e.g. wrong patient">
+    </form>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="modal.dismiss()" [disabled]="busy()">Back</button>
+    <button type="button" class="btn btn-danger" (click)="modal.close('cancel')" [disabled]="busy()"><i class="bi bi-x-octagon me-1"></i>Cancel admission</button>
+  </div>
+</ng-template>

@@ -1,0 +1,50 @@
+<div class="modal-header">
+  <h5 class="modal-title d-flex align-items-center gap-2"><i class="bi bi-capsule"></i>New prescription</h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss()"></button>
+</div>
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-body">
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3" role="alert"><i class="bi bi-exclamation-circle"></i><span class="small">{{ errorMessage() }}</span></div>
+    }
+    <div class="row g-3">
+      <div class="col-12">
+        <label class="form-label" for="rx-medicine">Medicine <span class="text-danger">*</span></label>
+        <select id="rx-medicine" name="medicineUid" class="form-select" formControlName="medicineUid">
+          <option value="" disabled>{{ loadingMedicines() ? 'Loading…' : '— Select a medicine —' }}</option>
+          @for (m of medicines(); track m.uid) { <option [value]="m.uid">{{ medicineLabel(m) }}</option> }
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="rx-dose">Dose <span class="text-danger">*</span></label>
+        <input id="rx-dose" type="text" class="form-control" formControlName="dose" placeholder="e.g. 500 mg">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="rx-frequency">Frequency <span class="text-danger">*</span></label>
+        <input id="rx-frequency" type="text" class="form-control" formControlName="frequency" placeholder="e.g. TDS for 5 days">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="rx-duration">Duration (days)</label>
+        <input id="rx-duration" type="number" min="0" class="form-control" formControlName="durationDays">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="rx-qty">Quantity</label>
+        <input id="rx-qty" type="number" min="0" class="form-control" formControlName="quantity">
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="rx-instructions">Instructions</label>
+        <textarea id="rx-instructions" rows="3" class="form-control" formControlName="instructions" placeholder="Patient instructions, warnings"></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+    <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting()">
+      @if (submitting()) {
+        <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output>Saving…
+      } @else {
+        <i class="bi bi-check2"></i>Save prescription
+      }
+    </button>
+  </div>
+</form>

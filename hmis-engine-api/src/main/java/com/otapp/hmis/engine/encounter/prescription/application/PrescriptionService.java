@@ -1,0 +1,109 @@
+package com.otapp.hmis.engine.encounter.prescription.application;
+
+import com.otapp.hmis.engine.common.error.NotFoundException;
+import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
+import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
+import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos.CancelPrescriptionRequest;
+import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos.CreatePrescriptionRequest;
+import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos.PrescriptionDto;
+import com.otapp.hmis.engine.encounter.prescription.domain.Prescription;
+import com.otapp.hmis.engine.encounter.prescription.domain.PrescriptionRepository;
+import com.otapp.hmis.engine.encounter.prescription.infrastructure.PrescriptionNumberGenerator;
+import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
+import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineRepository;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+public class PrescriptionService {
+
+    private final PrescriptionRepository prescriptionRepository;
+    private final ConsultationRepository consultationRepository;
+    private final MedicineRepository medicineRepository;
+    private final PrescriptionNumberGenerator numberGenerator;
+
+    @Transactional
+    public PrescriptionDto prescribe(String consultationUid, CreatePrescriptionRequest request) {
+        Consultation consultation = consultationRepository.findByUid(consultationUid)
+                .orElseThrow(() -> new NotFoundException("Consultation not found: " + consultationUid));
+        Medicine medicine = medicineRepository.findByUid(request.medicineUid())
+                .orElseThrow(() -> new NotFoundException("Medicine not found: " + request.medicineUid()));
+
+        Prescription prescription = new Prescription(
+                numberGenerator.next(),
+                consultation.getUid(),
+                consultation.getPatientUid(),
+                medicine.getUid(),
+                request.dose().trim(),
+                request.frequency().trim(),
+                request.durationDays(),
+                request.quantity(),
+                emptyToNull(request.instructions()));
+        prescriptionRepository.save(prescription);
+        return toDto(prescription, medicine);
+    }
+
+    @Transactional
+    public PrescriptionDto dispense(String uid) {
+        Prescription p = loadOrThrow(uid);
+        p.dispense();
+        return toDto(p);
+    }
+
+    @Transactional
+    public PrescriptionDto cancel(String uid, CancelPrescriptionRequest request) {
+        Prescription p = loadOrThrow(uid);
+        p.cancel(emptyToNull(request == null ? null : request.reason()));
+        return toDto(p);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PrescriptionDto> listForConsultation(String consultationUid) {
+        return prescriptionRepository.findAllByConsultationUidOrderByRequestedAtDesc(consultationUid).stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    private Prescription loadOrThrow(String uid) {
+        return prescriptionRepository.findByUid(uid)
+                .orElseThrow(() -> new NotFoundException("Prescription not found: " + uid));
+    }
+
+    private PrescriptionDto toDto(Prescription p) {
+        Medicine m = medicineRepository.findByUid(p.getMedicineUid()).orElse(null);
+        return toDto(p, m);
+    }
+
+    private static PrescriptionDto toDto(Prescription p, Medicine m) {
+        return new PrescriptionDto(
+                p.getUid(),
+                p.getPrescriptionNo(),
+                p.getConsultationUid(),
+                p.getPatientUid(),
+                p.getMedicineUid(),
+                m == null ? null : m.getCode(),
+                m == null ? null : m.getName(),
+                m == null ? null : m.getStrength(),
+                m == null ? null : m.getForm(),
+                p.getStatus(),
+                p.getDose(),
+                p.getFrequency(),
+                p.getDurationDays(),
+                p.getQuantity(),
+                p.getInstructions(),
+                p.getRequestedAt(),
+                p.getDispensedAt(),
+                p.getCancelReason(),
+                p.getCreatedAt(),
+                p.getUpdatedAt());
+    }
+
+    private static String emptyToNull(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
+    }
+}

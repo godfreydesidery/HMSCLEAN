@@ -1,0 +1,530 @@
+@if (loading()) {
+  <div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading consultation…</div></div>
+} @else if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  <button type="button" class="btn btn-light border" (click)="back()"><i class="bi bi-arrow-left me-1"></i>Back</button>
+} @else if (consultation()) {
+  @if (consultation(); as c) {
+    <div class="hmis-page-header">
+      <div class="d-flex align-items-center gap-3">
+        <button type="button" class="btn btn-light border" (click)="back()" aria-label="Back"><i class="bi bi-arrow-left"></i></button>
+        <div>
+          <h1 class="hmis-page-title mb-0 d-flex align-items-center gap-2">
+            <span class="hmis-code">{{ c.consultationNo }}</span>
+            <span [class]="statusBadgeClass(c.status)">{{ statusLabel(c.status) }}</span>
+          </h1>
+          <div class="hmis-muted small mt-1 d-flex gap-3">
+            <span><i class="bi bi-person me-1"></i><a [routerLink]="['/patients', c.patientUid]">{{ c.patientName || c.patientUid }}</a></span>
+            <span><i class="bi bi-hospital me-1"></i>{{ c.clinicName || c.clinicUid }}</span>
+            <span><i class="bi bi-person-badge me-1"></i>{{ c.clinicianName || c.clinicianUsername }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        @if (canStart()) {
+          <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="start()">
+            <i class="bi bi-play-fill"></i>Start
+          </button>
+        }
+        @if (canComplete()) {
+          <button type="button" class="btn btn-success d-flex align-items-center gap-2" (click)="complete()">
+            <i class="bi bi-check2-all"></i>Complete
+          </button>
+        }
+        @if (canCancel()) {
+          <button type="button" class="btn btn-light border text-danger d-flex align-items-center gap-2" (click)="cancel()">
+            <i class="bi bi-x-circle"></i>Cancel
+          </button>
+        }
+      </div>
+    </div>
+
+    <ul class="nav nav-tabs consultation-detail__tabs mb-3">
+      <li class="nav-item">
+        <button type="button" class="nav-link" [class.active]="activeTab() === 'overview'" (click)="setTab('overview')">
+          <i class="bi bi-info-circle me-1"></i>Overview
+        </button>
+      </li>
+      <li class="nav-item">
+        <button type="button" class="nav-link" [class.active]="activeTab() === 'vitals'" (click)="setTab('vitals')">
+          <i class="bi bi-activity me-1"></i>Vitals
+          @if (vitals().length > 0) { <span class="badge text-bg-primary ms-1">{{ vitals().length }}</span> }
+        </button>
+      </li>
+      <li class="nav-item">
+        <button type="button" class="nav-link" [class.active]="activeTab() === 'notes'" (click)="setTab('notes')">
+          <i class="bi bi-journal-text me-1"></i>Notes
+          @if (note()) { <span class="badge text-bg-primary ms-1"><i class="bi bi-check2"></i></span> }
+        </button>
+      </li>
+      <li class="nav-item">
+        <button type="button" class="nav-link" [class.active]="activeTab() === 'diagnoses'" (click)="setTab('diagnoses')">
+          <i class="bi bi-clipboard2-check me-1"></i>Diagnoses
+          @if (diagnoses().length > 0) { <span class="badge text-bg-primary ms-1">{{ diagnoses().length }}</span> }
+        </button>
+      </li>
+      <li class="nav-item">
+        <button type="button" class="nav-link" [class.active]="activeTab() === 'orders'" (click)="setTab('orders')">
+          <i class="bi bi-card-list me-1"></i>Orders
+        </button>
+      </li>
+      <li class="nav-item">
+        <button type="button" class="nav-link" [class.active]="activeTab() === 'billing'" (click)="setTab('billing')">
+          <i class="bi bi-receipt me-1"></i>Billing
+          @if (invoice()) { <span class="badge text-bg-primary ms-1"><i class="bi bi-check2"></i></span> }
+        </button>
+      </li>
+    </ul>
+
+    <!-- ===== Overview ===== -->
+    @if (activeTab() === 'overview') {
+      <div class="row g-3">
+        <div class="col-lg-6">
+          <div class="card h-100">
+            <div class="card-header bg-white fw-semibold">Visit</div>
+            <div class="card-body">
+              <dl class="row mb-0 patient-detail__dl">
+                <dt class="col-sm-5">Booked</dt><dd class="col-sm-7">{{ c.bookedAt | date:'medium' }}</dd>
+                <dt class="col-sm-5">Started</dt><dd class="col-sm-7">{{ (c.startedAt | date:'medium') || '—' }}</dd>
+                <dt class="col-sm-5">Completed</dt><dd class="col-sm-7">{{ (c.completedAt | date:'medium') || '—' }}</dd>
+                @if (c.cancelledAt) {
+                  <dt class="col-sm-5">Cancelled</dt><dd class="col-sm-7">{{ c.cancelledAt | date:'medium' }}</dd>
+                  <dt class="col-sm-5">Cancel reason</dt><dd class="col-sm-7">{{ c.cancelReason || '—' }}</dd>
+                }
+                <dt class="col-sm-5">Reason</dt><dd class="col-sm-7">{{ c.reason || '—' }}</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="card h-100">
+            <div class="card-header bg-white fw-semibold">Billing</div>
+            <div class="card-body">
+              <dl class="row mb-0 patient-detail__dl">
+                <dt class="col-sm-5">Payment type</dt><dd class="col-sm-7"><span class="badge text-bg-light border">{{ c.paymentType }}</span></dd>
+                <dt class="col-sm-5">Plan</dt><dd class="col-sm-7">{{ c.insurancePlanName || '—' }}</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ===== Vitals ===== -->
+    @if (activeTab() === 'vitals') {
+      <div class="d-flex justify-content-end mb-2">
+        @if (isEditable()) {
+          <button type="button" class="btn btn-primary btn-sm d-flex align-items-center gap-2" (click)="recordVitals()">
+            <i class="bi bi-plus-lg"></i>Record vitals
+          </button>
+        }
+      </div>
+      <div class="card">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 hmis-table">
+            <thead>
+              <tr>
+                <th>Taken</th><th>Temp °C</th><th>Pulse</th><th>Resp</th><th>BP</th><th>SpO₂</th><th>Weight</th><th>Height</th><th>Notes</th><th class="text-end"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (vitals().length === 0) {
+                <tr><td colspan="10"><div class="hmis-empty"><i class="bi bi-activity"></i><div class="fw-semibold mb-1">No vitals recorded</div><div class="small">Click "Record vitals" to add a reading.</div></div></td></tr>
+              } @else {
+                @for (v of vitals(); track v.uid) {
+                  <tr>
+                    <td class="hmis-muted small">{{ v.takenAt | date:'medium' }}</td>
+                    <td>{{ v.temperatureC ?? '—' }}</td>
+                    <td>{{ v.pulseBpm ?? '—' }}</td>
+                    <td>{{ v.respirationBpm ?? '—' }}</td>
+                    <td>{{ formatBp(v) }}</td>
+                    <td>{{ v.spo2Percent ? (v.spo2Percent + '%') : '—' }}</td>
+                    <td>{{ v.weightKg ? (v.weightKg + ' kg') : '—' }}</td>
+                    <td>{{ v.heightCm ? (v.heightCm + ' cm') : '—' }}</td>
+                    <td class="hmis-muted small text-truncate" style="max-width:200px;">{{ v.notes || '—' }}</td>
+                    <td class="text-end">
+                      <button type="button" class="btn btn-sm btn-light border text-danger" (click)="deleteVitals(v)" aria-label="Delete">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+
+    <!-- ===== Notes ===== -->
+    @if (activeTab() === 'notes') {
+      <form class="card" [formGroup]="noteForm" (ngSubmit)="saveNote()" novalidate>
+        <div class="card-header bg-white d-flex align-items-center justify-content-between">
+          <div>
+            <div class="fw-semibold">Clinical note</div>
+            <div class="hmis-muted small">
+              @if (note()) { Last updated {{ note()!.updatedAt | date:'medium' }} }
+              @else { Not yet recorded }
+              @if (notesSavedAt()) { · Saved at {{ notesSavedAt() }} }
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm d-flex align-items-center gap-2" [disabled]="notesSaving() || !isEditable() || !noteDirty()">
+            @if (notesSaving()) {
+              <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output>Saving…
+            } @else {
+              <i class="bi bi-check2"></i>Save note
+            }
+          </button>
+        </div>
+        <div class="card-body">
+          <fieldset [disabled]="!isEditable()">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label" for="cn-cc">Chief complaint</label>
+                <textarea id="cn-cc" rows="2" class="form-control" formControlName="chiefComplaint" placeholder="Patient's presenting concern in their own words"></textarea>
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="cn-hpi">History of presenting illness</label>
+                <textarea id="cn-hpi" rows="4" class="form-control" formControlName="historyOfPresentingIllness"></textarea>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="cn-pmh">Past medical history</label>
+                <textarea id="cn-pmh" rows="4" class="form-control" formControlName="pastMedicalHistory"></textarea>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="cn-exam">Examination</label>
+                <textarea id="cn-exam" rows="4" class="form-control" formControlName="examination"></textarea>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="cn-assess">Assessment</label>
+                <textarea id="cn-assess" rows="4" class="form-control" formControlName="assessment"></textarea>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="cn-plan">Plan</label>
+                <textarea id="cn-plan" rows="4" class="form-control" formControlName="plan"></textarea>
+              </div>
+            </div>
+          </fieldset>
+        </div>
+      </form>
+    }
+
+    <!-- ===== Diagnoses ===== -->
+    @if (activeTab() === 'diagnoses') {
+      <div class="row g-3">
+        <div class="col-lg-6">
+          <div class="card h-100">
+            <div class="card-header bg-white d-flex align-items-center justify-content-between">
+              <div>
+                <div class="fw-semibold"><i class="bi bi-search me-1"></i>Working diagnoses</div>
+                <div class="hmis-muted small">Provisional / differential diagnoses while working up.</div>
+              </div>
+              <button type="button" class="btn btn-sm btn-light border" (click)="addDiagnosis('WORKING')" [disabled]="!isEditable()">
+                <i class="bi bi-plus-lg me-1"></i>Add
+              </button>
+            </div>
+            <div class="card-body p-0">
+              @if (workingDiagnoses().length === 0) {
+                <div class="hmis-empty"><i class="bi bi-clipboard2-check"></i><div class="small">No working diagnoses yet.</div></div>
+              } @else {
+                <ul class="list-group list-group-flush">
+                  @for (d of workingDiagnoses(); track d.uid) {
+                    <li class="list-group-item d-flex align-items-start gap-2">
+                      <div class="flex-grow-1">
+                        <div class="fw-semibold">
+                          @if (d.diagnosisCode) { <span class="hmis-code me-2">{{ d.diagnosisCode }}</span> }
+                          {{ d.diagnosisName || d.diagnosisTypeUid }}
+                        </div>
+                        @if (d.notes) { <div class="hmis-muted small mt-1">{{ d.notes }}</div> }
+                      </div>
+                      <button type="button" class="btn btn-sm btn-light border text-danger" (click)="removeDiagnosis(d)" aria-label="Remove" [disabled]="!isEditable()">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6">
+          <div class="card h-100">
+            <div class="card-header bg-white d-flex align-items-center justify-content-between">
+              <div>
+                <div class="fw-semibold"><i class="bi bi-check-circle me-1"></i>Final diagnoses</div>
+                <div class="hmis-muted small">Confirmed diagnoses at closure of the consultation.</div>
+              </div>
+              <button type="button" class="btn btn-sm btn-light border" (click)="addDiagnosis('FINAL')" [disabled]="!isEditable()">
+                <i class="bi bi-plus-lg me-1"></i>Add
+              </button>
+            </div>
+            <div class="card-body p-0">
+              @if (finalDiagnoses().length === 0) {
+                <div class="hmis-empty"><i class="bi bi-clipboard2-check"></i><div class="small">No final diagnoses yet.</div></div>
+              } @else {
+                <ul class="list-group list-group-flush">
+                  @for (d of finalDiagnoses(); track d.uid) {
+                    <li class="list-group-item d-flex align-items-start gap-2">
+                      <div class="flex-grow-1">
+                        <div class="fw-semibold d-flex align-items-center gap-2">
+                          @if (d.diagnosisCode) { <span class="hmis-code">{{ d.diagnosisCode }}</span> }
+                          <span>{{ d.diagnosisName || d.diagnosisTypeUid }}</span>
+                          @if (d.primaryDiagnosis) { <span class="badge text-bg-primary-subtle text-primary border border-primary-subtle">Primary</span> }
+                        </div>
+                        @if (d.notes) { <div class="hmis-muted small mt-1">{{ d.notes }}</div> }
+                      </div>
+                      <button type="button" class="btn btn-sm btn-light border text-danger" (click)="removeDiagnosis(d)" aria-label="Remove" [disabled]="!isEditable()">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ===== Orders ===== -->
+    @if (activeTab() === 'orders') {
+      <div class="row g-3">
+        <!-- Clinical orders -->
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header bg-white d-flex align-items-center justify-content-between">
+              <div>
+                <div class="fw-semibold"><i class="bi bi-card-list me-1"></i>Clinical orders</div>
+                <div class="hmis-muted small">Lab tests, radiology, and procedures raised during this visit.</div>
+              </div>
+              <div ngbDropdown class="d-inline-block">
+                <button type="button" class="btn btn-sm btn-primary d-flex align-items-center gap-2" ngbDropdownToggle [disabled]="!isEditable()">
+                  <i class="bi bi-plus-lg"></i>New order
+                </button>
+                <div ngbDropdownMenu class="shadow-sm">
+                  @for (k of orderKinds; track k.value) {
+                    <button type="button" ngbDropdownItem (click)="addOrder(k.value)">
+                      <i class="bi {{ k.icon }} me-2"></i>{{ k.label }}
+                    </button>
+                  }
+                </div>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0 hmis-table">
+                <thead>
+                  <tr>
+                    <th>#</th><th>Type</th><th>Service</th><th>Urgency</th><th>Status</th><th>Requested</th><th>Result</th><th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @if (orders().length === 0) {
+                    <tr><td colspan="8"><div class="hmis-empty"><i class="bi bi-card-list"></i><div class="small">No orders raised yet.</div></div></td></tr>
+                  } @else {
+                    @for (o of orders(); track o.uid) {
+                      <tr>
+                        <td><span class="hmis-code">{{ o.orderNo }}</span></td>
+                        <td>
+                          <span class="badge text-bg-light border d-inline-flex align-items-center gap-1">
+                            <i class="bi {{ orderKindIcon(o.kind) }}"></i>{{ orderKindLabel(o.kind) }}
+                          </span>
+                        </td>
+                        <td>
+                          <div class="fw-semibold">{{ o.serviceName || o.serviceUid }}</div>
+                          @if (o.instructions) { <div class="hmis-muted small text-truncate" style="max-width:260px;">{{ o.instructions }}</div> }
+                        </td>
+                        <td><span [class]="urgencyBadgeClass(o.urgency)">{{ o.urgency }}</span></td>
+                        <td><span [class]="orderStatusBadgeClass(o.status)">{{ orderStatusLabel(o.status) }}</span></td>
+                        <td class="hmis-muted small">{{ o.requestedAt | date:'short' }}</td>
+                        <td class="hmis-muted small text-truncate" style="max-width:220px;">{{ o.result || '—' }}</td>
+                        <td class="text-end">
+                          <div ngbDropdown placement="bottom-end" class="d-inline-block">
+                            <button type="button" class="btn btn-sm btn-light border" ngbDropdownToggle aria-label="Actions"><i class="bi bi-three-dots"></i></button>
+                            <div ngbDropdownMenu class="shadow-sm">
+                              @if (o.status === 'REQUESTED') {
+                                <button type="button" ngbDropdownItem (click)="startOrder(o)"><i class="bi bi-play-fill me-2"></i>Start</button>
+                              }
+                              @if (o.status === 'REQUESTED' || o.status === 'IN_PROGRESS') {
+                                <button type="button" ngbDropdownItem (click)="enterResult(o)"><i class="bi bi-clipboard2-data me-2"></i>Enter result / Complete</button>
+                                <button type="button" ngbDropdownItem class="text-danger" (click)="cancelOrder(o)"><i class="bi bi-x-circle me-2"></i>Cancel</button>
+                              }
+                              @if (o.status === 'COMPLETED') {
+                                <button type="button" ngbDropdownItem (click)="enterResult(o)"><i class="bi bi-clipboard2-pulse me-2"></i>View / amend result</button>
+                              }
+                              @if (o.status === 'CANCELLED') {
+                                <button type="button" ngbDropdownItem disabled><i class="bi bi-lock me-2"></i>Cancelled</button>
+                              }
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Prescriptions -->
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header bg-white d-flex align-items-center justify-content-between">
+              <div>
+                <div class="fw-semibold"><i class="bi bi-capsule me-1"></i>Prescriptions</div>
+                <div class="hmis-muted small">Medications prescribed during this consultation.</div>
+              </div>
+              <button type="button" class="btn btn-sm btn-primary d-flex align-items-center gap-2" (click)="addPrescription()" [disabled]="!isEditable()">
+                <i class="bi bi-plus-lg"></i>Prescribe
+              </button>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0 hmis-table">
+                <thead>
+                  <tr>
+                    <th>#</th><th>Medicine</th><th>Dose</th><th>Frequency</th><th>Duration</th><th>Qty</th><th>Status</th><th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @if (prescriptions().length === 0) {
+                    <tr><td colspan="8"><div class="hmis-empty"><i class="bi bi-capsule"></i><div class="small">No prescriptions yet.</div></div></td></tr>
+                  } @else {
+                    @for (p of prescriptions(); track p.uid) {
+                      <tr>
+                        <td><span class="hmis-code">{{ p.prescriptionNo }}</span></td>
+                        <td>
+                          <div class="fw-semibold">{{ p.medicineName || p.medicineUid }}</div>
+                          @if (p.medicineStrength || p.medicineForm) {
+                            <div class="hmis-muted small">{{ p.medicineStrength }} {{ p.medicineForm }}</div>
+                          }
+                          @if (p.instructions) {
+                            <div class="hmis-muted small text-truncate" style="max-width:260px;">{{ p.instructions }}</div>
+                          }
+                        </td>
+                        <td>{{ p.dose }}</td>
+                        <td>{{ p.frequency }}</td>
+                        <td>{{ p.durationDays ? (p.durationDays + ' days') : '—' }}</td>
+                        <td>{{ p.quantity ?? '—' }}</td>
+                        <td><span [class]="prescriptionStatusBadgeClass(p.status)">{{ prescriptionStatusLabel(p.status) }}</span></td>
+                        <td class="text-end">
+                          <div ngbDropdown placement="bottom-end" class="d-inline-block">
+                            <button type="button" class="btn btn-sm btn-light border" ngbDropdownToggle aria-label="Actions"><i class="bi bi-three-dots"></i></button>
+                            <div ngbDropdownMenu class="shadow-sm">
+                              @if (p.status === 'REQUESTED') {
+                                <button type="button" ngbDropdownItem (click)="dispensePrescription(p)"><i class="bi bi-box-arrow-up me-2 text-success"></i>Dispense</button>
+                                <button type="button" ngbDropdownItem class="text-danger" (click)="cancelPrescription(p)"><i class="bi bi-x-circle me-2"></i>Cancel</button>
+                              }
+                              @if (p.status !== 'REQUESTED') {
+                                <button type="button" ngbDropdownItem disabled><i class="bi bi-lock me-2"></i>Closed</button>
+                              }
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ===== Billing ===== -->
+    @if (activeTab() === 'billing') {
+      @if (!invoice()) {
+        <div class="card">
+          <div class="card-body">
+            <div class="hmis-empty">
+              <i class="bi bi-receipt"></i>
+              <div class="fw-semibold mb-1">No invoice yet</div>
+              <div class="small mb-3">Generate an invoice from the consultation fee, completed orders, and dispensed prescriptions.</div>
+              <button type="button" class="btn btn-primary d-flex align-items-center gap-2 mx-auto" (click)="generateInvoice()" [disabled]="invoiceLoading()">
+                @if (invoiceLoading()) {
+                  <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Working</span></output>Generating…
+                } @else {
+                  <i class="bi bi-magic"></i>Generate invoice
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      } @else {
+        @if (invoice(); as inv) {
+          <div class="card">
+            <div class="card-header bg-white d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div>
+                <div class="fw-semibold d-flex align-items-center gap-2">
+                  <span class="hmis-code">{{ inv.invoiceNo }}</span>
+                  <span [class]="invoiceStatusBadgeClass(inv.status)">{{ invoiceStatusLabel(inv.status) }}</span>
+                </div>
+                <div class="hmis-muted small">
+                  {{ inv.paymentType }}@if (inv.insurancePlanName) { · {{ inv.insurancePlanName }} }
+                </div>
+              </div>
+              <div class="d-flex gap-2">
+                @if (inv.status === 'DRAFT') {
+                  <button type="button" class="btn btn-sm btn-light border" (click)="generateInvoice()" [disabled]="invoiceLoading()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Regenerate
+                  </button>
+                  <button type="button" class="btn btn-sm btn-primary" (click)="issueInvoice()">
+                    <i class="bi bi-check2-all me-1"></i>Issue
+                  </button>
+                }
+                @if (inv.status === 'ISSUED' || inv.status === 'PARTIALLY_PAID') {
+                  <button type="button" class="btn btn-sm btn-success" (click)="recordInvoicePayment()">
+                    <i class="bi bi-cash-coin me-1"></i>Record payment
+                  </button>
+                }
+                @if (inv.status !== 'PAID' && inv.status !== 'CANCELLED') {
+                  <button type="button" class="btn btn-sm btn-light border text-danger" (click)="cancelInvoice()">
+                    <i class="bi bi-x-circle me-1"></i>Cancel
+                  </button>
+                }
+                <a class="btn btn-sm btn-light border" [routerLink]="['/billing', inv.uid]">
+                  Open full view <i class="bi bi-arrow-right ms-1"></i>
+                </a>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0 hmis-table">
+                <thead><tr><th>Kind</th><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit</th><th class="text-end">Amount</th></tr></thead>
+                <tbody>
+                  @if (inv.lines.length === 0) {
+                    <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-receipt"></i><div class="small">No line items.</div></div></td></tr>
+                  } @else {
+                    @for (line of inv.lines; track line.uid) {
+                      <tr>
+                        <td><span class="badge text-bg-light border">{{ line.kind }}</span></td>
+                        <td>{{ line.description }}</td>
+                        <td class="text-end">{{ line.quantity | number:'1.0-2' }}</td>
+                        <td class="text-end">{{ line.unitPrice | number:'1.2-2' }}</td>
+                        <td class="text-end fw-semibold">{{ line.amount | number:'1.2-2' }}</td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+                <tfoot>
+                  <tr class="border-top">
+                    <td colspan="4" class="text-end fw-semibold">Subtotal</td>
+                    <td class="text-end fw-semibold">{{ inv.subtotal | number:'1.2-2' }} {{ inv.currency }}</td>
+                  </tr>
+                  <tr>
+                    <td colspan="4" class="text-end hmis-muted">Paid</td>
+                    <td class="text-end hmis-muted">{{ inv.totalPaid | number:'1.2-2' }} {{ inv.currency }}</td>
+                  </tr>
+                  <tr class="border-top">
+                    <td colspan="4" class="text-end fw-semibold">Balance</td>
+                    <td class="text-end fw-bold" [class.text-success]="inv.balance === 0">{{ inv.balance | number:'1.2-2' }} {{ inv.currency }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        }
+      }
+    }
+  }
+}

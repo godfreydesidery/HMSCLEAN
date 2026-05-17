@@ -1,34 +1,175 @@
-<section class="dashboard">
-  <h1 class="dashboard__title">Welcome{{ user() ? ', ' + user()!.firstName : '' }}</h1>
-  <p class="dashboard__subtitle">
-    You are signed in to the HMIS Engine. Pick a module from the sidebar to begin.
-  </p>
-
-  <div class="dashboard__cards">
-    <article class="card">
-      <h2 class="card__title">Your roles</h2>
-      @if (roles().length === 0) {
-        <p class="card__empty">No roles assigned.</p>
-      } @else {
-        <ul class="card__list">
-          @for (role of roles(); track role) {
-            <li>{{ role }}</li>
-          }
-        </ul>
+<div class="dashboard">
+  <div class="hmis-page-header">
+    <div>
+      <h1 class="hmis-page-title">
+        Welcome back{{ user() ? ', ' + user()!.firstName : '' }} <span class="dashboard__wave">👋</span>
+      </h1>
+      <p class="hmis-muted mb-0 small">
+        Here is what's happening today, {{ today }}.
+      </p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      @if (canEncounter()) {
+        <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="admit()">
+          <i class="bi bi-hospital"></i>Admit
+        </button>
+        <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="startConsultation()">
+          <i class="bi bi-clipboard2-pulse"></i>Start consultation
+        </button>
       }
-    </article>
-
-    <article class="card">
-      <h2 class="card__title">Your privileges</h2>
-      @if (privileges().length === 0) {
-        <p class="card__empty">No privileges granted.</p>
-      } @else {
-        <ul class="card__list card__list--columns">
-          @for (priv of privileges(); track priv) {
-            <li>{{ priv }}</li>
-          }
-        </ul>
+      @if (canPatient()) {
+        <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="newPatient()">
+          <i class="bi bi-plus-lg"></i>New patient
+        </button>
       }
-    </article>
+    </div>
   </div>
-</section>
+
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  }
+
+  <div class="row g-3 mb-4">
+    @if (loading() && stats().length === 0) {
+      @for (i of [1,2,3,4]; track i) {
+        <div class="col-sm-6 col-xl-3">
+          <div class="card dashboard__stat-card h-100"><div class="card-body"><span class="hmis-skeleton" style="width:140px;"></span><div class="mt-3"><span class="hmis-skeleton" style="width:60px; height:24px; display:inline-block;"></span></div></div></div>
+        </div>
+      }
+    } @else {
+      @for (stat of stats(); track stat.label) {
+        <div class="col-sm-6 col-xl-3">
+          <a class="card dashboard__stat-card h-100 text-decoration-none text-reset" [routerLink]="stat.link ?? null" [style.cursor]="stat.link ? 'pointer' : 'default'">
+            <div class="card-body d-flex align-items-center gap-3">
+              <span class="dashboard__stat-icon" [style.background]="stat.bg" [style.color]="stat.color">
+                <i class="bi {{ stat.icon }}"></i>
+              </span>
+              <div class="flex-grow-1">
+                <div class="hmis-muted small">{{ stat.label }}</div>
+                <div class="dashboard__stat-value">{{ stat.value }}</div>
+                @if (stat.label === 'Active consultations' && bookedConsultations() > 0) {
+                  <div class="small text-info-emphasis mt-1"><i class="bi bi-calendar2-week me-1"></i>{{ bookedConsultations() }} booked</div>
+                }
+              </div>
+            </div>
+          </a>
+        </div>
+      }
+    }
+  </div>
+
+  <div class="row g-3">
+    <div class="col-xl-8">
+      <div class="row g-3">
+        @if (canEncounter()) {
+          <div class="col-12">
+            <div class="card h-100">
+              <div class="card-header bg-white d-flex align-items-center justify-content-between py-3">
+                <div>
+                  <div class="fw-semibold"><i class="bi bi-clipboard2-pulse me-2 text-primary"></i>Recent consultations</div>
+                  <div class="hmis-muted small">Latest 5 by booking time</div>
+                </div>
+                <a class="btn btn-sm btn-light border" routerLink="/encounters/consultations">View all <i class="bi bi-arrow-right ms-1"></i></a>
+              </div>
+              @if (loading() && recentConsultations().length === 0) {
+                <div class="card-body"><span class="hmis-skeleton" style="width:240px;"></span></div>
+              } @else if (recentConsultations().length === 0) {
+                <div class="card-body"><div class="hmis-empty"><i class="bi bi-clipboard2-pulse"></i><div class="small">No consultations yet.</div></div></div>
+              } @else {
+                <ul class="list-group list-group-flush">
+                  @for (c of recentConsultations(); track c.uid) {
+                    <li class="list-group-item d-flex align-items-center gap-3">
+                      <div class="flex-grow-1">
+                        <a class="hmis-code text-decoration-none" [routerLink]="['/encounters/consultations', c.uid]">{{ c.consultationNo }}</a>
+                        <div class="hmis-muted small">{{ c.patientName || c.patientUid }}@if (c.clinicName) { <span> · {{ c.clinicName }}</span> }</div>
+                      </div>
+                      <span class="badge" [class]="consultationStatusBadge(c.status)">{{ c.status }}</span>
+                      <div class="hmis-muted small text-end" style="min-width:140px;">{{ c.bookedAt | date:'short' }}</div>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          </div>
+
+          <div class="col-12">
+            <div class="card h-100">
+              <div class="card-header bg-white d-flex align-items-center justify-content-between py-3">
+                <div>
+                  <div class="fw-semibold"><i class="bi bi-hospital me-2 text-primary"></i>Recent admissions</div>
+                  <div class="hmis-muted small">Latest 5 by admit time</div>
+                </div>
+                <a class="btn btn-sm btn-light border" routerLink="/encounters/admissions">View all <i class="bi bi-arrow-right ms-1"></i></a>
+              </div>
+              @if (loading() && recentAdmissions().length === 0) {
+                <div class="card-body"><span class="hmis-skeleton" style="width:240px;"></span></div>
+              } @else if (recentAdmissions().length === 0) {
+                <div class="card-body"><div class="hmis-empty"><i class="bi bi-hospital"></i><div class="small">No admissions yet.</div></div></div>
+              } @else {
+                <ul class="list-group list-group-flush">
+                  @for (a of recentAdmissions(); track a.uid) {
+                    <li class="list-group-item d-flex align-items-center gap-3">
+                      <div class="flex-grow-1">
+                        <a class="hmis-code text-decoration-none" [routerLink]="['/encounters/admissions', a.uid]">{{ a.admissionNo }}</a>
+                        <div class="hmis-muted small">{{ a.patientName || a.patientUid }}@if (a.wardName) { <span> · {{ a.wardName }}@if (a.bedLabel) { <span class="ms-1">({{ a.bedLabel }})</span> } </span> }</div>
+                      </div>
+                      <span class="badge" [class]="admissionStatusBadge(a.status)">{{ a.status }}</span>
+                      <div class="hmis-muted small text-end" style="min-width:140px;">{{ a.admittedAt | date:'short' }}</div>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="col-12">
+            <div class="card"><div class="card-body p-5 text-center hmis-muted"><i class="bi bi-clipboard2-pulse fs-1 d-block mb-2"></i>Encounter access not granted on this account.</div></div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="col-xl-4">
+      <div class="card h-100">
+        <div class="card-header bg-white py-3">
+          <div class="fw-semibold">Your access</div>
+          <div class="hmis-muted small">Roles &amp; privileges assigned to your account</div>
+        </div>
+        <div class="card-body d-flex flex-column gap-3">
+          <div>
+            <div class="hmis-muted small text-uppercase fw-semibold mb-2" style="letter-spacing: 0.05em; font-size: 0.7rem;">
+              Roles
+            </div>
+            @if (roles().length === 0) {
+              <span class="hmis-muted small">No roles assigned.</span>
+            } @else {
+              <div class="d-flex flex-wrap gap-1">
+                @for (role of roles(); track role) {
+                  <span class="badge text-bg-light border">{{ role }}</span>
+                }
+              </div>
+            }
+          </div>
+
+          <div>
+            <div class="hmis-muted small text-uppercase fw-semibold mb-2 d-flex justify-content-between align-items-center" style="letter-spacing: 0.05em; font-size: 0.7rem;">
+              <span>Privileges</span>
+              <span class="badge text-bg-primary-subtle text-primary border border-primary-subtle">{{ privileges().length }}</span>
+            </div>
+            @if (privileges().length === 0) {
+              <span class="hmis-muted small">No privileges granted.</span>
+            } @else {
+              <div class="dashboard__priv-list">
+                @for (priv of privileges(); track priv) {
+                  <span class="dashboard__priv-pill">
+                    <i class="bi bi-shield-check"></i>{{ priv }}
+                  </span>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

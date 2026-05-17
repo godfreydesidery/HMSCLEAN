@@ -1,0 +1,112 @@
+@if (loading()) {
+  <div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading invoice…</div></div>
+} @else if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  <button type="button" class="btn btn-light border" (click)="back()"><i class="bi bi-arrow-left me-1"></i>Back</button>
+} @else if (invoice()) {
+  @if (invoice(); as i) {
+    <div class="hmis-page-header">
+      <div class="d-flex align-items-center gap-3">
+        <button type="button" class="btn btn-light border" (click)="back()" aria-label="Back"><i class="bi bi-arrow-left"></i></button>
+        <div>
+          <h1 class="hmis-page-title mb-0 d-flex align-items-center gap-2">
+            <span class="hmis-code">{{ i.invoiceNo }}</span>
+            <span [class]="statusBadgeClass(i.status)">{{ statusLabel(i.status) }}</span>
+          </h1>
+          <div class="hmis-muted small mt-1 d-flex gap-3">
+            <span><i class="bi bi-person me-1"></i><a [routerLink]="['/patients', i.patientUid]">{{ i.patientName || i.patientUid }}</a></span>
+            <span><i class="bi bi-clipboard2-pulse me-1"></i><a [routerLink]="['/encounters', 'consultations', i.consultationUid]">Consultation</a></span>
+            <span><i class="bi bi-cash-coin me-1"></i>{{ i.paymentType }}@if (i.insurancePlanName) { · {{ i.insurancePlanName }} }</span>
+          </div>
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        @if (canIssue()) {
+          <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="issue()">
+            <i class="bi bi-check2-all"></i>Issue
+          </button>
+        }
+        @if (canPay()) {
+          <button type="button" class="btn btn-success d-flex align-items-center gap-2" (click)="recordPayment()">
+            <i class="bi bi-cash-coin"></i>Record payment
+          </button>
+        }
+        @if (canCancel()) {
+          <button type="button" class="btn btn-light border text-danger d-flex align-items-center gap-2" (click)="cancel()">
+            <i class="bi bi-x-circle"></i>Cancel
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-lg-8">
+        <div class="card">
+          <div class="card-header bg-white fw-semibold">Line items</div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 hmis-table">
+              <thead><tr><th>Kind</th><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit</th><th class="text-end">Amount</th></tr></thead>
+              <tbody>
+                @if (i.lines.length === 0) {
+                  <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-receipt"></i><div class="small">No lines on this invoice.</div></div></td></tr>
+                } @else {
+                  @for (line of i.lines; track line.uid) {
+                    <tr>
+                      <td><span class="badge text-bg-light border">{{ line.kind }}</span></td>
+                      <td>{{ line.description }}</td>
+                      <td class="text-end">{{ line.quantity | number:'1.0-2' }}</td>
+                      <td class="text-end">{{ line.unitPrice | number:'1.2-2' }}</td>
+                      <td class="text-end fw-semibold">{{ line.amount | number:'1.2-2' }}</td>
+                    </tr>
+                  }
+                }
+              </tbody>
+              <tfoot>
+                <tr class="border-top">
+                  <td colspan="4" class="text-end fw-semibold">Subtotal</td>
+                  <td class="text-end fw-semibold">{{ i.subtotal | number:'1.2-2' }} {{ i.currency }}</td>
+                </tr>
+                <tr>
+                  <td colspan="4" class="text-end hmis-muted">Paid</td>
+                  <td class="text-end hmis-muted">{{ i.totalPaid | number:'1.2-2' }} {{ i.currency }}</td>
+                </tr>
+                <tr class="border-top">
+                  <td colspan="4" class="text-end fw-semibold">Balance</td>
+                  <td class="text-end fw-bold" [class.text-success]="i.balance === 0" [class.text-warning-emphasis]="i.balance > 0">{{ i.balance | number:'1.2-2' }} {{ i.currency }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="card h-100">
+          <div class="card-header bg-white fw-semibold">Payments</div>
+          @if (i.payments.length === 0) {
+            <div class="card-body"><div class="hmis-empty"><i class="bi bi-wallet"></i><div class="small">No payments recorded.</div></div></div>
+          } @else {
+            <ul class="list-group list-group-flush">
+              @for (p of i.payments; track p.uid) {
+                <li class="list-group-item">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <div class="fw-semibold">{{ p.amount | number:'1.2-2' }} {{ p.currency }}</div>
+                      <div class="hmis-muted small">{{ p.method.replace('_', ' ') | titlecase }}</div>
+                      @if (p.reference) { <div class="hmis-muted small">Ref: {{ p.reference }}</div> }
+                      @if (p.note) { <div class="hmis-muted small">{{ p.note }}</div> }
+                    </div>
+                    <div class="text-end">
+                      <div class="hmis-code small">{{ p.paymentNo }}</div>
+                      <div class="hmis-muted small">{{ p.receivedAt | date:'short' }}</div>
+                    </div>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </div>
+    </div>
+  }
+}

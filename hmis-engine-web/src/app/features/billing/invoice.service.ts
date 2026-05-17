@@ -1,0 +1,63 @@
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+
+import { environment } from '../../../environments/environment';
+import { PageResponse } from '../../core/http/page.types';
+import {
+  Invoice, InvoiceSearchParams, InvoiceSummary, RecordPaymentRequest
+} from './invoice.types';
+
+@Injectable({ providedIn: 'root' })
+export class InvoiceService {
+  private readonly http = inject(HttpClient);
+  private readonly base = `${environment.apiUrl}/billing`;
+
+  search(params: InvoiceSearchParams = {}): Observable<PageResponse<InvoiceSummary>> {
+    let p = new HttpParams();
+    if (params.query) p = p.set('query', params.query);
+    if (params.status) p = p.set('status', params.status);
+    if (params.patientUid) p = p.set('patientUid', params.patientUid);
+    if (params.page !== undefined) p = p.set('page', String(params.page));
+    if (params.size !== undefined) p = p.set('size', String(params.size));
+    if (params.sort) p = p.set('sort', params.sort);
+    return this.http.get<PageResponse<InvoiceSummary>>(`${this.base}/invoices`, { params: p });
+  }
+
+  findByUid(uid: string): Observable<Invoice> {
+    return this.http.get<Invoice>(`${this.base}/invoices/${uid}`);
+  }
+
+  findForConsultation(consultationUid: string): Observable<Invoice | null> {
+    return this.http
+      .get<Invoice>(`${this.base}/consultations/${consultationUid}/invoice`, { observe: 'response' })
+      .pipe(map((res) => (res.status === 204 ? null : res.body)));
+  }
+
+  generateForConsultation(consultationUid: string): Observable<Invoice> {
+    return this.http.post<Invoice>(`${this.base}/consultations/${consultationUid}/invoice`, {});
+  }
+
+  findForAdmission(admissionUid: string): Observable<Invoice | null> {
+    return this.http
+      .get<Invoice>(`${this.base}/admissions/${admissionUid}/invoice`, { observe: 'response' })
+      .pipe(map((res) => (res.status === 204 ? null : res.body)));
+  }
+
+  generateForAdmission(admissionUid: string): Observable<Invoice> {
+    return this.http.post<Invoice>(`${this.base}/admissions/${admissionUid}/invoice`, {});
+  }
+
+  issue(uid: string): Observable<Invoice> {
+    return this.http.post<Invoice>(`${this.base}/invoices/${uid}/issue`, {});
+  }
+
+  cancel(uid: string, reason: string | null): Observable<Invoice> {
+    return this.http.post<Invoice>(`${this.base}/invoices/${uid}/cancel`, { reason });
+  }
+
+  recordPayment(uid: string, req: RecordPaymentRequest): Observable<Invoice> {
+    return this.http.post<Invoice>(`${this.base}/invoices/${uid}/payments`, req);
+  }
+}

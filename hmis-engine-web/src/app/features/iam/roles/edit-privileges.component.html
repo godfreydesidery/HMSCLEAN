@@ -1,0 +1,49 @@
+<div class="modal-header">
+  <div>
+    <h5 class="modal-title">Edit privileges</h5>
+    <div class="hmis-muted small mt-1">{{ role.name }}</div>
+  </div>
+  <button type="button" class="btn-close" (click)="activeModal.dismiss()" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  }
+
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <label class="form-label fw-semibold mb-0">Privileges <span class="hmis-muted fw-normal small">({{ selected().length }} selected)</span></label>
+  </div>
+  <div class="input-group input-group-sm mb-2">
+    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search hmis-muted"></i></span>
+    <input type="search" class="form-control border-start-0 ps-0" placeholder="Filter privileges…" [value]="query()" (input)="setQuery($any($event.target).value)">
+  </div>
+
+  @if (loading()) {
+    <div class="hmis-muted small"><span class="spinner-border spinner-border-sm me-2"></span>Loading privileges…</div>
+  } @else if (filteredPrivileges().length === 0) {
+    <div class="hmis-muted small">No privileges match.</div>
+  } @else {
+    <div class="border rounded" style="max-height: 400px; overflow-y: auto;">
+      <ul class="list-group list-group-flush">
+        @for (p of filteredPrivileges(); track p.uid) {
+          <li class="list-group-item d-flex align-items-start gap-2 py-2">
+            <input class="form-check-input mt-1" type="checkbox" [id]="'ep-priv-' + p.name" [checked]="isSelected(p.name)" (change)="toggle(p.name, $any($event.target).checked)">
+            <label class="form-check-label flex-grow-1" [for]="'ep-priv-' + p.name">
+              <span class="hmis-code">{{ p.name }}</span>
+              @if (p.description) { <span class="hmis-muted small ms-2">{{ p.description }}</span> }
+            </label>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+  <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="save()" [disabled]="submitting() || loading()">
+    @if (submitting()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }
+    <i class="bi bi-check2"></i>Save privileges
+  </button>
+</div>

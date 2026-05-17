@@ -1,0 +1,123 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title d-flex align-items-center gap-2">
+      <i class="bi bi-clipboard-check text-primary"></i>
+      @if (order(); as o) { <span class="hmis-code">{{ o.orderNo }}</span> } @else { <span>Purchase order</span> }
+    </h1>
+    <p class="hmis-muted mb-0 small">Purchase order details, lines and receipts.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-light border" (click)="back()"><i class="bi bi-arrow-left me-1"></i>Back</button>
+    @if (order(); as o) {
+      <div ngbDropdown placement="bottom-end" class="d-inline-block">
+        <button class="btn btn-outline-secondary d-flex align-items-center gap-2" ngbDropdownToggle [disabled]="busy()">
+          <i class="bi bi-three-dots-vertical"></i>Actions
+        </button>
+        <div ngbDropdownMenu>
+          <button ngbDropdownItem [disabled]="!canOrder()" (click)="markOrdered()"><i class="bi bi-send me-2 text-primary"></i>Submit to supplier</button>
+          <button ngbDropdownItem [disabled]="!canReceive()" (click)="openReceive()"><i class="bi bi-box-arrow-in-down me-2 text-success"></i>Receive goods</button>
+          <div class="dropdown-divider"></div>
+          <button ngbDropdownItem [disabled]="!canCancel()" class="text-danger" (click)="cancel()"><i class="bi bi-x-octagon me-2"></i>Cancel PO</button>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+@if (actionMessage()) {
+  <div class="alert alert-success d-flex align-items-center gap-2" role="alert"><i class="bi bi-check-circle"></i><span>{{ actionMessage() }}</span></div>
+}
+
+@if (loading()) {
+  <div class="card"><div class="card-body p-4"><span class="hmis-skeleton" style="width:280px;"></span></div></div>
+} @else { @if (order(); as o) {
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4"><div class="hmis-muted small">Supplier</div><div class="fw-semibold">{{ o.supplierName || '—' }}</div></div>
+        <div class="col-md-4"><div class="hmis-muted small">Receiving pharmacy</div><div class="fw-semibold">{{ o.pharmacyName || '—' }}</div></div>
+        <div class="col-md-2"><div class="hmis-muted small">Status</div><span [class]="statusBadgeClass(o.status)">{{ statusLabel(o.status) }}</span></div>
+        <div class="col-md-2"><div class="hmis-muted small">Expected</div><div class="fw-semibold">{{ o.expectedDeliveryDate || '—' }}</div></div>
+        @if (o.notes) {
+          <div class="col-12"><div class="hmis-muted small">Notes</div><div>{{ o.notes }}</div></div>
+        }
+        @if (o.cancelReason) {
+          <div class="col-12"><div class="hmis-muted small">Cancellation reason</div><div class="text-danger">{{ o.cancelReason }}</div></div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header bg-white d-flex align-items-center py-3">
+      <span class="fw-semibold"><i class="bi bi-list-check me-2 text-primary"></i>Lines ({{ o.lines.length }})</span>
+      @if (canEdit()) {
+        <button type="button" class="btn btn-sm btn-primary ms-auto" (click)="openAddLine()"><i class="bi bi-plus-lg me-1"></i>Add line</button>
+      }
+    </div>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead><tr><th>Code</th><th>Medicine</th><th class="text-end">Ordered</th><th class="text-end">Received</th><th class="text-end">Outstanding</th><th class="text-end">Unit cost</th><th class="text-end">Amount</th><th class="text-end"></th></tr></thead>
+        <tbody>
+          @if (o.lines.length === 0) {
+            <tr><td colspan="8"><div class="hmis-empty"><i class="bi bi-list-check"></i><div class="small">No lines yet — add some before submitting.</div></div></td></tr>
+          } @else {
+            @for (line of o.lines; track line.uid) {
+              <tr>
+                <td><span class="hmis-code">{{ line.medicineCode || '—' }}</span></td>
+                <td><div class="fw-semibold">{{ line.medicineName || line.medicineUid }}</div>@if (line.medicineStrength) { <div class="hmis-muted small">{{ line.medicineStrength }}</div> }</td>
+                <td class="text-end">{{ line.orderedQuantity }}</td>
+                <td class="text-end">{{ line.receivedQuantity }}</td>
+                <td class="text-end fw-semibold">{{ line.outstandingQuantity }}</td>
+                <td class="text-end">{{ line.unitCost | number:'1.2-2' }}</td>
+                <td class="text-end">{{ line.lineAmount | number:'1.2-2' }}</td>
+                <td class="text-end">
+                  @if (canEdit()) {
+                    <button type="button" class="btn btn-sm btn-light border me-1" (click)="openEditLine(line)" title="Edit"><i class="bi bi-pencil"></i></button>
+                    <button type="button" class="btn btn-sm btn-light border text-danger" (click)="removeLine(line)" title="Remove"><i class="bi bi-x-lg"></i></button>
+                  }
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+        @if (o.lines.length > 0) {
+          <tfoot>
+            <tr><td colspan="6" class="text-end fw-semibold">Subtotal</td><td class="text-end fw-semibold">{{ o.currency }} {{ o.subtotal | number:'1.2-2' }}</td><td></td></tr>
+          </tfoot>
+        }
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-box-arrow-in-down me-2 text-primary"></i>Goods receipts ({{ receipts().length }})</div>
+    @if (receipts().length === 0) {
+      <div class="card-body"><div class="hmis-empty"><i class="bi bi-box-arrow-in-down"></i><div class="small">No receipts yet.</div></div></div>
+    } @else {
+      <ul class="list-group list-group-flush">
+        @for (r of receipts(); track r.uid) {
+          <li class="list-group-item">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+              <span class="hmis-code">{{ r.receiptNo }}</span>
+              <span class="hmis-muted small">{{ r.receivedAt | date:'medium' }}@if (r.receivedByUsername) { <span> · {{ r.receivedByUsername }}</span> }</span>
+              @if (r.deliveryNote) { <span class="badge text-bg-light border">DN: {{ r.deliveryNote }}</span> }
+            </div>
+            @if (r.notes) { <div class="hmis-muted small mb-2">{{ r.notes }}</div> }
+            <table class="table table-sm mb-0">
+              <thead><tr><th>Medicine</th><th class="text-end">Quantity</th></tr></thead>
+              <tbody>
+                @for (rl of r.lines; track rl.uid) {
+                  <tr><td>{{ rl.medicineCode }} — {{ rl.medicineName }}</td><td class="text-end fw-semibold">+{{ rl.quantity }}</td></tr>
+                }
+              </tbody>
+            </table>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+} }

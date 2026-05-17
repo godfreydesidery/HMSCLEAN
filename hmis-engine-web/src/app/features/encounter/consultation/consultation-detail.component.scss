@@ -1,0 +1,40 @@
+.consultation-detail__tabs {
+  border-bottom: 1px solid #e2e8f0;
+
+  .nav-link {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    font-weight: 500;
+    font-size: 0.85rem;
+    padding: 0.6rem 0.9rem;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+
+    &:hover {
+      color: #0f172a;
+    }
+
+    &.active {
+      color: #2563eb;
+      background: #fff;
+      border-bottom-color: #2563eb;
+    }
+  }
+}
+
+.patient-detail__dl {
+  dt {
+    font-weight: 500;
+    color: #64748b;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.4rem 0;
+  }
+  dd {
+    margin-bottom: 0;
+    padding: 0.4rem 0;
+    color: #0f172a;
+  }
+}

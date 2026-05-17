@@ -4,7 +4,57 @@ export const MASTERDATA_ROUTES: Routes = [
   {
     path: '',
     loadComponent: () =>
-      import('../placeholder/placeholder.component').then((m) => m.PlaceholderComponent),
-    data: { title: 'Master Data' }
+      import('./masterdata-shell.component').then((m) => m.MasterdataShellComponent),
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'clinics' },
+      {
+        path: 'clinics',
+        loadComponent: () => import('./clinics/clinic-list.component').then((m) => m.ClinicListComponent)
+      },
+      {
+        path: 'wards',
+        loadComponent: () => import('./wards/ward-list.component').then((m) => m.WardListComponent)
+      },
+      {
+        path: 'pharmacies',
+        loadComponent: () => import('./pharmacies/pharmacy-list.component').then((m) => m.PharmacyListComponent)
+      },
+      {
+        path: 'stores',
+        loadComponent: () => import('./stores/store-list.component').then((m) => m.StoreListComponent)
+      },
+      {
+        path: 'diagnoses',
+        loadComponent: () => import('./diagnoses/diagnosis-list.component').then((m) => m.DiagnosisListComponent)
+      },
+      {
+        path: 'lab-tests',
+        loadComponent: () => import('./lab-tests/lab-test-list.component').then((m) => m.LabTestListComponent)
+      },
+      {
+        path: 'procedures',
+        loadComponent: () => import('./procedures/procedure-list.component').then((m) => m.ProcedureListComponent)
+      },
+      {
+        path: 'radiology',
+        loadComponent: () => import('./radiology/radiology-list.component').then((m) => m.RadiologyListComponent)
+      },
+      {
+        path: 'medicines',
+        loadComponent: () => import('./medicines/medicine-list.component').then((m) => m.MedicineListComponent)
+      },
+      {
+        path: 'insurance',
+        loadComponent: () => import('./insurance/insurance-list.component').then((m) => m.InsuranceListComponent)
+      },
+      {
+        path: 'insurance-plans',
+        loadComponent: () => import('./insurance-plans/insurance-plan-list.component').then((m) => m.InsurancePlanListComponent)
+      },
+      {
+        path: 'pricing',
+        loadComponent: () => import('./pricing/price-list.component').then((m) => m.PriceListComponent)
+      }
+    ]
   }
 ];

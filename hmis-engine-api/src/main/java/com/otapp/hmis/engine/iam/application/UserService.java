@@ -1,6 +1,7 @@
 package com.otapp.hmis.engine.iam.application;
 
 import com.otapp.hmis.engine.common.api.PageResponse;
+import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.error.ConflictException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
 import com.otapp.hmis.engine.iam.application.dto.CreateUserRequest;
@@ -9,6 +10,7 @@ import com.otapp.hmis.engine.iam.domain.Role;
 import com.otapp.hmis.engine.iam.domain.RoleRepository;
 import com.otapp.hmis.engine.iam.domain.User;
 import com.otapp.hmis.engine.iam.domain.UserRepository;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -42,29 +44,64 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<UserSummary> list(Pageable pageable) {
-        return PageResponse.from(userRepository.findAll(pageable).map(IamMapper::toSummary));
+    public PageResponse<UserSummary> search(String query, Boolean enabled, Pageable pageable) {
+        return PageResponse.from(
+                userRepository.search(query == null ? null : query.trim(), enabled, pageable)
+                        .map(IamMapper::toSummary));
     }
 
     @Transactional(readOnly = true)
-    public UserSummary findById(Long id) {
-        return userRepository.findById(id)
+    public UserSummary findByUid(String uid) {
+        return userRepository.findByUid(uid)
                 .map(IamMapper::toSummary)
-                .orElseThrow(() -> new NotFoundException("User not found: " + id));
+                .orElseThrow(() -> new NotFoundException("User not found: " + uid));
     }
 
     @Transactional
-    public UserSummary setEnabled(Long id, boolean enabled) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("User not found: " + id));
+    public UserSummary setEnabled(String uid, boolean enabled) {
+        User user = userRepository.findByUid(uid)
+                .orElseThrow(() -> new NotFoundException("User not found: " + uid));
         user.setEnabled(enabled);
         return IamMapper.toSummary(user);
     }
 
+    /**
+     * Admin password reset. Sets a temporary password and flags the user
+     * so the next login forces a self-service change. Clears any lockout
+     * so the user can sign in immediately with the temporary credentials.
+     */
     @Transactional
-    public UserSummary replaceRoles(Long userId, Set<String> roleNames) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found: " + userId));
+    public UserSummary resetPassword(String uid, String newPassword) {
+        if (newPassword == null || newPassword.length() < SecurityPolicy.MIN_PASSWORD_LENGTH) {
+            throw new BusinessRuleException("Password must be at least "
+                    + SecurityPolicy.MIN_PASSWORD_LENGTH + " characters long");
+        }
+        User user = userRepository.findByUid(uid)
+                .orElseThrow(() -> new NotFoundException("User not found: " + uid));
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setPasswordChangedAt(Instant.now());
+        user.setPasswordMustChange(true);
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        return IamMapper.toSummary(user);
+    }
+
+    /**
+     * Admin unlock — clears any active lockout and resets the failed-attempt counter.
+     */
+    @Transactional
+    public UserSummary unlock(String uid) {
+        User user = userRepository.findByUid(uid)
+                .orElseThrow(() -> new NotFoundException("User not found: " + uid));
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        return IamMapper.toSummary(user);
+    }
+
+    @Transactional
+    public UserSummary replaceRoles(String uid, Set<String> roleNames) {
+        User user = userRepository.findByUid(uid)
+                .orElseThrow(() -> new NotFoundException("User not found: " + uid));
         user.getRoles().clear();
         attachRoles(user, roleNames);
         return IamMapper.toSummary(user);

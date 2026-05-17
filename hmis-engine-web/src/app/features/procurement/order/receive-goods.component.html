@@ -1,0 +1,60 @@
+<div class="modal-header">
+  <div>
+    <h5 class="modal-title">Receive goods</h5>
+    @if (po(); as p) {
+      <div class="hmis-muted small mt-1">
+        <span class="hmis-code me-2">{{ p.orderNo }}</span>
+        <span>{{ p.supplierName }} → {{ p.pharmacyName }}</span>
+      </div>
+    }
+  </div>
+  <button type="button" class="btn-close" (click)="activeModal.dismiss()" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  }
+
+  <form [formGroup]="form" novalidate>
+    <div class="row g-3 mb-3">
+      <div class="col-md-6">
+        <label class="form-label" for="rg-delivery">Delivery note</label>
+        <input id="rg-delivery" name="deliveryNote" type="text" class="form-control" formControlName="deliveryNote" maxlength="120">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="rg-notes">Notes</label>
+        <input id="rg-notes" name="notes" type="text" class="form-control" formControlName="notes" maxlength="500">
+      </div>
+    </div>
+  </form>
+
+  @if (lineForms().length === 0) {
+    <div class="alert alert-info small mb-0"><i class="bi bi-check-circle me-1"></i>All lines on this purchase order have already been fully received.</div>
+  } @else {
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Medicine</th><th class="text-end">Outstanding</th><th class="text-end" style="width:120px;">Receive qty</th></tr></thead>
+        <tbody>
+          @for (lf of lineForms(); track $index) {
+            <tr [formGroup]="lf">
+              <td>{{ lf.controls['medicineLabel'].value }}</td>
+              <td class="text-end fw-semibold">{{ lf.controls['outstanding'].value }}</td>
+              <td>
+                <input type="number" min="0" step="1" [max]="lf.controls['outstanding'].value" class="form-control form-control-sm text-end" formControlName="quantity">
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+  <button type="button" class="btn btn-success d-flex align-items-center gap-2" (click)="submit()" [disabled]="submitting() || lineForms().length === 0">
+    @if (submitting()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }
+    <i class="bi bi-box-arrow-in-down"></i>Record receipt
+  </button>
+</div>

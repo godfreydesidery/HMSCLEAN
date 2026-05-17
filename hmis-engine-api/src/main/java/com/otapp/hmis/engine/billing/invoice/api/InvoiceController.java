@@ -60,6 +60,17 @@ public class InvoiceController {
         return ResponseEntity.ok(invoiceService.generateForAdmission(admissionUid));
     }
 
+    @GetMapping("/billing/patients/uid/{patientUid}/outsider-invoice")
+    public ResponseEntity<InvoiceDto> findCurrentOutsiderDraft(@PathVariable String patientUid) {
+        InvoiceDto dto = invoiceService.findCurrentDraftForOutsider(patientUid);
+        return dto == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(dto);
+    }
+
+    @PostMapping("/billing/patients/uid/{patientUid}/outsider-invoice")
+    public ResponseEntity<InvoiceDto> generateForOutsider(@PathVariable String patientUid) {
+        return ResponseEntity.ok(invoiceService.generateForOutsider(patientUid));
+    }
+
     @PostMapping("/billing/invoices/uid/{invoiceUid}/issue")
     public ResponseEntity<InvoiceDto> issue(@PathVariable String invoiceUid) {
         return ResponseEntity.ok(invoiceService.issue(invoiceUid));

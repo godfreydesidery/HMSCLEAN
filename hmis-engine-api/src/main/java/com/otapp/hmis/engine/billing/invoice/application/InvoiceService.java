@@ -48,12 +48,15 @@ import com.otapp.hmis.engine.masterdata.ward.domain.Ward;
 import com.otapp.hmis.engine.masterdata.ward.domain.WardRepository;
 import com.otapp.hmis.engine.patient.domain.Patient;
 import com.otapp.hmis.engine.patient.domain.PatientRepository;
+import com.otapp.hmis.engine.patient.domain.PatientType;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -230,6 +233,97 @@ public class InvoiceService {
         invoice.setSubtotal(subtotal);
         invoice.setCurrency(currency);
         return toDto(invoice);
+    }
+
+    /**
+     * Generate or regenerate the OUTSIDER (walk-in) invoice for a patient.
+     * Picks up every COMPLETED outsider clinical order and every DISPENSED
+     * outsider prescription for the patient that hasn't already been billed
+     * on a prior invoice. Only one DRAFT outsider invoice exists per patient
+     * at a time; once it's ISSUED, the next generate creates a fresh one.
+     */
+    @Transactional
+    public InvoiceDto generateForOutsider(String patientUid) {
+        Patient patient = patientRepository.findByUid(patientUid)
+                .orElseThrow(() -> new NotFoundException("Patient not found: " + patientUid));
+        if (patient.getType() != PatientType.OUTSIDER) {
+            throw new BusinessRuleException(
+                    "Outsider invoices are only for OUTSIDER patients (current type: " + patient.getType() + ")");
+        }
+        if (!patient.isActive()) {
+            throw new BusinessRuleException("Cannot bill an inactive patient");
+        }
+
+        Invoice invoice = invoiceRepository.findDraftOutsiderForPatient(patientUid).orElse(null);
+        if (invoice == null) {
+            invoice = Invoice.forOutsider(
+                    invoiceNumberGenerator.next(),
+                    patient.getUid(),
+                    patient.getPaymentType(),
+                    patient.getInsurancePlanUid(),
+                    DEFAULT_CURRENCY);
+            invoiceRepository.save(invoice);
+        } else {
+            invoiceLineRepository.deleteAllByInvoiceUid(invoice.getUid());
+            invoice.setSubtotal(BigDecimal.ZERO);
+            invoice.setPaymentType(patient.getPaymentType());
+            invoice.setInsurancePlanUid(patient.getInsurancePlanUid());
+        }
+
+        // Already-billed work — anything sitting on prior (ISSUED/PAID) invoices
+        // for this patient is skipped so we never double-bill.
+        Set<String> alreadyBilled = new HashSet<>(invoiceLineRepository.findReferenceUidsBilledForPatient(patientUid));
+
+        List<InvoiceLine> lines = new ArrayList<>();
+        BigDecimal subtotal = BigDecimal.ZERO;
+        String currency = invoice.getCurrency();
+
+        // 1) Outsider clinical orders that are COMPLETED and not yet billed.
+        for (ClinicalOrder order :
+                clinicalOrderRepository.findAllByPatientUidAndConsultationUidIsNullOrderByRequestedAtDesc(patientUid)) {
+            if (order.getStatus() != ClinicalOrderStatus.COMPLETED) continue;
+            if (alreadyBilled.contains(order.getUid())) continue;
+            InvoiceLineKind lineKind = mapKind(order.getKind());
+            ServiceKind serviceKind = mapServiceKind(order.getKind());
+            String serviceName = resolveOrderServiceName(order);
+            PriceLookup.Resolved r = priceLookup.resolve(serviceKind, order.getServiceUid(), patient.getInsurancePlanUid(), currency);
+            currency = r.currency();
+            lines.add(new InvoiceLine(invoice.getUid(), lineKind,
+                    order.getServiceUid(), order.getUid(),
+                    serviceName + " (" + order.getOrderNo() + ")",
+                    BigDecimal.ONE, r.amount(), r.amount()));
+            subtotal = subtotal.add(r.amount());
+        }
+
+        // 2) Outsider prescriptions that are DISPENSED and not yet billed.
+        for (Prescription rx :
+                prescriptionRepository.findAllByPatientUidAndConsultationUidIsNullOrderByRequestedAtDesc(patientUid)) {
+            if (rx.getStatus() != PrescriptionStatus.DISPENSED) continue;
+            if (alreadyBilled.contains(rx.getUid())) continue;
+            Medicine medicine = medicineRepository.findByUid(rx.getMedicineUid()).orElse(null);
+            PriceLookup.Resolved r = priceLookup.resolve(ServiceKind.MEDICINE, rx.getMedicineUid(), patient.getInsurancePlanUid(), currency);
+            currency = r.currency();
+            BigDecimal qty = rx.getQuantity() == null ? BigDecimal.ONE : BigDecimal.valueOf(rx.getQuantity());
+            BigDecimal amount = r.amount().multiply(qty);
+            String desc = (medicine == null ? rx.getMedicineUid() : medicine.getName())
+                    + " · " + rx.getDose() + " · " + rx.getFrequency()
+                    + " (" + rx.getPrescriptionNo() + ")";
+            lines.add(new InvoiceLine(invoice.getUid(), InvoiceLineKind.MEDICINE,
+                    rx.getMedicineUid(), rx.getUid(),
+                    desc, qty, r.amount(), amount));
+            subtotal = subtotal.add(amount);
+        }
+
+        invoiceLineRepository.saveAll(lines);
+        invoice.setSubtotal(subtotal);
+        invoice.setCurrency(currency);
+        return toDto(invoice);
+    }
+
+    @Transactional(readOnly = true)
+    public InvoiceDto findCurrentDraftForOutsider(String patientUid) {
+        Invoice invoice = invoiceRepository.findDraftOutsiderForPatient(patientUid).orElse(null);
+        return invoice == null ? null : toDto(invoice);
     }
 
     /** Inclusive whole-day count; an admission with no overnight stay is still one day. */

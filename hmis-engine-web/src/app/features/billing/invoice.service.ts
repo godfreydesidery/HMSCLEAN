@@ -49,6 +49,16 @@ export class InvoiceService {
     return this.http.post<Invoice>(`${this.base}/admissions/uid/${admissionUid}/invoice`, {});
   }
 
+  findCurrentOutsiderDraft(patientUid: string): Observable<Invoice | null> {
+    return this.http
+      .get<Invoice>(`${this.base}/patients/uid/${patientUid}/outsider-invoice`, { observe: 'response' })
+      .pipe(map((res) => (res.status === 204 ? null : res.body)));
+  }
+
+  generateForOutsider(patientUid: string): Observable<Invoice> {
+    return this.http.post<Invoice>(`${this.base}/patients/uid/${patientUid}/outsider-invoice`, {});
+  }
+
   issue(uid: string): Observable<Invoice> {
     return this.http.post<Invoice>(`${this.base}/invoices/uid/${uid}/issue`, {});
   }

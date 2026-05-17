@@ -1,44 +1,123 @@
-<div class="login-page">
-  <form class="login-card" [formGroup]="form" (ngSubmit)="submit()" novalidate>
-    <h1 class="login-card__title">{{ appName }}</h1>
-    <p class="login-card__subtitle">Sign in to continue</p>
+<div class="login">
+  <aside class="login__brand">
+    <div class="login__brand-content">
+      <div class="login__logo">
+        <i class="bi bi-activity"></i>
+        <span>HMIS Engine</span>
+      </div>
+      <h2 class="login__brand-title">Modern healthcare,<br />beautifully orchestrated.</h2>
+      <p class="login__brand-tagline">
+        A unified platform for clinical, pharmacy, billing and operations.
+      </p>
 
-    <label class="field">
-      <span class="field__label">Username</span>
-      <input
-        type="text"
-        formControlName="username"
-        autocomplete="username"
-        spellcheck="false"
-        autofocus
-      />
-      @if (form.controls.username.touched && form.controls.username.invalid) {
-        <span class="field__error">Username is required.</span>
-      }
-    </label>
+      <ul class="login__brand-points">
+        <li><i class="bi bi-check2-circle"></i> Real-time clinical workflows</li>
+        <li><i class="bi bi-check2-circle"></i> Integrated pharmacy &amp; inventory</li>
+        <li><i class="bi bi-check2-circle"></i> Insurance &amp; billing automation</li>
+      </ul>
+    </div>
 
-    <label class="field">
-      <span class="field__label">Password</span>
-      <input
-        type="password"
-        formControlName="password"
-        autocomplete="current-password"
-      />
-      @if (form.controls.password.touched && form.controls.password.invalid) {
-        <span class="field__error">Password is required.</span>
-      }
-    </label>
+    <div class="login__brand-footer">
+      &copy; {{ year }} HMIS Engine. All rights reserved.
+    </div>
+  </aside>
 
-    @if (errorMessage()) {
-      <div class="login-card__error" role="alert">{{ errorMessage() }}</div>
-    }
+  <section class="login__form-panel">
+    <div class="login__card">
+      <header class="login__header">
+        <h1 class="login__title">Welcome back</h1>
+        <p class="login__subtitle">Sign in to your account to continue.</p>
+      </header>
 
-    <button type="submit" class="login-card__submit" [disabled]="submitting()">
-      @if (submitting()) {
-        Signing in…
-      } @else {
-        Sign in
-      }
-    </button>
-  </form>
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="mb-3">
+          <label class="form-label" for="username">Username</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0">
+              <i class="bi bi-person"></i>
+            </span>
+            <input
+              id="username"
+              name="username"
+              type="text"
+              class="form-control border-start-0 ps-0"
+              formControlName="username"
+              autocomplete="username"
+              spellcheck="false"
+              placeholder="e.g. root"
+              autofocus
+              [class.is-invalid]="form.controls.username.touched && form.controls.username.invalid"
+            />
+          </div>
+          @if (form.controls.username.touched && form.controls.username.invalid) {
+            <div class="invalid-feedback d-block">Username is required.</div>
+          }
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label d-flex justify-content-between align-items-center" for="password">
+            <span>Password</span>
+            <button type="button" class="btn btn-link btn-sm p-0 small text-decoration-none" tabindex="-1">
+              Forgot password?
+            </button>
+          </label>
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0">
+              <i class="bi bi-lock"></i>
+            </span>
+            <input
+              id="password"
+              name="password"
+              [type]="showPassword() ? 'text' : 'password'"
+              class="form-control border-start-0 ps-0 border-end-0"
+              formControlName="password"
+              autocomplete="current-password"
+              placeholder="Enter password"
+              [class.is-invalid]="form.controls.password.touched && form.controls.password.invalid"
+            />
+            <button
+              type="button"
+              class="input-group-text bg-white border-start-0"
+              (click)="toggleShowPassword()"
+              tabindex="-1"
+              aria-label="Toggle password visibility"
+            >
+              <i class="bi" [class.bi-eye]="!showPassword()" [class.bi-eye-slash]="showPassword()"></i>
+            </button>
+          </div>
+          @if (form.controls.password.touched && form.controls.password.invalid) {
+            <div class="invalid-feedback d-block">Password is required.</div>
+          }
+        </div>
+
+        @if (errorMessage()) {
+          <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3 mb-3" role="alert">
+            <i class="bi bi-exclamation-circle"></i>
+            <span class="small">{{ errorMessage() }}</span>
+          </div>
+        }
+
+        <button
+          type="submit"
+          class="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2"
+          [disabled]="submitting()"
+        >
+          @if (submitting()) {
+            <output class="spinner-border spinner-border-sm" aria-live="polite">
+              <span class="visually-hidden">Signing in…</span>
+            </output>
+            <span>Signing in…</span>
+          } @else {
+            <span>Sign in</span>
+            <i class="bi bi-arrow-right"></i>
+          }
+        </button>
+      </form>
+
+      <p class="login__hint">
+        <i class="bi bi-info-circle me-1"></i>
+        First-time setup uses the bootstrapped <code>root</code> account.
+      </p>
+    </div>
+  </section>
 </div>

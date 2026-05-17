@@ -4,7 +4,6 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
 
-import { environment } from '../../../../environments/environment';
 import { AuthService } from '../../../core/auth/auth.service';
 
 @Component({
@@ -19,14 +18,19 @@ export class LoginComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  readonly appName = environment.appName;
+  readonly year = new Date().getFullYear();
   readonly submitting = signal(false);
+  readonly showPassword = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
   readonly form = this.fb.nonNullable.group({
     username: ['', [Validators.required, Validators.minLength(3)]],
     password: ['', [Validators.required, Validators.minLength(6)]]
   });
+
+  toggleShowPassword(): void {
+    this.showPassword.update((v) => !v);
+  }
 
   submit(): void {
     if (this.form.invalid || this.submitting()) {

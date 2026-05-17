@@ -1,59 +1,92 @@
 .dashboard {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-
-  &__title {
-    margin: 0;
-    color: #1f2933;
+  &__wave {
+    display: inline-block;
+    transform-origin: 70% 70%;
+    animation: dashboardWave 2.4s ease-in-out infinite;
   }
 
-  &__subtitle {
-    margin: 0;
-    color: #6b7a87;
+  &__stat-card {
+    border-color: var(--hmis-border);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--hmis-shadow-md);
+    }
   }
 
-  &__cards {
-    display: grid;
-    gap: 1rem;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  &__stat-icon {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border-radius: 0.7rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+  }
+
+  &__stat-value {
+    font-size: 1.45rem;
+    font-weight: 600;
+    color: #0f172a;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+
+  &__chart-placeholder {
+    height: 280px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: repeating-linear-gradient(
+      45deg,
+      #f8fafc,
+      #f8fafc 10px,
+      #f1f5f9 10px,
+      #f1f5f9 20px
+    );
+    border-radius: 0.65rem;
+
+    i {
+      font-size: 2.5rem;
+      color: #cbd5e1;
+    }
+  }
+
+  &__priv-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+
+  &__priv-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    padding: 0.25rem 0.55rem;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+
+    i {
+      color: #16a34a;
+      font-size: 0.85rem;
+    }
   }
 }
 
-.card {
-  background: #fff;
-  border: 1px solid #e4e9f0;
-  border-radius: 10px;
-  padding: 1rem 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-
-  &__title {
-    margin: 0;
-    font-size: 1rem;
-    color: #1f2933;
-  }
-
-  &__empty {
-    color: #6b7a87;
-    font-size: 0.9rem;
-    margin: 0;
-  }
-
-  &__list {
-    margin: 0;
-    padding-left: 1.25rem;
-    color: #44525f;
-    font-size: 0.9rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-
-    &--columns {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      column-gap: 1rem;
-    }
-  }
+@keyframes dashboardWave {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+  30% { transform: rotate(14deg); }
+  40% { transform: rotate(-4deg); }
+  50% { transform: rotate(10deg); }
 }

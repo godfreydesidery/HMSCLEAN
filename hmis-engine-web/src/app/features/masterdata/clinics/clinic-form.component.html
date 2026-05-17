@@ -1,0 +1,134 @@
+<div class="modal-header">
+  <h5 class="modal-title d-flex align-items-center gap-2">
+    <i class="bi" [class.bi-pencil-square]="isEdit" [class.bi-plus-circle]="!isEdit"></i>
+    {{ title }}
+  </h5>
+  <button
+    type="button"
+    class="btn-close"
+    aria-label="Close"
+    (click)="activeModal.dismiss()"
+  ></button>
+</div>
+
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-body">
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3" role="alert">
+        <i class="bi bi-exclamation-circle"></i>
+        <span class="small">{{ errorMessage() }}</span>
+      </div>
+    }
+
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label" for="clinic-code">
+          Code <span class="text-danger">*</span>
+        </label>
+        <input
+          id="clinic-code"
+          name="code"
+          type="text"
+          class="form-control text-uppercase"
+          formControlName="code"
+          autocomplete="off"
+          placeholder="e.g. OPD"
+          [class.is-invalid]="form.controls.code.touched && form.controls.code.invalid"
+        />
+        <div class="form-text">Uppercase letters, digits, underscore and hyphen.</div>
+        @if (form.controls.code.touched && form.controls.code.errors?.['pattern']) {
+          <div class="invalid-feedback d-block">Use A-Z, 0-9, _ or - only.</div>
+        }
+        @if (form.controls.code.touched && form.controls.code.errors?.['required']) {
+          <div class="invalid-feedback d-block">Code is required.</div>
+        }
+      </div>
+
+      <div class="col-md-8">
+        <label class="form-label" for="clinic-name">
+          Name <span class="text-danger">*</span>
+        </label>
+        <input
+          id="clinic-name"
+          name="name"
+          type="text"
+          class="form-control"
+          formControlName="name"
+          autocomplete="off"
+          placeholder="e.g. General Outpatient"
+          [class.is-invalid]="form.controls.name.touched && form.controls.name.invalid"
+        />
+        @if (form.controls.name.touched && form.controls.name.invalid) {
+          <div class="invalid-feedback d-block">Name is required.</div>
+        }
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label" for="clinic-type">
+          Type <span class="text-danger">*</span>
+        </label>
+        <select
+          id="clinic-type"
+          name="type"
+          class="form-select"
+          formControlName="type"
+        >
+          @for (t of clinicTypes; track t.value) {
+            <option [value]="t.value">{{ t.label }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label" for="clinic-location">Location</label>
+        <input
+          id="clinic-location"
+          name="location"
+          type="text"
+          class="form-control"
+          formControlName="location"
+          autocomplete="off"
+          placeholder="e.g. Block A, 2nd floor"
+        />
+      </div>
+
+      <div class="col-12">
+        <label class="form-label" for="clinic-description">Description</label>
+        <textarea
+          id="clinic-description"
+          name="description"
+          rows="3"
+          class="form-control"
+          formControlName="description"
+          placeholder="Optional notes"
+        ></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button
+      type="button"
+      class="btn btn-light border"
+      (click)="activeModal.dismiss()"
+      [disabled]="submitting()"
+    >
+      Cancel
+    </button>
+    <button
+      type="submit"
+      class="btn btn-primary d-flex align-items-center gap-2"
+      [disabled]="submitting()"
+    >
+      @if (submitting()) {
+        <output class="spinner-border spinner-border-sm" aria-live="polite">
+          <span class="visually-hidden">Saving…</span>
+        </output>
+        Saving…
+      } @else {
+        <i class="bi bi-check2"></i>
+        {{ isEdit ? 'Save changes' : 'Create clinic' }}
+      }
+    </button>
+  </div>
+</form>

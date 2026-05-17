@@ -1,34 +1,112 @@
-<section class="dashboard">
-  <h1 class="dashboard__title">Welcome{{ user() ? ', ' + user()!.firstName : '' }}</h1>
-  <p class="dashboard__subtitle">
-    You are signed in to the HMIS Engine. Pick a module from the sidebar to begin.
-  </p>
-
-  <div class="dashboard__cards">
-    <article class="card">
-      <h2 class="card__title">Your roles</h2>
-      @if (roles().length === 0) {
-        <p class="card__empty">No roles assigned.</p>
-      } @else {
-        <ul class="card__list">
-          @for (role of roles(); track role) {
-            <li>{{ role }}</li>
-          }
-        </ul>
-      }
-    </article>
-
-    <article class="card">
-      <h2 class="card__title">Your privileges</h2>
-      @if (privileges().length === 0) {
-        <p class="card__empty">No privileges granted.</p>
-      } @else {
-        <ul class="card__list card__list--columns">
-          @for (priv of privileges(); track priv) {
-            <li>{{ priv }}</li>
-          }
-        </ul>
-      }
-    </article>
+<div class="dashboard">
+  <div class="hmis-page-header">
+    <div>
+      <h1 class="hmis-page-title">
+        Welcome back{{ user() ? ', ' + user()!.firstName : '' }} <span class="dashboard__wave">👋</span>
+      </h1>
+      <p class="hmis-muted mb-0 small">
+        Here is what's happening in your hospital today, {{ today }}.
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-light border d-flex align-items-center gap-2">
+        <i class="bi bi-download"></i>
+        Export
+      </button>
+      <button type="button" class="btn btn-primary d-flex align-items-center gap-2">
+        <i class="bi bi-plus-lg"></i>
+        New patient
+      </button>
+    </div>
   </div>
-</section>
+
+  <div class="row g-3 mb-4">
+    @for (stat of stats; track stat.label) {
+      <div class="col-sm-6 col-xl-3">
+        <div class="card dashboard__stat-card h-100">
+          <div class="card-body d-flex align-items-center gap-3">
+            <span class="dashboard__stat-icon" [style.background]="stat.bg" [style.color]="stat.color">
+              <i class="bi {{ stat.icon }}"></i>
+            </span>
+            <div class="flex-grow-1">
+              <div class="hmis-muted small">{{ stat.label }}</div>
+              <div class="dashboard__stat-value">{{ stat.value }}</div>
+              <div class="small mt-1" [class.text-success]="stat.trend > 0" [class.text-danger]="stat.trend < 0">
+                <i class="bi" [class.bi-arrow-up-right]="stat.trend >= 0" [class.bi-arrow-down-right]="stat.trend < 0"></i>
+                {{ stat.trendLabel }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="row g-3">
+    <div class="col-xl-8">
+      <div class="card h-100">
+        <div class="card-header bg-white d-flex align-items-center justify-content-between">
+          <div>
+            <div class="fw-semibold">Activity overview</div>
+            <div class="hmis-muted small">Patient registrations &amp; consultations (last 7 days)</div>
+          </div>
+          <fieldset class="btn-group btn-group-sm border-0 p-0 m-0">
+            <legend class="visually-hidden">Date range</legend>
+            <button type="button" class="btn btn-outline-secondary active">7 days</button>
+            <button type="button" class="btn btn-outline-secondary">30 days</button>
+            <button type="button" class="btn btn-outline-secondary">90 days</button>
+          </fieldset>
+        </div>
+        <div class="card-body">
+          <div class="dashboard__chart-placeholder hmis-muted">
+            <i class="bi bi-graph-up-arrow"></i>
+            <div>Chart will appear here once the reporting module is wired up.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-4">
+      <div class="card h-100">
+        <div class="card-header bg-white">
+          <div class="fw-semibold">Your access</div>
+          <div class="hmis-muted small">Roles &amp; privileges assigned to your account</div>
+        </div>
+        <div class="card-body d-flex flex-column gap-3">
+          <div>
+            <div class="hmis-muted small text-uppercase fw-semibold mb-2" style="letter-spacing: 0.05em; font-size: 0.7rem;">
+              Roles
+            </div>
+            @if (roles().length === 0) {
+              <span class="hmis-muted small">No roles assigned.</span>
+            } @else {
+              <div class="d-flex flex-wrap gap-1">
+                @for (role of roles(); track role) {
+                  <span class="badge text-bg-light border">{{ role }}</span>
+                }
+              </div>
+            }
+          </div>
+
+          <div>
+            <div class="hmis-muted small text-uppercase fw-semibold mb-2 d-flex justify-content-between align-items-center" style="letter-spacing: 0.05em; font-size: 0.7rem;">
+              <span>Privileges</span>
+              <span class="badge text-bg-primary-subtle text-primary border border-primary-subtle">{{ privileges().length }}</span>
+            </div>
+            @if (privileges().length === 0) {
+              <span class="hmis-muted small">No privileges granted.</span>
+            } @else {
+              <div class="dashboard__priv-list">
+                @for (priv of privileges(); track priv) {
+                  <span class="dashboard__priv-pill">
+                    <i class="bi bi-shield-check"></i>{{ priv }}
+                  </span>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

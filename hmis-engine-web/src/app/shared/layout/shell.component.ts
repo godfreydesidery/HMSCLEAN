@@ -50,7 +50,8 @@ export class ShellComponent {
       label: 'Operations',
       items: [
         { label: 'Pharmacy',    path: '/pharmacy',    icon: 'bi-capsule',         privileges: ['PHARMACY_ACCESS'] },
-        { label: 'Procurement', path: '/procurement', icon: 'bi-truck',           privileges: ['PROCUREMENT_ACCESS'] },
+        { label: 'Procurement', path: '/procurement/orders',    icon: 'bi-truck',          privileges: ['PROCUREMENT_ACCESS'] },
+        { label: 'Suppliers',   path: '/procurement/suppliers', icon: 'bi-buildings',      privileges: ['PROCUREMENT_ACCESS'] },
         { label: 'Billing',     path: '/billing',     icon: 'bi-cash-coin',       privileges: ['BILLING_ACCESS'] },
         { label: 'HR',          path: '/hr',          icon: 'bi-person-badge',    privileges: ['HR_ACCESS'] },
         { label: 'Reports',     path: '/reporting',   icon: 'bi-bar-chart-line',  privileges: ['REPORTING_ACCESS'] }

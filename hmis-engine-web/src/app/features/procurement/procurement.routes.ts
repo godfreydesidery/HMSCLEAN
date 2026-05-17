@@ -1,10 +1,23 @@
 import { Routes } from '@angular/router';
 
 export const PROCUREMENT_ROUTES: Routes = [
+  { path: '', pathMatch: 'full', redirectTo: 'orders' },
   {
-    path: '',
+    path: 'suppliers',
     loadComponent: () =>
-      import('../placeholder/placeholder.component').then((m) => m.PlaceholderComponent),
-    data: { title: 'Procurement' }
+      import('./supplier/supplier-list.component').then((m) => m.SupplierListComponent),
+    data: { title: 'Suppliers' }
+  },
+  {
+    path: 'orders',
+    loadComponent: () =>
+      import('./order/purchase-order-list.component').then((m) => m.PurchaseOrderListComponent),
+    data: { title: 'Purchase orders' }
+  },
+  {
+    path: 'orders/:uid',
+    loadComponent: () =>
+      import('./order/purchase-order-detail.component').then((m) => m.PurchaseOrderDetailComponent),
+    data: { title: 'Purchase order' }
   }
 ];

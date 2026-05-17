@@ -38,13 +38,31 @@ public class StockService {
 
     @Transactional
     public StockBalanceDto receive(String pharmacyUid, ReceiveStockRequest request) {
-        Pharmacy pharmacy = activePharmacy(pharmacyUid);
-        Medicine medicine = activeMedicine(request.medicineUid());
-        StockBalance balance = lockOrCreate(pharmacy.getUid(), medicine.getUid());
-
-        balance.applyDelta(request.quantity());
-        recordMovement(balance, StockMovementKind.RECEIPT, request.quantity(),
+        return receiveInternal(pharmacyUid, request.medicineUid(), request.quantity(),
                 null, emptyToNull(request.note()));
+    }
+
+    /**
+     * Internal cross-module entry point used by procurement (goods receipt)
+     * to apply a RECEIPT movement against a stock balance and link it back
+     * to the source document via {@code referenceUid}.
+     */
+    @Transactional
+    public StockBalanceDto receiveForReference(String pharmacyUid, String medicineUid,
+                                               int quantity, String referenceUid, String note) {
+        if (quantity <= 0) {
+            throw new BusinessRuleException("Receipt quantity must be positive");
+        }
+        return receiveInternal(pharmacyUid, medicineUid, quantity, emptyToNull(referenceUid), emptyToNull(note));
+    }
+
+    private StockBalanceDto receiveInternal(String pharmacyUid, String medicineUid,
+                                            int quantity, String referenceUid, String note) {
+        Pharmacy pharmacy = activePharmacy(pharmacyUid);
+        Medicine medicine = activeMedicine(medicineUid);
+        StockBalance balance = lockOrCreate(pharmacy.getUid(), medicine.getUid());
+        balance.applyDelta(quantity);
+        recordMovement(balance, StockMovementKind.RECEIPT, quantity, referenceUid, note);
         return toBalanceDto(balance, pharmacy, medicine);
     }
 

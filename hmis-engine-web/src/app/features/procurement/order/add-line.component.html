@@ -1,0 +1,49 @@
+<div class="modal-header">
+  <h5 class="modal-title">{{ title }}</h5>
+  <button type="button" class="btn-close" (click)="activeModal.dismiss()" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="mb-3">
+      <label class="form-label" for="al-med">Medicine <span class="text-danger">*</span></label>
+      @if (isEdit) {
+        <input id="al-med" type="text" class="form-control" [value]="(existing?.medicineCode ?? '') + ' — ' + (existing?.medicineName ?? '')" disabled>
+      } @else {
+        <select id="al-med" name="medicineUid" class="form-select" formControlName="medicineUid">
+          <option value="" disabled>{{ loadingMedicines() ? 'Loading…' : '— Select medicine —' }}</option>
+          @for (m of medicines(); track m.uid) {
+            <option [value]="m.uid">{{ m.code }} — {{ m.name }}@if (m.strength) { <span> · {{ m.strength }}</span> }</option>
+          }
+        </select>
+      }
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label" for="al-qty">Ordered qty <span class="text-danger">*</span></label>
+        <input id="al-qty" name="orderedQuantity" type="number" min="1" step="1" class="form-control" formControlName="orderedQuantity">
+      </div>
+      <div class="col-md-5">
+        <label class="form-label" for="al-cost">Unit cost <span class="text-danger">*</span></label>
+        <input id="al-cost" name="unitCost" type="number" min="0" step="0.01" class="form-control" formControlName="unitCost">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="al-cur">Currency</label>
+        <input id="al-cur" name="currency" type="text" maxlength="3" class="form-control" formControlName="currency">
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+  <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="submit()" [disabled]="submitting()">
+    @if (submitting()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }
+    <i class="bi bi-check2"></i>{{ isEdit ? 'Save changes' : 'Add line' }}
+  </button>
+</div>

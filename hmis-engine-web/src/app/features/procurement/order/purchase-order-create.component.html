@@ -1,0 +1,50 @@
+<div class="modal-header">
+  <h5 class="modal-title">New purchase order</h5>
+  <button type="button" class="btn-close" (click)="activeModal.dismiss()" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label" for="poc-supplier">Supplier <span class="text-danger">*</span></label>
+        <select id="poc-supplier" name="supplierUid" class="form-select" formControlName="supplierUid">
+          <option value="" disabled>{{ loadingLookups() ? 'Loading…' : '— Select supplier —' }}</option>
+          @for (s of suppliers(); track s.uid) {
+            <option [value]="s.uid">{{ s.name }} ({{ s.code }})</option>
+          }
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="poc-pharmacy">Receiving pharmacy <span class="text-danger">*</span></label>
+        <select id="poc-pharmacy" name="pharmacyUid" class="form-select" formControlName="pharmacyUid">
+          <option value="" disabled>{{ loadingLookups() ? 'Loading…' : '— Select pharmacy —' }}</option>
+          @for (p of pharmacies(); track p.uid) {
+            <option [value]="p.uid">{{ p.name }} ({{ p.code }})</option>
+          }
+        </select>
+        <div class="form-text">Stock received against this PO will be added to this pharmacy.</div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="poc-date">Expected delivery date</label>
+        <input id="poc-date" name="expectedDeliveryDate" type="date" class="form-control" formControlName="expectedDeliveryDate">
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="poc-notes">Notes</label>
+        <textarea id="poc-notes" name="notes" rows="3" class="form-control" formControlName="notes" maxlength="500"></textarea>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+  <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="submit()" [disabled]="submitting() || loadingLookups()">
+    @if (submitting()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }
+    <i class="bi bi-check2"></i>Create draft PO
+  </button>
+</div>

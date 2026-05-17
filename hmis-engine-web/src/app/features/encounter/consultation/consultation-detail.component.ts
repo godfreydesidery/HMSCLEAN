@@ -5,6 +5,9 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { finalize, forkJoin } from 'rxjs';
 
+import { InvoiceService } from '../../billing/invoice.service';
+import { INVOICE_STATUSES, Invoice, InvoiceStatus } from '../../billing/invoice.types';
+import { RecordPaymentComponent } from '../../billing/record-payment.component';
 import { AddDiagnosisComponent } from '../diagnosis/add-diagnosis.component';
 import { ConsultationDiagnosisService } from '../diagnosis/consultation-diagnosis.service';
 import {
@@ -29,7 +32,7 @@ import { PatientVitals } from '../vitals/vitals.types';
 import { ConsultationService } from './consultation.service';
 import { CONSULTATION_STATUSES, Consultation, ConsultationStatus } from './consultation.types';
 
-type TabKey = 'overview' | 'vitals' | 'notes' | 'diagnoses' | 'orders';
+type TabKey = 'overview' | 'vitals' | 'notes' | 'diagnoses' | 'orders' | 'billing';
 
 @Component({
   selector: 'app-consultation-detail',
@@ -47,6 +50,7 @@ export class ConsultationDetailComponent {
   private readonly diagnosisService = inject(ConsultationDiagnosisService);
   private readonly orderService = inject(ClinicalOrderService);
   private readonly prescriptionService = inject(PrescriptionService);
+  private readonly invoiceService = inject(InvoiceService);
   private readonly modal = inject(NgbModal);
   private readonly fb = inject(FormBuilder);
 
@@ -56,11 +60,14 @@ export class ConsultationDetailComponent {
   readonly orderStatuses = CLINICAL_ORDER_STATUSES;
   readonly orderUrgencies = ORDER_URGENCIES;
   readonly prescriptionStatuses = PRESCRIPTION_STATUSES;
+  readonly invoiceStatuses = INVOICE_STATUSES;
   readonly consultation = signal<Consultation | null>(null);
   readonly vitals = signal<PatientVitals[]>([]);
   readonly diagnoses = signal<ConsultationDiagnosis[]>([]);
   readonly orders = signal<ClinicalOrder[]>([]);
   readonly prescriptions = signal<Prescription[]>([]);
+  readonly invoice = signal<Invoice | null>(null);
+  readonly invoiceLoading = signal(false);
   readonly note = signal<ClinicalNote | null>(null);
   readonly noteDirty = signal(false);
   readonly notesSaving = signal(false);
@@ -105,14 +112,16 @@ export class ConsultationDetailComponent {
       note: this.noteService.get(uid),
       diagnoses: this.diagnosisService.list(uid),
       orders: this.orderService.list(uid),
-      prescriptions: this.prescriptionService.list(uid)
+      prescriptions: this.prescriptionService.list(uid),
+      invoice: this.invoiceService.findForConsultation(uid)
     }).subscribe({
-      next: ({ consultation, vitals, note, diagnoses, orders, prescriptions }) => {
+      next: ({ consultation, vitals, note, diagnoses, orders, prescriptions, invoice }) => {
         this.consultation.set(consultation);
         this.vitals.set(vitals);
         this.diagnoses.set(diagnoses);
         this.orders.set(orders);
         this.prescriptions.set(prescriptions);
+        this.invoice.set(invoice);
         this.setNote(note);
         this.loading.set(false);
       },
@@ -362,6 +371,57 @@ export class ConsultationDetailComponent {
   formatBp(v: PatientVitals): string {
     if (v.bloodPressureSystolic == null || v.bloodPressureDiastolic == null) return '—';
     return `${v.bloodPressureSystolic} / ${v.bloodPressureDiastolic}`;
+  }
+
+  // ----- Billing ---------------------------------------------------------
+
+  generateInvoice(): void {
+    const c = this.consultation();
+    if (!c) return;
+    this.invoiceLoading.set(true);
+    this.errorMessage.set(null);
+    this.invoiceService.generateForConsultation(c.uid)
+      .pipe(finalize(() => this.invoiceLoading.set(false)))
+      .subscribe({
+        next: (i) => this.invoice.set(i),
+        error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not generate invoice.')
+      });
+  }
+
+  issueInvoice(): void {
+    const i = this.invoice();
+    if (!i) return;
+    this.invoiceService.issue(i.uid).subscribe({
+      next: (updated) => this.invoice.set(updated),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not issue invoice.')
+    });
+  }
+
+  cancelInvoice(): void {
+    const i = this.invoice();
+    if (!i) return;
+    const reason = globalThis.prompt('Reason for cancelling this invoice?')?.trim() ?? null;
+    this.invoiceService.cancel(i.uid, reason).subscribe({
+      next: (updated) => this.invoice.set(updated),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not cancel invoice.')
+    });
+  }
+
+  recordInvoicePayment(): void {
+    const i = this.invoice();
+    if (!i) return;
+    const ref = this.modal.open(RecordPaymentComponent, { size: 'lg', backdrop: 'static' });
+    (ref.componentInstance as RecordPaymentComponent).invoice = i;
+    ref.closed.subscribe((updated: Invoice | undefined) => {
+      if (updated) this.invoice.set(updated);
+    });
+  }
+
+  invoiceStatusBadgeClass(s: InvoiceStatus): string {
+    return 'badge ' + (this.invoiceStatuses.find((x) => x.value === s)?.badgeClass ?? '');
+  }
+  invoiceStatusLabel(s: InvoiceStatus): string {
+    return this.invoiceStatuses.find((x) => x.value === s)?.label ?? s;
   }
 }
 

@@ -68,6 +68,12 @@
           <i class="bi bi-card-list me-1"></i>Orders
         </button>
       </li>
+      <li class="nav-item">
+        <button type="button" class="nav-link" [class.active]="activeTab() === 'billing'" (click)="setTab('billing')">
+          <i class="bi bi-receipt me-1"></i>Billing
+          @if (invoice()) { <span class="badge text-bg-primary ms-1"><i class="bi bi-check2"></i></span> }
+        </button>
+      </li>
     </ul>
 
     <!-- ===== Overview ===== -->
@@ -420,6 +426,101 @@
           </div>
         </div>
       </div>
+    }
+
+    <!-- ===== Billing ===== -->
+    @if (activeTab() === 'billing') {
+      @if (!invoice()) {
+        <div class="card">
+          <div class="card-body">
+            <div class="hmis-empty">
+              <i class="bi bi-receipt"></i>
+              <div class="fw-semibold mb-1">No invoice yet</div>
+              <div class="small mb-3">Generate an invoice from the consultation fee, completed orders, and dispensed prescriptions.</div>
+              <button type="button" class="btn btn-primary d-flex align-items-center gap-2 mx-auto" (click)="generateInvoice()" [disabled]="invoiceLoading()">
+                @if (invoiceLoading()) {
+                  <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Working</span></output>Generating…
+                } @else {
+                  <i class="bi bi-magic"></i>Generate invoice
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      } @else {
+        @if (invoice(); as inv) {
+          <div class="card">
+            <div class="card-header bg-white d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div>
+                <div class="fw-semibold d-flex align-items-center gap-2">
+                  <span class="hmis-code">{{ inv.invoiceNo }}</span>
+                  <span [class]="invoiceStatusBadgeClass(inv.status)">{{ invoiceStatusLabel(inv.status) }}</span>
+                </div>
+                <div class="hmis-muted small">
+                  {{ inv.paymentType }}@if (inv.insurancePlanName) { · {{ inv.insurancePlanName }} }
+                </div>
+              </div>
+              <div class="d-flex gap-2">
+                @if (inv.status === 'DRAFT') {
+                  <button type="button" class="btn btn-sm btn-light border" (click)="generateInvoice()" [disabled]="invoiceLoading()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Regenerate
+                  </button>
+                  <button type="button" class="btn btn-sm btn-primary" (click)="issueInvoice()">
+                    <i class="bi bi-check2-all me-1"></i>Issue
+                  </button>
+                }
+                @if (inv.status === 'ISSUED' || inv.status === 'PARTIALLY_PAID') {
+                  <button type="button" class="btn btn-sm btn-success" (click)="recordInvoicePayment()">
+                    <i class="bi bi-cash-coin me-1"></i>Record payment
+                  </button>
+                }
+                @if (inv.status !== 'PAID' && inv.status !== 'CANCELLED') {
+                  <button type="button" class="btn btn-sm btn-light border text-danger" (click)="cancelInvoice()">
+                    <i class="bi bi-x-circle me-1"></i>Cancel
+                  </button>
+                }
+                <a class="btn btn-sm btn-light border" [routerLink]="['/billing', inv.uid]">
+                  Open full view <i class="bi bi-arrow-right ms-1"></i>
+                </a>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0 hmis-table">
+                <thead><tr><th>Kind</th><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit</th><th class="text-end">Amount</th></tr></thead>
+                <tbody>
+                  @if (inv.lines.length === 0) {
+                    <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-receipt"></i><div class="small">No line items.</div></div></td></tr>
+                  } @else {
+                    @for (line of inv.lines; track line.uid) {
+                      <tr>
+                        <td><span class="badge text-bg-light border">{{ line.kind }}</span></td>
+                        <td>{{ line.description }}</td>
+                        <td class="text-end">{{ line.quantity | number:'1.0-2' }}</td>
+                        <td class="text-end">{{ line.unitPrice | number:'1.2-2' }}</td>
+                        <td class="text-end fw-semibold">{{ line.amount | number:'1.2-2' }}</td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+                <tfoot>
+                  <tr class="border-top">
+                    <td colspan="4" class="text-end fw-semibold">Subtotal</td>
+                    <td class="text-end fw-semibold">{{ inv.subtotal | number:'1.2-2' }} {{ inv.currency }}</td>
+                  </tr>
+                  <tr>
+                    <td colspan="4" class="text-end hmis-muted">Paid</td>
+                    <td class="text-end hmis-muted">{{ inv.totalPaid | number:'1.2-2' }} {{ inv.currency }}</td>
+                  </tr>
+                  <tr class="border-top">
+                    <td colspan="4" class="text-end fw-semibold">Balance</td>
+                    <td class="text-end fw-bold" [class.text-success]="inv.balance === 0">{{ inv.balance | number:'1.2-2' }} {{ inv.currency }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        }
+      }
     }
   }
 }

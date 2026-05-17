@@ -47,24 +47,24 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public UserSummary findById(Long id) {
-        return userRepository.findById(id)
+    public UserSummary findByUid(String uid) {
+        return userRepository.findByUid(uid)
                 .map(IamMapper::toSummary)
-                .orElseThrow(() -> new NotFoundException("User not found: " + id));
+                .orElseThrow(() -> new NotFoundException("User not found: " + uid));
     }
 
     @Transactional
-    public UserSummary setEnabled(Long id, boolean enabled) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("User not found: " + id));
+    public UserSummary setEnabled(String uid, boolean enabled) {
+        User user = userRepository.findByUid(uid)
+                .orElseThrow(() -> new NotFoundException("User not found: " + uid));
         user.setEnabled(enabled);
         return IamMapper.toSummary(user);
     }
 
     @Transactional
-    public UserSummary replaceRoles(Long userId, Set<String> roleNames) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found: " + userId));
+    public UserSummary replaceRoles(String uid, Set<String> roleNames) {
+        User user = userRepository.findByUid(uid)
+                .orElseThrow(() -> new NotFoundException("User not found: " + uid));
         user.getRoles().clear();
         attachRoles(user, roleNames);
         return IamMapper.toSummary(user);

@@ -9,62 +9,43 @@ export const MASTERDATA_ROUTES: Routes = [
       { path: '', pathMatch: 'full', redirectTo: 'clinics' },
       {
         path: 'clinics',
-        loadComponent: () =>
-          import('./clinics/clinic-list.component').then((m) => m.ClinicListComponent)
+        loadComponent: () => import('./clinics/clinic-list.component').then((m) => m.ClinicListComponent)
       },
       {
         path: 'wards',
-        loadComponent: () =>
-          import('../placeholder/placeholder.component').then((m) => m.PlaceholderComponent),
-        data: { title: 'Wards' }
+        loadComponent: () => import('./wards/ward-list.component').then((m) => m.WardListComponent)
       },
       {
         path: 'pharmacies',
-        loadComponent: () =>
-          import('../placeholder/placeholder.component').then((m) => m.PlaceholderComponent),
-        data: { title: 'Pharmacies' }
+        loadComponent: () => import('./pharmacies/pharmacy-list.component').then((m) => m.PharmacyListComponent)
       },
       {
         path: 'stores',
-        loadComponent: () =>
-          import('../placeholder/placeholder.component').then((m) => m.PlaceholderComponent),
-        data: { title: 'Stores' }
+        loadComponent: () => import('./stores/store-list.component').then((m) => m.StoreListComponent)
       },
       {
         path: 'diagnoses',
-        loadComponent: () =>
-          import('../placeholder/placeholder.component').then((m) => m.PlaceholderComponent),
-        data: { title: 'Diagnoses' }
+        loadComponent: () => import('./diagnoses/diagnosis-list.component').then((m) => m.DiagnosisListComponent)
       },
       {
         path: 'lab-tests',
-        loadComponent: () =>
-          import('../placeholder/placeholder.component').then((m) => m.PlaceholderComponent),
-        data: { title: 'Lab tests' }
+        loadComponent: () => import('./lab-tests/lab-test-list.component').then((m) => m.LabTestListComponent)
       },
       {
         path: 'procedures',
-        loadComponent: () =>
-          import('../placeholder/placeholder.component').then((m) => m.PlaceholderComponent),
-        data: { title: 'Procedures' }
+        loadComponent: () => import('./procedures/procedure-list.component').then((m) => m.ProcedureListComponent)
       },
       {
         path: 'radiology',
-        loadComponent: () =>
-          import('../placeholder/placeholder.component').then((m) => m.PlaceholderComponent),
-        data: { title: 'Radiology' }
+        loadComponent: () => import('./radiology/radiology-list.component').then((m) => m.RadiologyListComponent)
       },
       {
         path: 'medicines',
-        loadComponent: () =>
-          import('../placeholder/placeholder.component').then((m) => m.PlaceholderComponent),
-        data: { title: 'Medicines' }
+        loadComponent: () => import('./medicines/medicine-list.component').then((m) => m.MedicineListComponent)
       },
       {
         path: 'insurance',
-        loadComponent: () =>
-          import('../placeholder/placeholder.component').then((m) => m.PlaceholderComponent),
-        data: { title: 'Insurance' }
+        loadComponent: () => import('./insurance/insurance-list.component').then((m) => m.InsuranceListComponent)
       }
     ]
   }

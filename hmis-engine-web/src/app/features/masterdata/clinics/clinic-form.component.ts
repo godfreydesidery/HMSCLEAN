@@ -74,7 +74,7 @@ export class ClinicFormComponent implements OnInit {
     const existing = this.existing;
 
     const request$ = existing
-      ? this.clinicService.update(existing.id, payload)
+      ? this.clinicService.update(existing.uid, payload)
       : this.clinicService.create({ ...payload, code: raw.code.trim().toUpperCase() });
 
     request$.pipe(finalize(() => this.submitting.set(false))).subscribe({

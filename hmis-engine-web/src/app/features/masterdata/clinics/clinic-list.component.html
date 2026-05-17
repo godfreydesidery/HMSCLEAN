@@ -120,7 +120,7 @@
               </td>
             </tr>
           } @else {
-            @for (clinic of clinics(); track clinic.id) {
+            @for (clinic of clinics(); track clinic.uid) {
               <tr>
                 <td>
                   <span class="clinics__code">{{ clinic.code }}</span>

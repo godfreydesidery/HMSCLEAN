@@ -39,22 +39,22 @@ public class UserController {
         return ResponseEntity.ok(userService.list(pageable));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{uid}")
     @PreAuthorize("hasAuthority('USER_READ')")
-    public ResponseEntity<UserSummary> findById(@PathVariable Long id) {
-        return ResponseEntity.ok(userService.findById(id));
+    public ResponseEntity<UserSummary> findByUid(@PathVariable String uid) {
+        return ResponseEntity.ok(userService.findByUid(uid));
     }
 
-    @PutMapping("/{id}/enabled")
+    @PutMapping("/{uid}/enabled")
     @PreAuthorize("hasAuthority('USER_UPDATE')")
-    public ResponseEntity<UserSummary> setEnabled(@PathVariable Long id, @RequestBody EnabledRequest request) {
-        return ResponseEntity.ok(userService.setEnabled(id, request.enabled()));
+    public ResponseEntity<UserSummary> setEnabled(@PathVariable String uid, @RequestBody EnabledRequest request) {
+        return ResponseEntity.ok(userService.setEnabled(uid, request.enabled()));
     }
 
-    @PutMapping("/{id}/roles")
+    @PutMapping("/{uid}/roles")
     @PreAuthorize("hasAuthority('USER_UPDATE')")
-    public ResponseEntity<UserSummary> replaceRoles(@PathVariable Long id, @RequestBody Set<String> roleNames) {
-        return ResponseEntity.ok(userService.replaceRoles(id, roleNames));
+    public ResponseEntity<UserSummary> replaceRoles(@PathVariable String uid, @RequestBody Set<String> roleNames) {
+        return ResponseEntity.ok(userService.replaceRoles(uid, roleNames));
     }
 
     public record EnabledRequest(boolean enabled) {}

@@ -9,7 +9,7 @@ export const CLINIC_TYPES: { value: ClinicType; label: string }[] = [
 ];
 
 export interface Clinic {
-  id: number;
+  uid: string;
   code: string;
   name: string;
   type: ClinicType;

@@ -48,13 +48,13 @@ class ClinicControllerIT extends AbstractIntegrationTest {
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         ClinicDto saved = created.getBody();
         assertThat(saved).isNotNull();
-        assertThat(saved.id()).isNotNull();
+        assertThat(saved.uid()).isNotNull();
         assertThat(saved.code()).isEqualTo("ENT");
         assertThat(saved.active()).isTrue();
 
         // Deactivate
         ResponseEntity<ClinicDto> deactivated = rest.exchange(
-                "/api/masterdata/clinics/" + saved.id() + "/active",
+                "/api/masterdata/clinics/" + saved.uid() + "/active",
                 HttpMethod.PUT,
                 new HttpEntity<>("{\"active\":false}", jsonHeaders()),
                 ClinicDto.class);
@@ -63,7 +63,7 @@ class ClinicControllerIT extends AbstractIntegrationTest {
 
         // Delete
         ResponseEntity<Void> deleted = rest.exchange(
-                "/api/masterdata/clinics/" + saved.id(),
+                "/api/masterdata/clinics/" + saved.uid(),
                 HttpMethod.DELETE,
                 new HttpEntity<>(authHeaders()),
                 Void.class);

@@ -4,7 +4,7 @@ import com.otapp.hmis.engine.masterdata.clinic.domain.ClinicType;
 import java.time.Instant;
 
 public record ClinicDto(
-        Long id,
+        String uid,
         String code,
         String name,
         ClinicType type,

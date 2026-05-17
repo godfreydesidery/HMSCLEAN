@@ -37,8 +37,8 @@ public class ClinicService {
     }
 
     @Transactional
-    public ClinicDto update(Long id, UpdateClinicRequest request) {
-        Clinic clinic = loadOrThrow(id);
+    public ClinicDto update(String uid, UpdateClinicRequest request) {
+        Clinic clinic = loadOrThrow(uid);
         clinic.setName(request.name().trim());
         clinic.setType(request.type());
         clinic.setDescription(request.description());
@@ -47,8 +47,8 @@ public class ClinicService {
     }
 
     @Transactional
-    public ClinicDto setActive(Long id, boolean active) {
-        Clinic clinic = loadOrThrow(id);
+    public ClinicDto setActive(String uid, boolean active) {
+        Clinic clinic = loadOrThrow(uid);
         if (active) {
             clinic.activate();
         } else {
@@ -58,14 +58,13 @@ public class ClinicService {
     }
 
     @Transactional
-    public void delete(Long id) {
-        Clinic clinic = loadOrThrow(id);
-        clinicRepository.delete(clinic);
+    public void delete(String uid) {
+        clinicRepository.delete(loadOrThrow(uid));
     }
 
     @Transactional(readOnly = true)
-    public ClinicDto findById(Long id) {
-        return ClinicMapper.toDto(loadOrThrow(id));
+    public ClinicDto findByUid(String uid) {
+        return ClinicMapper.toDto(loadOrThrow(uid));
     }
 
     @Transactional(readOnly = true)
@@ -75,8 +74,8 @@ public class ClinicService {
                 clinicRepository.search(trimmed, active, type, pageable).map(ClinicMapper::toDto));
     }
 
-    private Clinic loadOrThrow(Long id) {
-        return clinicRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Clinic not found: " + id));
+    private Clinic loadOrThrow(String uid) {
+        return clinicRepository.findByUid(uid)
+                .orElseThrow(() -> new NotFoundException("Clinic not found: " + uid));
     }
 }

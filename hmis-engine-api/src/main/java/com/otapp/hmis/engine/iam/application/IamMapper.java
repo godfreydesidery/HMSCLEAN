@@ -16,7 +16,7 @@ final class IamMapper {
 
     static UserSummary toSummary(User user) {
         return new UserSummary(
-                user.getId(),
+                user.getUid(),
                 user.getUsername(),
                 user.getFirstName(),
                 user.getLastName(),
@@ -29,11 +29,11 @@ final class IamMapper {
                 .map(Privilege::getName)
                 .sorted()
                 .toList();
-        return new RoleDto(role.getId(), role.getName(), role.getDescription(), privileges);
+        return new RoleDto(role.getUid(), role.getName(), role.getDescription(), privileges);
     }
 
     static PrivilegeDto toDto(Privilege privilege) {
-        return new PrivilegeDto(privilege.getId(), privilege.getName(), privilege.getDescription());
+        return new PrivilegeDto(privilege.getUid(), privilege.getName(), privilege.getDescription());
     }
 
     static List<String> roleNames(User user) {

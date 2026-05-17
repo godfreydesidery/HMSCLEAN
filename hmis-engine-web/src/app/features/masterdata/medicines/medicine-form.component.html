@@ -1,0 +1,51 @@
+<div class="modal-header">
+  <h5 class="modal-title d-flex align-items-center gap-2">
+    <i class="bi" [class.bi-pencil-square]="isEdit" [class.bi-plus-circle]="!isEdit"></i>{{ title }}
+  </h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss()"></button>
+</div>
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-body">
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3" role="alert"><i class="bi bi-exclamation-circle"></i><span class="small">{{ errorMessage() }}</span></div>
+    }
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label" for="med-code">Code <span class="text-danger">*</span></label>
+        <input id="med-code" name="code" type="text" class="form-control text-uppercase" formControlName="code" autocomplete="off">
+      </div>
+      <div class="col-md-8">
+        <label class="form-label" for="med-name">Brand name <span class="text-danger">*</span></label>
+        <input id="med-name" name="name" type="text" class="form-control" formControlName="name" autocomplete="off">
+      </div>
+      <div class="col-md-8">
+        <label class="form-label" for="med-generic">Generic name</label>
+        <input id="med-generic" name="genericName" type="text" class="form-control" formControlName="genericName" autocomplete="off">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="med-strength">Strength</label>
+        <input id="med-strength" name="strength" type="text" class="form-control" formControlName="strength" autocomplete="off" placeholder="e.g. 500mg">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="med-form">Form <span class="text-danger">*</span></label>
+        <select id="med-form" name="medForm" class="form-select" formControlName="medForm">
+          @for (f of forms; track f.value) { <option [value]="f.value">{{ f.label }}</option> }
+        </select>
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="med-description">Description</label>
+        <textarea id="med-description" name="description" rows="3" class="form-control" formControlName="description"></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+    <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting()">
+      @if (submitting()) {
+        <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output>Saving…
+      } @else {
+        <i class="bi bi-check2"></i>{{ isEdit ? 'Save changes' : 'Create medicine' }}
+      }
+    </button>
+  </div>
+</form>

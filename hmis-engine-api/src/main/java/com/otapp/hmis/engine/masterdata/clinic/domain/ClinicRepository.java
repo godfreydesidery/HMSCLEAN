@@ -9,6 +9,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface ClinicRepository extends JpaRepository<Clinic, Long> {
 
+    Optional<Clinic> findByUid(String uid);
+
     Optional<Clinic> findByCode(String code);
 
     boolean existsByCode(String code);

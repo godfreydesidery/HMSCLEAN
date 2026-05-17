@@ -138,7 +138,7 @@ export class ClinicListComponent {
   }
 
   toggleActive(clinic: Clinic): void {
-    this.clinicService.setActive(clinic.id, !clinic.active).subscribe({
+    this.clinicService.setActive(clinic.uid, !clinic.active).subscribe({
       next: () => this.refresh$.next(),
       error: (err) =>
         this.errorMessage.set(err?.error?.message ?? 'Could not update clinic status.')
@@ -152,7 +152,7 @@ export class ClinicListComponent {
     if (!confirmed) {
       return;
     }
-    this.clinicService.delete(clinic.id).subscribe({
+    this.clinicService.delete(clinic.uid).subscribe({
       next: () => this.refresh$.next(),
       error: (err) =>
         this.errorMessage.set(err?.error?.message ?? 'Could not delete clinic.')

@@ -39,23 +39,23 @@ export class ClinicService {
     return this.http.get<PageResponse<Clinic>>(this.base, { params: httpParams });
   }
 
-  findById(id: number): Observable<Clinic> {
-    return this.http.get<Clinic>(`${this.base}/${id}`);
+  findByUid(uid: string): Observable<Clinic> {
+    return this.http.get<Clinic>(`${this.base}/${uid}`);
   }
 
   create(request: CreateClinicRequest): Observable<Clinic> {
     return this.http.post<Clinic>(this.base, request);
   }
 
-  update(id: number, request: UpdateClinicRequest): Observable<Clinic> {
-    return this.http.put<Clinic>(`${this.base}/${id}`, request);
+  update(uid: string, request: UpdateClinicRequest): Observable<Clinic> {
+    return this.http.put<Clinic>(`${this.base}/${uid}`, request);
   }
 
-  setActive(id: number, active: boolean): Observable<Clinic> {
-    return this.http.put<Clinic>(`${this.base}/${id}/active`, { active });
+  setActive(uid: string, active: boolean): Observable<Clinic> {
+    return this.http.put<Clinic>(`${this.base}/${uid}/active`, { active });
   }
 
-  delete(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.base}/${id}`);
+  delete(uid: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${uid}`);
   }
 }

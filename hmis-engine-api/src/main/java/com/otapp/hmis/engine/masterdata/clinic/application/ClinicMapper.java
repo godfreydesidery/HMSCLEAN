@@ -10,7 +10,7 @@ final class ClinicMapper {
 
     static ClinicDto toDto(Clinic c) {
         return new ClinicDto(
-                c.getId(),
+                c.getUid(),
                 c.getCode(),
                 c.getName(),
                 c.getType(),

@@ -28,22 +28,21 @@ import org.springframework.web.util.UriComponentsBuilder;
 @RestController
 @RequestMapping("/masterdata/clinics")
 @RequiredArgsConstructor
+@PreAuthorize("hasAuthority('MASTERDATA_MANAGE')")
 public class ClinicController {
 
     private final ClinicService clinicService;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('MASTERDATA_MANAGE')")
     public ResponseEntity<ClinicDto> create(@Valid @RequestBody CreateClinicRequest request) {
         ClinicDto created = clinicService.create(request);
-        URI location = UriComponentsBuilder.fromPath("/masterdata/clinics/{id}")
-                .buildAndExpand(created.id())
+        URI location = UriComponentsBuilder.fromPath("/masterdata/clinics/{uid}")
+                .buildAndExpand(created.uid())
                 .toUri();
         return ResponseEntity.created(location).body(created);
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('MASTERDATA_MANAGE')")
     public ResponseEntity<PageResponse<ClinicDto>> search(
             @RequestParam(required = false) String query,
             @RequestParam(required = false) Boolean active,
@@ -52,28 +51,24 @@ public class ClinicController {
         return ResponseEntity.ok(clinicService.search(query, active, type, pageable));
     }
 
-    @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('MASTERDATA_MANAGE')")
-    public ResponseEntity<ClinicDto> findById(@PathVariable Long id) {
-        return ResponseEntity.ok(clinicService.findById(id));
+    @GetMapping("/{uid}")
+    public ResponseEntity<ClinicDto> findByUid(@PathVariable String uid) {
+        return ResponseEntity.ok(clinicService.findByUid(uid));
     }
 
-    @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('MASTERDATA_MANAGE')")
-    public ResponseEntity<ClinicDto> update(@PathVariable Long id, @Valid @RequestBody UpdateClinicRequest request) {
-        return ResponseEntity.ok(clinicService.update(id, request));
+    @PutMapping("/{uid}")
+    public ResponseEntity<ClinicDto> update(@PathVariable String uid, @Valid @RequestBody UpdateClinicRequest request) {
+        return ResponseEntity.ok(clinicService.update(uid, request));
     }
 
-    @PutMapping("/{id}/active")
-    @PreAuthorize("hasAuthority('MASTERDATA_MANAGE')")
-    public ResponseEntity<ClinicDto> setActive(@PathVariable Long id, @RequestBody ActiveRequest request) {
-        return ResponseEntity.ok(clinicService.setActive(id, request.active()));
+    @PutMapping("/{uid}/active")
+    public ResponseEntity<ClinicDto> setActive(@PathVariable String uid, @RequestBody ActiveRequest request) {
+        return ResponseEntity.ok(clinicService.setActive(uid, request.active()));
     }
 
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('MASTERDATA_MANAGE')")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        clinicService.delete(id);
+    @DeleteMapping("/{uid}")
+    public ResponseEntity<Void> delete(@PathVariable String uid) {
+        clinicService.delete(uid);
         return ResponseEntity.noContent().build();
     }
 

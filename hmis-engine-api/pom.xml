@@ -138,6 +138,13 @@
             <version>${mapstruct.version}</version>
         </dependency>
 
+        <!-- ULID generation (lexicographically sortable 26-char id) -->
+        <dependency>
+            <groupId>com.github.f4b6a3</groupId>
+            <artifactId>ulid-creator</artifactId>
+            <version>5.2.3</version>
+        </dependency>
+
         <!-- Tests -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

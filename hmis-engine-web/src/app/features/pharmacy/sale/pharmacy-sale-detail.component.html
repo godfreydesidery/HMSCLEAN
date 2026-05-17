@@ -1,0 +1,111 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title d-flex align-items-center gap-2">
+      <i class="bi bi-cart text-primary"></i>
+      @if (sale(); as s) { <span class="hmis-code">{{ s.saleNo }}</span> } @else { <span>Sale</span> }
+    </h1>
+    <p class="hmis-muted mb-0 small">Retail sale — process each line through the pharmacy lifecycle.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-light border" (click)="back()"><i class="bi bi-arrow-left me-1"></i>Back</button>
+    @if (canCancelSale()) {
+      <button type="button" class="btn btn-outline-danger" (click)="cancelSale()" [disabled]="busy()"><i class="bi bi-x-octagon me-1"></i>Cancel sale</button>
+    }
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+@if (actionMessage()) {
+  <div class="alert alert-success d-flex align-items-center gap-2" role="alert"><i class="bi bi-check-circle"></i><span>{{ actionMessage() }}</span></div>
+}
+
+@if (loading()) {
+  <div class="card"><div class="card-body p-4"><span class="hmis-skeleton" style="width:280px;"></span></div></div>
+} @else { @if (sale(); as s) {
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3"><div class="hmis-muted small">Customer</div><div class="fw-semibold">{{ s.customerName }}</div></div>
+        <div class="col-md-3"><div class="hmis-muted small">Phone</div><div class="fw-semibold">{{ s.customerPhone || '—' }}</div></div>
+        <div class="col-md-3"><div class="hmis-muted small">Pharmacy</div><div class="fw-semibold">{{ s.pharmacyName || '—' }}</div></div>
+        <div class="col-md-3"><div class="hmis-muted small">Status</div><span [class]="orderStatusBadgeClass(s.status)">{{ orderStatusLabel(s.status) }}</span></div>
+        <div class="col-md-3"><div class="hmis-muted small">Payment</div><div class="fw-semibold">{{ s.paymentType }}</div></div>
+        <div class="col-md-3"><div class="hmis-muted small">Insurance plan</div><div class="fw-semibold">{{ s.insurancePlanName || '—' }}</div></div>
+        <div class="col-md-3"><div class="hmis-muted small">Opened</div><div class="fw-semibold">{{ s.openedAt | date:'medium' }}</div></div>
+        @if (s.completedAt) {
+          <div class="col-md-3"><div class="hmis-muted small">Completed</div><div class="fw-semibold">{{ s.completedAt | date:'medium' }}</div></div>
+        }
+        @if (s.cancelReason) {
+          <div class="col-12"><div class="hmis-muted small">Cancellation reason</div><div class="text-danger">{{ s.cancelReason }}</div></div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-list-check me-2 text-primary"></i>Lines ({{ s.lines.length }})</div>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead><tr><th>Medicine</th><th>Dose · freq</th><th class="text-end">Qty</th><th class="text-end">Unit</th><th class="text-end">Amount</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+        <tbody>
+          @if (s.lines.length === 0) {
+            <tr><td colspan="7"><div class="hmis-empty"><i class="bi bi-cart"></i><div class="small">No lines.</div></div></td></tr>
+          } @else {
+            @for (line of s.lines; track line.uid) {
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ line.medicineName || line.medicineUid }}</div>
+                  @if (line.medicineStrength) { <div class="hmis-muted small">{{ line.medicineStrength }}</div> }
+                  @if (line.instructions) { <div class="hmis-muted small text-truncate" style="max-width:260px;">{{ line.instructions }}</div> }
+                  @if (line.rejectReason) { <div class="small text-danger">Rejected: {{ line.rejectReason }}</div> }
+                </td>
+                <td class="hmis-muted small">{{ line.dose || '—' }}@if (line.frequency) { <span> · {{ line.frequency }}</span> }</td>
+                <td class="text-end">{{ line.quantity }}</td>
+                <td class="text-end">{{ line.unitPrice | number:'1.2-2' }}</td>
+                <td class="text-end fw-semibold">{{ line.lineAmount | number:'1.2-2' }}</td>
+                <td><span [class]="lineStatusBadgeClass(line.status)">{{ lineStatusLabel(line.status) }}</span></td>
+                <td class="text-end">
+                  <div ngbDropdown placement="bottom-end" class="d-inline-block">
+                    <button type="button" class="btn btn-sm btn-light border" ngbDropdownToggle aria-label="Actions" [disabled]="busy()"><i class="bi bi-three-dots"></i></button>
+                    <div ngbDropdownMenu class="shadow-sm">
+                      @if (line.status === 'PENDING') {
+                        <button type="button" ngbDropdownItem (click)="acceptLine(line)"><i class="bi bi-hand-thumbs-up me-2 text-primary"></i>Accept</button>
+                        <button type="button" ngbDropdownItem class="text-danger" (click)="cancelLine(line)"><i class="bi bi-x-circle me-2"></i>Cancel</button>
+                      }
+                      @if (line.status === 'ACCEPTED') {
+                        <button type="button" ngbDropdownItem (click)="verifyLine(line)"><i class="bi bi-shield-check me-2 text-primary"></i>Verify</button>
+                        <button type="button" ngbDropdownItem (click)="holdLine(line)"><i class="bi bi-pause-circle me-2 text-warning"></i>Hold</button>
+                        <button type="button" ngbDropdownItem (click)="rejectLine(line)" class="text-danger"><i class="bi bi-x-octagon me-2"></i>Reject</button>
+                      }
+                      @if (line.status === 'HELD') {
+                        <button type="button" ngbDropdownItem (click)="verifyLine(line)"><i class="bi bi-play-circle me-2 text-primary"></i>Resume (verify)</button>
+                        <button type="button" ngbDropdownItem (click)="rejectLine(line)" class="text-danger"><i class="bi bi-x-octagon me-2"></i>Reject</button>
+                      }
+                      @if (line.status === 'VERIFIED') {
+                        <button type="button" ngbDropdownItem (click)="approveLine(line)"><i class="bi bi-check2-all me-2 text-success"></i>Approve</button>
+                        <button type="button" ngbDropdownItem (click)="holdLine(line)"><i class="bi bi-pause-circle me-2 text-warning"></i>Hold</button>
+                        <button type="button" ngbDropdownItem (click)="rejectLine(line)" class="text-danger"><i class="bi bi-x-octagon me-2"></i>Reject</button>
+                      }
+                      @if (line.status === 'APPROVED') {
+                        <button type="button" ngbDropdownItem (click)="dispenseLine(line)"><i class="bi bi-box-arrow-up me-2 text-success"></i>Dispense (decrement stock)</button>
+                        <button type="button" ngbDropdownItem (click)="rejectLine(line)" class="text-danger"><i class="bi bi-x-octagon me-2"></i>Reject</button>
+                      }
+                      @if (line.status === 'SOLD' || line.status === 'REJECTED' || line.status === 'CANCELLED') {
+                        <button type="button" ngbDropdownItem disabled><i class="bi bi-lock me-2"></i>Closed</button>
+                      }
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+        <tfoot>
+          <tr><td colspan="4" class="text-end fw-semibold">Subtotal</td><td class="text-end fw-semibold">{{ s.currency }} {{ s.subtotal | number:'1.2-2' }}</td><td colspan="2"></td></tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+} }

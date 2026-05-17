@@ -14,11 +14,17 @@ import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.AdjustStockReq
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.ReceiveStockRequest;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.StockBalanceDto;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.StockMovementDto;
+import com.otapp.hmis.engine.pharmacy.sale.domain.PharmacySaleLineStatus;
+import com.otapp.hmis.engine.pharmacy.sale.domain.PharmacySaleOrder;
+import com.otapp.hmis.engine.pharmacy.sale.domain.PharmacySaleOrderLine;
+import com.otapp.hmis.engine.pharmacy.sale.domain.PharmacySaleOrderLineRepository;
+import com.otapp.hmis.engine.pharmacy.sale.domain.PharmacySaleOrderRepository;
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockBalance;
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockBalanceRepository;
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockMovement;
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockMovementKind;
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockMovementRepository;
+import java.util.EnumSet;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -30,11 +36,18 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class StockService {
 
+    private static final EnumSet<PharmacySaleLineStatus> TERMINAL_SALE_LINE_STATUSES = EnumSet.of(
+            PharmacySaleLineStatus.SOLD,
+            PharmacySaleLineStatus.REJECTED,
+            PharmacySaleLineStatus.CANCELLED);
+
     private final StockBalanceRepository balanceRepository;
     private final StockMovementRepository movementRepository;
     private final PharmacyRepository pharmacyRepository;
     private final MedicineRepository medicineRepository;
     private final PrescriptionRepository prescriptionRepository;
+    private final PharmacySaleOrderRepository saleRepository;
+    private final PharmacySaleOrderLineRepository saleLineRepository;
 
     @Transactional
     public StockBalanceDto receive(String pharmacyUid, ReceiveStockRequest request) {
@@ -114,6 +127,51 @@ public class StockService {
                 "Dispense for " + rx.getPrescriptionNo());
 
         rx.markSold();
+
+        return toMovementDto(movement, pharmacy, medicine);
+    }
+
+    /**
+     * Final dispense of a retail sale line. Symmetric to the prescription
+     * dispense but driven by {@link PharmacySaleOrderLine}: lock balance,
+     * validate APPROVED + non-zero qty, decrement, record a DISPENSE
+     * movement referencing the line uid, transition the line to SOLD, and
+     * roll the sale-order header forward if every line is now terminal.
+     */
+    @Transactional
+    public StockMovementDto dispenseSaleLine(String pharmacyUid, String saleLineUid) {
+        Pharmacy pharmacy = activePharmacy(pharmacyUid);
+        PharmacySaleOrderLine line = saleLineRepository.findByUid(saleLineUid)
+                .orElseThrow(() -> new NotFoundException("Sale line not found: " + saleLineUid));
+        if (line.getStatus() != PharmacySaleLineStatus.APPROVED) {
+            throw new BusinessRuleException(
+                    "Only APPROVED sale lines can be dispensed (current: " + line.getStatus()
+                            + "). Move through accept → verify → approve first.");
+        }
+        if (line.getQuantity() <= 0) {
+            throw new BusinessRuleException("Sale line has no quantity set");
+        }
+        PharmacySaleOrder sale = saleRepository.findByUid(line.getSaleUid())
+                .orElseThrow(() -> new NotFoundException("Sale not found: " + line.getSaleUid()));
+        if (!sale.getPharmacyUid().equals(pharmacy.getUid())) {
+            throw new BusinessRuleException("Sale was opened at a different pharmacy");
+        }
+        Medicine medicine = medicineRepository.findByUid(line.getMedicineUid())
+                .orElseThrow(() -> new NotFoundException("Medicine not found: " + line.getMedicineUid()));
+
+        StockBalance balance = balanceRepository.lockByPharmacyUidAndMedicineUid(pharmacy.getUid(), medicine.getUid())
+                .orElseThrow(() -> new BusinessRuleException(
+                        "No stock for " + medicine.getName() + " at " + pharmacy.getName()));
+        balance.applyDelta(-line.getQuantity());
+
+        StockMovement movement = recordMovement(balance, StockMovementKind.DISPENSE,
+                -line.getQuantity(), line.getUid(),
+                "Sale dispense for " + sale.getSaleNo());
+
+        line.markSold();
+
+        long openLines = saleLineRepository.countBySaleUidAndStatusNotIn(sale.getUid(), TERMINAL_SALE_LINE_STATUSES);
+        sale.onLineTransition((int) openLines);
 
         return toMovementDto(movement, pharmacy, medicine);
     }

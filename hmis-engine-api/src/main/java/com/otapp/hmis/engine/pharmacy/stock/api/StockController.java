@@ -48,6 +48,12 @@ public class StockController {
         return ResponseEntity.ok(stockService.dispense(pharmacyUid, prescriptionUid));
     }
 
+    @PostMapping("/pharmacies/uid/{pharmacyUid}/dispense-sale-line/uid/{saleLineUid}")
+    public ResponseEntity<StockMovementDto> dispenseSaleLine(@PathVariable String pharmacyUid,
+                                                             @PathVariable String saleLineUid) {
+        return ResponseEntity.ok(stockService.dispenseSaleLine(pharmacyUid, saleLineUid));
+    }
+
     @GetMapping("/stock/movements")
     public ResponseEntity<PageResponse<StockMovementDto>> searchMovements(
             @RequestParam(required = false) String pharmacyUid,

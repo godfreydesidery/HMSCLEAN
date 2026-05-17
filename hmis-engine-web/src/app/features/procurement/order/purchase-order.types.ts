@@ -27,8 +27,8 @@ export interface PurchaseOrder {
   orderNo: string;
   supplierUid: string;
   supplierName: string | null;
-  pharmacyUid: string;
-  pharmacyName: string | null;
+  storeUid: string;
+  storeName: string | null;
   status: PurchaseOrderStatus;
   expectedDeliveryDate: string | null;
   notes: string | null;
@@ -47,7 +47,7 @@ export interface PurchaseOrderSummary {
   uid: string;
   orderNo: string;
   supplierName: string | null;
-  pharmacyName: string | null;
+  storeName: string | null;
   status: PurchaseOrderStatus;
   expectedDeliveryDate: string | null;
   subtotal: number;
@@ -57,7 +57,7 @@ export interface PurchaseOrderSummary {
 
 export interface CreatePurchaseOrderRequest {
   supplierUid: string;
-  pharmacyUid: string;
+  storeUid: string;
   expectedDeliveryDate: string | null;
   notes: string | null;
 }
@@ -79,7 +79,7 @@ export interface PurchaseOrderSearchParams {
   query?: string;
   status?: PurchaseOrderStatus;
   supplierUid?: string;
-  pharmacyUid?: string;
+  storeUid?: string;
   page?: number;
   size?: number;
   sort?: string;
@@ -88,6 +88,8 @@ export interface PurchaseOrderSearchParams {
 export interface ReceiveLineRequest {
   poLineUid: string;
   quantity: number;
+  batchNo: string;
+  expiresAt: string | null;
 }
 
 export interface RecordReceiptRequest {
@@ -103,6 +105,8 @@ export interface GoodsReceiptLine {
   medicineCode: string | null;
   medicineName: string | null;
   quantity: number;
+  batchNo: string;
+  expiresAt: string | null;
 }
 
 export interface GoodsReceipt {
@@ -110,8 +114,8 @@ export interface GoodsReceipt {
   receiptNo: string;
   orderUid: string;
   orderNo: string | null;
-  pharmacyUid: string;
-  pharmacyName: string | null;
+  storeUid: string;
+  storeName: string | null;
   receivedByUsername: string | null;
   deliveryNote: string | null;
   notes: string | null;

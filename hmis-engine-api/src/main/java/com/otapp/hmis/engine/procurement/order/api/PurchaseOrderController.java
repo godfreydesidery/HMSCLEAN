@@ -41,9 +41,9 @@ public class PurchaseOrderController {
             @RequestParam(required = false) String query,
             @RequestParam(required = false) PurchaseOrderStatus status,
             @RequestParam(required = false) String supplierUid,
-            @RequestParam(required = false) String pharmacyUid,
+            @RequestParam(required = false) String storeUid,
             Pageable pageable) {
-        return ResponseEntity.ok(purchaseOrderService.search(query, status, supplierUid, pharmacyUid, pageable));
+        return ResponseEntity.ok(purchaseOrderService.search(query, status, supplierUid, storeUid, pageable));
     }
 
     @GetMapping("/uid/{purchaseOrderUid}")

@@ -1,7 +1,7 @@
 <div class="hmis-page-header">
   <div>
     <h1 class="hmis-page-title">Purchase orders</h1>
-    <p class="hmis-muted mb-0 small">Draft, ordered, and received POs across all pharmacies.</p>
+    <p class="hmis-muted mb-0 small">Draft, ordered, and received POs across all central stores.</p>
   </div>
   <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="openCreate()">
     <i class="bi bi-plus-lg"></i>New purchase order
@@ -37,7 +37,7 @@
 <div class="card">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0 hmis-table">
-      <thead><tr><th>#</th><th>Supplier</th><th>Pharmacy</th><th>Status</th><th>Expected</th><th class="text-end">Subtotal</th><th>Created</th><th class="text-end">Actions</th></tr></thead>
+      <thead><tr><th>#</th><th>Supplier</th><th>Store</th><th>Status</th><th>Expected</th><th class="text-end">Subtotal</th><th>Created</th><th class="text-end">Actions</th></tr></thead>
       <tbody>
         @if (loading()) {
           @for (i of [1,2,3,4,5,6]; track i) {
@@ -50,7 +50,7 @@
             <tr (click)="view(o)" style="cursor:pointer;">
               <td><a class="hmis-code" [routerLink]="['/procurement/orders', o.uid]" (click)="$event.stopPropagation()">{{ o.orderNo }}</a></td>
               <td><div class="fw-semibold">{{ o.supplierName || '—' }}</div></td>
-              <td class="hmis-muted">{{ o.pharmacyName || '—' }}</td>
+              <td class="hmis-muted">{{ o.storeName || '—' }}</td>
               <td><span [class]="statusBadgeClass(o.status)">{{ statusLabel(o.status) }}</span></td>
               <td class="hmis-muted small">{{ o.expectedDeliveryDate || '—' }}</td>
               <td class="text-end fw-semibold">{{ o.currency }} {{ o.subtotal | number:'1.2-2' }}</td>

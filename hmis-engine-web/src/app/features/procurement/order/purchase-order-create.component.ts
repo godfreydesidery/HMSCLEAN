@@ -4,8 +4,8 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { finalize, forkJoin } from 'rxjs';
 
-import { PharmacyService } from '../../masterdata/pharmacies/pharmacy.service';
-import { Pharmacy } from '../../masterdata/pharmacies/pharmacy.types';
+import { StoreService } from '../../masterdata/stores/store.service';
+import { Store } from '../../masterdata/stores/store.types';
 import { SupplierService } from '../supplier/supplier.service';
 import { Supplier } from '../supplier/supplier.types';
 import { PurchaseOrderService } from './purchase-order.service';
@@ -21,18 +21,18 @@ export class PurchaseOrderCreateComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly purchaseOrderService = inject(PurchaseOrderService);
   private readonly supplierService = inject(SupplierService);
-  private readonly pharmacyService = inject(PharmacyService);
+  private readonly storeService = inject(StoreService);
   protected readonly activeModal = inject(NgbActiveModal);
 
   readonly suppliers = signal<Supplier[]>([]);
-  readonly pharmacies = signal<Pharmacy[]>([]);
+  readonly stores = signal<Store[]>([]);
   readonly loadingLookups = signal(true);
   readonly submitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
   readonly form = this.fb.nonNullable.group({
     supplierUid: ['', [Validators.required]],
-    pharmacyUid: ['', [Validators.required]],
+    storeUid: ['', [Validators.required]],
     expectedDeliveryDate: [''],
     notes: ['', [Validators.maxLength(500)]]
   });
@@ -40,11 +40,11 @@ export class PurchaseOrderCreateComponent implements OnInit {
   ngOnInit(): void {
     forkJoin({
       suppliers: this.supplierService.search({ active: true, size: 200, sort: 'name,asc' }),
-      pharmacies: this.pharmacyService.search({ active: true, size: 200, sort: 'name,asc' })
+      stores: this.storeService.search({ active: true, size: 200, sort: 'name,asc' })
     }).pipe(finalize(() => this.loadingLookups.set(false))).subscribe({
-      next: ({ suppliers, pharmacies }) => {
+      next: ({ suppliers, stores }) => {
         this.suppliers.set(suppliers.content);
-        this.pharmacies.set(pharmacies.content);
+        this.stores.set(stores.content);
       },
       error: () => this.errorMessage.set('Could not load lookups.')
     });
@@ -58,7 +58,7 @@ export class PurchaseOrderCreateComponent implements OnInit {
     const raw = this.form.getRawValue();
     this.purchaseOrderService.create({
       supplierUid: raw.supplierUid,
-      pharmacyUid: raw.pharmacyUid,
+      storeUid: raw.storeUid,
       expectedDeliveryDate: raw.expectedDeliveryDate || null,
       notes: raw.notes?.trim() || null
     }).pipe(finalize(() => this.submitting.set(false))).subscribe({

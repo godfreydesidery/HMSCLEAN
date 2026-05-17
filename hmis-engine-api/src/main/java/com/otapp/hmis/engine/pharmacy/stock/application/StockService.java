@@ -70,22 +70,6 @@ public class StockService {
                 null, emptyToNull(request.note()));
     }
 
-    /**
-     * Cross-module entry point used by procurement (goods receipt) when no
-     * explicit batch is provided. A default batch number derived from the
-     * source document ({@code referenceUid}) keeps the data model consistent.
-     */
-    @Transactional
-    public StockBatchDto receiveForReference(String pharmacyUid, String medicineUid,
-                                             int quantity, String referenceUid, String note) {
-        if (quantity <= 0) {
-            throw new BusinessRuleException("Receipt quantity must be positive");
-        }
-        String defaultBatch = "GRN-" + (referenceUid == null ? "UNKNOWN" : referenceUid.substring(0, Math.min(12, referenceUid.length())));
-        return doReceive(pharmacyUid, medicineUid, defaultBatch, null, quantity,
-                emptyToNull(referenceUid), emptyToNull(note));
-    }
-
     private StockBatchDto doReceive(String pharmacyUid, String medicineUid, String batchNo,
                                     LocalDate expiresAt, int quantity, String referenceUid, String note) {
         Pharmacy pharmacy = activePharmacy(pharmacyUid);

@@ -20,14 +20,14 @@
         </select>
       </div>
       <div class="col-md-6">
-        <label class="form-label" for="poc-pharmacy">Receiving pharmacy <span class="text-danger">*</span></label>
-        <select id="poc-pharmacy" name="pharmacyUid" class="form-select" formControlName="pharmacyUid">
-          <option value="" disabled>{{ loadingLookups() ? 'Loading…' : '— Select pharmacy —' }}</option>
-          @for (p of pharmacies(); track p.uid) {
-            <option [value]="p.uid">{{ p.name }} ({{ p.code }})</option>
+        <label class="form-label" for="poc-store">Receiving store <span class="text-danger">*</span></label>
+        <select id="poc-store" name="storeUid" class="form-select" formControlName="storeUid">
+          <option value="" disabled>{{ loadingLookups() ? 'Loading…' : '— Select store —' }}</option>
+          @for (s of stores(); track s.uid) {
+            <option [value]="s.uid">{{ s.name }} ({{ s.code }})</option>
           }
         </select>
-        <div class="form-text">Stock received against this PO will be added to this pharmacy.</div>
+        <div class="form-text">Stock received against this PO will land in this store; pharmacies request from store via transfer.</div>
       </div>
       <div class="col-md-6">
         <label class="form-label" for="poc-date">Expected delivery date</label>

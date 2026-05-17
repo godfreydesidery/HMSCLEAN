@@ -19,7 +19,7 @@ export class PurchaseOrderService {
     if (params.query) p = p.set('query', params.query);
     if (params.status) p = p.set('status', params.status);
     if (params.supplierUid) p = p.set('supplierUid', params.supplierUid);
-    if (params.pharmacyUid) p = p.set('pharmacyUid', params.pharmacyUid);
+    if (params.storeUid) p = p.set('storeUid', params.storeUid);
     if (params.page !== undefined) p = p.set('page', String(params.page));
     if (params.size !== undefined) p = p.set('size', String(params.size));
     if (params.sort) p = p.set('sort', params.sort);

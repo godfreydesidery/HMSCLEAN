@@ -4,9 +4,8 @@ import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
 import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineRepository;
-import com.otapp.hmis.engine.masterdata.pharmacy.domain.Pharmacy;
-import com.otapp.hmis.engine.masterdata.pharmacy.domain.PharmacyRepository;
-import com.otapp.hmis.engine.pharmacy.stock.application.StockService;
+import com.otapp.hmis.engine.masterdata.store.domain.Store;
+import com.otapp.hmis.engine.masterdata.store.domain.StoreRepository;
 import com.otapp.hmis.engine.procurement.order.domain.PurchaseOrder;
 import com.otapp.hmis.engine.procurement.order.domain.PurchaseOrderLine;
 import com.otapp.hmis.engine.procurement.order.domain.PurchaseOrderLineRepository;
@@ -20,6 +19,7 @@ import com.otapp.hmis.engine.procurement.receipt.domain.GoodsReceiptLine;
 import com.otapp.hmis.engine.procurement.receipt.domain.GoodsReceiptLineRepository;
 import com.otapp.hmis.engine.procurement.receipt.domain.GoodsReceiptRepository;
 import com.otapp.hmis.engine.procurement.receipt.infrastructure.GoodsReceiptNumberGenerator;
+import com.otapp.hmis.engine.store.stock.application.StoreStockService;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -35,17 +35,18 @@ public class GoodsReceiptService {
     private final GoodsReceiptLineRepository receiptLineRepository;
     private final PurchaseOrderRepository orderRepository;
     private final PurchaseOrderLineRepository orderLineRepository;
-    private final PharmacyRepository pharmacyRepository;
+    private final StoreRepository storeRepository;
     private final MedicineRepository medicineRepository;
     private final GoodsReceiptNumberGenerator numberGenerator;
-    private final StockService stockService;
+    private final StoreStockService storeStockService;
 
     /**
      * Records a goods receipt against a purchase order:
      * <ol>
      *   <li>Validates the PO is in a receivable state.</li>
      *   <li>For each line: bumps the PO line's received quantity and applies
-     *       a RECEIPT movement to the target pharmacy's stock balance.</li>
+     *       a RECEIPT movement to the target store's stock balance for the
+     *       supplier-provided batch.</li>
      *   <li>Transitions the PO to PARTIALLY_RECEIVED or RECEIVED.</li>
      * </ol>
      * All steps run inside one transaction; failure rolls back stock as well.
@@ -58,13 +59,13 @@ public class GoodsReceiptService {
                 && order.getStatus() != PurchaseOrderStatus.PARTIALLY_RECEIVED) {
             throw new BusinessRuleException("Cannot receive against a " + order.getStatus() + " order");
         }
-        Pharmacy pharmacy = pharmacyRepository.findByUid(order.getPharmacyUid())
-                .orElseThrow(() -> new NotFoundException("Pharmacy not found: " + order.getPharmacyUid()));
+        Store store = storeRepository.findByUid(order.getStoreUid())
+                .orElseThrow(() -> new NotFoundException("Store not found: " + order.getStoreUid()));
 
         GoodsReceipt receipt = receiptRepository.save(new GoodsReceipt(
                 numberGenerator.next(),
                 order.getUid(),
-                pharmacy.getUid(),
+                store.getUid(),
                 currentUsername(),
                 emptyToNull(request.deliveryNote()),
                 emptyToNull(request.notes())));
@@ -76,52 +77,53 @@ public class GoodsReceiptService {
             if (!poLine.getOrderUid().equals(order.getUid())) {
                 throw new BusinessRuleException("PO line " + lineReq.poLineUid() + " does not belong to this order");
             }
-            // Bumps the line's received quantity (guards outstanding amount).
             poLine.recordReceipt(lineReq.quantity());
 
             savedLines.add(receiptLineRepository.save(new GoodsReceiptLine(
                     receipt.getUid(),
                     poLine.getUid(),
                     poLine.getMedicineUid(),
-                    lineReq.quantity())));
+                    lineReq.quantity(),
+                    lineReq.batchNo(),
+                    lineReq.expiresAt())));
 
-            // Apply the receipt to the pharmacy's stock balance.
-            stockService.receiveForReference(
-                    pharmacy.getUid(),
+            storeStockService.receiveFromProcurement(
+                    store.getUid(),
                     poLine.getMedicineUid(),
+                    lineReq.batchNo(),
+                    lineReq.expiresAt(),
                     lineReq.quantity(),
                     receipt.getUid(),
                     "Receipt against " + order.getOrderNo());
         }
 
-        // Transition the PO based on whether every line is now fully received.
         boolean allFull = orderLineRepository.findAllByOrderUidOrderByCreatedAtAsc(order.getUid()).stream()
                 .allMatch(PurchaseOrderLine::isFullyReceived);
         order.onLineReceipt(allFull);
 
-        return toDto(receipt, order, pharmacy, savedLines);
+        return toDto(receipt, order, store, savedLines);
     }
 
     @Transactional(readOnly = true)
     public List<GoodsReceiptDto> listForOrder(String orderUid) {
         PurchaseOrder order = orderRepository.findByUid(orderUid)
                 .orElseThrow(() -> new NotFoundException("Purchase order not found: " + orderUid));
-        Pharmacy pharmacy = pharmacyRepository.findByUid(order.getPharmacyUid()).orElse(null);
+        Store store = storeRepository.findByUid(order.getStoreUid()).orElse(null);
         return receiptRepository.findAllByOrderUidOrderByReceivedAtDesc(order.getUid()).stream()
-                .map(r -> toDto(r, order, pharmacy,
+                .map(r -> toDto(r, order, store,
                         receiptLineRepository.findAllByReceiptUidOrderByCreatedAtAsc(r.getUid())))
                 .toList();
     }
 
-    private GoodsReceiptDto toDto(GoodsReceipt r, PurchaseOrder order, Pharmacy pharmacy,
+    private GoodsReceiptDto toDto(GoodsReceipt r, PurchaseOrder order, Store store,
                                   List<GoodsReceiptLine> lines) {
         return new GoodsReceiptDto(
                 r.getUid(),
                 r.getReceiptNo(),
                 r.getOrderUid(),
                 order == null ? null : order.getOrderNo(),
-                r.getPharmacyUid(),
-                pharmacy == null ? null : pharmacy.getName(),
+                r.getStoreUid(),
+                store == null ? null : store.getName(),
                 r.getReceivedByUsername(),
                 r.getDeliveryNote(),
                 r.getNotes(),
@@ -138,7 +140,9 @@ public class GoodsReceiptService {
                 line.getMedicineUid(),
                 medicine == null ? null : medicine.getCode(),
                 medicine == null ? null : medicine.getName(),
-                line.getQuantity());
+                line.getQuantity(),
+                line.getBatchNo(),
+                line.getExpiresAt());
     }
 
     private static String currentUsername() {

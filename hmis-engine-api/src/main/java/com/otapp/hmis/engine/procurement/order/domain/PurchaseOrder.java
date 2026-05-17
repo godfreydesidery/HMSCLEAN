@@ -15,7 +15,7 @@ import lombok.Setter;
        uniqueConstraints = @UniqueConstraint(name = "uk_purchase_order_no", columnNames = "order_no"),
        indexes = {
                @Index(name = "idx_purchase_order_supplier", columnList = "supplier_uid"),
-               @Index(name = "idx_purchase_order_pharmacy", columnList = "pharmacy_uid"),
+               @Index(name = "idx_purchase_order_store",    columnList = "store_uid"),
                @Index(name = "idx_purchase_order_status",   columnList = "status")
        })
 @Getter
@@ -31,8 +31,8 @@ public class PurchaseOrder extends AuditableEntity {
 
     @Column(name = "supplier_uid", nullable = false, length = 26) private String supplierUid;
 
-    /** Target pharmacy where received stock will land. */
-    @Column(name = "pharmacy_uid", nullable = false, length = 26) private String pharmacyUid;
+    /** Target store where received stock will land. */
+    @Column(name = "store_uid", nullable = false, length = 26) private String storeUid;
 
     @Setter
     @Enumerated(EnumType.STRING)
@@ -48,11 +48,11 @@ public class PurchaseOrder extends AuditableEntity {
     @Setter @Column(name = "cancelled_at") private Instant cancelledAt;
     @Setter @Column(name = "cancel_reason", length = 255) private String cancelReason;
 
-    public PurchaseOrder(String orderNo, String supplierUid, String pharmacyUid,
+    public PurchaseOrder(String orderNo, String supplierUid, String storeUid,
                          LocalDate expectedDeliveryDate, String notes) {
         this.orderNo = orderNo;
         this.supplierUid = supplierUid;
-        this.pharmacyUid = pharmacyUid;
+        this.storeUid = storeUid;
         this.expectedDeliveryDate = expectedDeliveryDate;
         this.notes = notes;
     }

@@ -35,8 +35,8 @@ public final class PurchaseOrderDtos {
             String supplierUid,
             String supplierName,
 
-            String pharmacyUid,
-            String pharmacyName,
+            String storeUid,
+            String storeName,
 
             PurchaseOrderStatus status,
             LocalDate expectedDeliveryDate,
@@ -59,7 +59,7 @@ public final class PurchaseOrderDtos {
             String uid,
             String orderNo,
             String supplierName,
-            String pharmacyName,
+            String storeName,
             PurchaseOrderStatus status,
             LocalDate expectedDeliveryDate,
             BigDecimal subtotal,
@@ -68,7 +68,7 @@ public final class PurchaseOrderDtos {
 
     public record CreatePurchaseOrderRequest(
             @NotBlank @Size(min = 26, max = 26) String supplierUid,
-            @NotBlank @Size(min = 26, max = 26) String pharmacyUid,
+            @NotBlank @Size(min = 26, max = 26) String storeUid,
             LocalDate expectedDeliveryDate,
             @Size(max = 500) String notes) {}
 

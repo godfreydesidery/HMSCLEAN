@@ -91,9 +91,37 @@ public class PrescriptionService {
     }
 
     @Transactional
-    public PrescriptionDto dispense(String uid) {
+    public PrescriptionDto accept(String uid) {
         Prescription p = loadOrThrow(uid);
-        p.dispense();
+        p.accept();
+        return toDto(p);
+    }
+
+    @Transactional
+    public PrescriptionDto hold(String uid) {
+        Prescription p = loadOrThrow(uid);
+        p.hold();
+        return toDto(p);
+    }
+
+    @Transactional
+    public PrescriptionDto verify(String uid) {
+        Prescription p = loadOrThrow(uid);
+        p.verify();
+        return toDto(p);
+    }
+
+    @Transactional
+    public PrescriptionDto approve(String uid) {
+        Prescription p = loadOrThrow(uid);
+        p.approve();
+        return toDto(p);
+    }
+
+    @Transactional
+    public PrescriptionDto reject(String uid, CancelPrescriptionRequest request) {
+        Prescription p = loadOrThrow(uid);
+        p.reject(emptyToNull(request == null ? null : request.reason()));
         return toDto(p);
     }
 
@@ -139,7 +167,13 @@ public class PrescriptionService {
                 p.getQuantity(),
                 p.getInstructions(),
                 p.getRequestedAt(),
+                p.getAcceptedAt(),
+                p.getHeldAt(),
+                p.getVerifiedAt(),
+                p.getApprovedAt(),
                 p.getDispensedAt(),
+                p.getRejectedAt(),
+                p.getRejectReason(),
                 p.getCancelReason(),
                 p.getCreatedAt(),
                 p.getUpdatedAt());

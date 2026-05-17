@@ -82,17 +82,21 @@ public class StockService {
     }
 
     /**
-     * Decrements stock to fulfil a prescription, marks the prescription as
-     * DISPENSED, and records a DISPENSE movement linked back to the rx.
+     * Decrements stock to fulfil a prescription that has already moved
+     * through PENDING → ACCEPTED → VERIFIED → APPROVED, marks the
+     * prescription as SOLD, and records a DISPENSE movement linked back
+     * to the rx. Refuses anything pre-APPROVED — clinical / payment gates
+     * are the pharmacy's job before this point.
      */
     @Transactional
     public StockMovementDto dispense(String pharmacyUid, String prescriptionUid) {
         Pharmacy pharmacy = activePharmacy(pharmacyUid);
         Prescription rx = prescriptionRepository.findByUid(prescriptionUid)
                 .orElseThrow(() -> new NotFoundException("Prescription not found: " + prescriptionUid));
-        if (rx.getStatus() != PrescriptionStatus.REQUESTED) {
+        if (rx.getStatus() != PrescriptionStatus.APPROVED) {
             throw new BusinessRuleException(
-                    "Only REQUESTED prescriptions can be dispensed (current: " + rx.getStatus() + ")");
+                    "Only APPROVED prescriptions can be dispensed (current: " + rx.getStatus()
+                            + "). Move through accept → verify → approve first.");
         }
         if (rx.getQuantity() == null || rx.getQuantity() <= 0) {
             throw new BusinessRuleException("Prescription has no dispense quantity set");
@@ -109,7 +113,7 @@ public class StockService {
                 -rx.getQuantity(), rx.getUid(),
                 "Dispense for " + rx.getPrescriptionNo());
 
-        rx.dispense();
+        rx.markSold();
 
         return toMovementDto(movement, pharmacy, medicine);
     }

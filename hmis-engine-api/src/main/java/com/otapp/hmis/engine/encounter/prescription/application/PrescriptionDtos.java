@@ -28,7 +28,13 @@ public final class PrescriptionDtos {
             Integer quantity,
             String instructions,
             Instant requestedAt,
+            Instant acceptedAt,
+            Instant heldAt,
+            Instant verifiedAt,
+            Instant approvedAt,
             Instant dispensedAt,
+            Instant rejectedAt,
+            String rejectReason,
             String cancelReason,
             Instant createdAt,
             Instant updatedAt) {}

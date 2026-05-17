@@ -41,7 +41,7 @@ public class Prescription extends AuditableEntity {
     @Setter
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
-    private PrescriptionStatus status = PrescriptionStatus.REQUESTED;
+    private PrescriptionStatus status = PrescriptionStatus.PENDING;
 
     @Setter @Column(name = "dose",          nullable = false, length = 80) private String dose;
     @Setter @Column(name = "frequency",     nullable = false, length = 80) private String frequency;
@@ -50,7 +50,13 @@ public class Prescription extends AuditableEntity {
     @Setter @Column(name = "instructions",  length = 500)                  private String instructions;
 
     @Column(name = "requested_at", nullable = false) private Instant requestedAt;
+    @Setter @Column(name = "accepted_at")  private Instant acceptedAt;
+    @Setter @Column(name = "held_at")      private Instant heldAt;
+    @Setter @Column(name = "verified_at")  private Instant verifiedAt;
+    @Setter @Column(name = "approved_at")  private Instant approvedAt;
     @Setter @Column(name = "dispensed_at") private Instant dispensedAt;
+    @Setter @Column(name = "rejected_at")  private Instant rejectedAt;
+    @Setter @Column(name = "reject_reason",  length = 255) private String rejectReason;
     @Setter @Column(name = "cancel_reason", length = 255) private String cancelReason;
 
     public Prescription(String prescriptionNo, String consultationUid, String patientUid,
@@ -68,18 +74,72 @@ public class Prescription extends AuditableEntity {
         this.requestedAt = Instant.now();
     }
 
-    public void dispense() {
-        if (status != PrescriptionStatus.REQUESTED) {
-            throw new BusinessRuleException("Only REQUESTED prescriptions can be dispensed (current: " + status + ")");
+    /** Pharmacist picks the Rx off the queue. PENDING → ACCEPTED. */
+    public void accept() {
+        if (status != PrescriptionStatus.PENDING) {
+            throw new BusinessRuleException("Only PENDING prescriptions can be accepted (current: " + status + ")");
         }
-        status = PrescriptionStatus.DISPENSED;
+        status = PrescriptionStatus.ACCEPTED;
+        acceptedAt = Instant.now();
+    }
+
+    /** Pause: awaiting payment / stock arrival. ACCEPTED | VERIFIED → HELD. */
+    public void hold() {
+        if (status != PrescriptionStatus.ACCEPTED && status != PrescriptionStatus.VERIFIED) {
+            throw new BusinessRuleException("Cannot hold from " + status);
+        }
+        status = PrescriptionStatus.HELD;
+        heldAt = Instant.now();
+    }
+
+    /** Clinical / stock quality check passed. ACCEPTED | HELD → VERIFIED. */
+    public void verify() {
+        if (status != PrescriptionStatus.ACCEPTED && status != PrescriptionStatus.HELD) {
+            throw new BusinessRuleException("Cannot verify from " + status);
+        }
+        status = PrescriptionStatus.VERIFIED;
+        verifiedAt = Instant.now();
+    }
+
+    /** Final approval, ready for dispense. VERIFIED → APPROVED. */
+    public void approve() {
+        if (status != PrescriptionStatus.VERIFIED) {
+            throw new BusinessRuleException("Only VERIFIED prescriptions can be approved (current: " + status + ")");
+        }
+        status = PrescriptionStatus.APPROVED;
+        approvedAt = Instant.now();
+    }
+
+    /**
+     * Mark as dispensed once stock has been decremented. APPROVED → SOLD.
+     * Called from the pharmacy stock service inside the same transaction
+     * as the stock movement.
+     */
+    public void markSold() {
+        if (status != PrescriptionStatus.APPROVED) {
+            throw new BusinessRuleException("Only APPROVED prescriptions can be sold (current: " + status + ")");
+        }
+        status = PrescriptionStatus.SOLD;
         dispensedAt = Instant.now();
     }
 
-    public void cancel(String reason) {
-        if (status == PrescriptionStatus.DISPENSED) {
-            throw new BusinessRuleException("Dispensed prescriptions cannot be cancelled");
+    /** Pharmacist refused. Allowed from any pre-SOLD pharmacy state. Terminal. */
+    public void reject(String reason) {
+        if (status == PrescriptionStatus.SOLD || status == PrescriptionStatus.CANCELLED
+                || status == PrescriptionStatus.REJECTED) {
+            throw new BusinessRuleException("Cannot reject from " + status);
         }
+        status = PrescriptionStatus.REJECTED;
+        rejectedAt = Instant.now();
+        rejectReason = reason;
+    }
+
+    /** Withdrawn by prescriber before pharmacy has worked it. PENDING → CANCELLED. */
+    public void cancel(String reason) {
+        if (status == PrescriptionStatus.SOLD) {
+            throw new BusinessRuleException("Sold prescriptions cannot be cancelled");
+        }
+        if (status == PrescriptionStatus.CANCELLED) return;
         status = PrescriptionStatus.CANCELLED;
         cancelReason = reason;
     }

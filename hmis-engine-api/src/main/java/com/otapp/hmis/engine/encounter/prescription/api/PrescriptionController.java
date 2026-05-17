@@ -43,10 +43,35 @@ public class PrescriptionController {
         return ResponseEntity.ok(prescriptionService.prescribeForOutsider(patientUid, request));
     }
 
-    @PostMapping("/encounters/prescriptions/uid/{prescriptionUid}/dispense")
+    @PostMapping("/encounters/prescriptions/uid/{prescriptionUid}/accept")
     @PreAuthorize("hasAuthority('PHARMACY_ACCESS')")
-    public ResponseEntity<PrescriptionDto> dispense(@PathVariable String prescriptionUid) {
-        return ResponseEntity.ok(prescriptionService.dispense(prescriptionUid));
+    public ResponseEntity<PrescriptionDto> accept(@PathVariable String prescriptionUid) {
+        return ResponseEntity.ok(prescriptionService.accept(prescriptionUid));
+    }
+
+    @PostMapping("/encounters/prescriptions/uid/{prescriptionUid}/hold")
+    @PreAuthorize("hasAuthority('PHARMACY_ACCESS')")
+    public ResponseEntity<PrescriptionDto> hold(@PathVariable String prescriptionUid) {
+        return ResponseEntity.ok(prescriptionService.hold(prescriptionUid));
+    }
+
+    @PostMapping("/encounters/prescriptions/uid/{prescriptionUid}/verify")
+    @PreAuthorize("hasAuthority('PHARMACY_ACCESS')")
+    public ResponseEntity<PrescriptionDto> verify(@PathVariable String prescriptionUid) {
+        return ResponseEntity.ok(prescriptionService.verify(prescriptionUid));
+    }
+
+    @PostMapping("/encounters/prescriptions/uid/{prescriptionUid}/approve")
+    @PreAuthorize("hasAuthority('PHARMACY_ACCESS')")
+    public ResponseEntity<PrescriptionDto> approve(@PathVariable String prescriptionUid) {
+        return ResponseEntity.ok(prescriptionService.approve(prescriptionUid));
+    }
+
+    @PostMapping("/encounters/prescriptions/uid/{prescriptionUid}/reject")
+    @PreAuthorize("hasAuthority('PHARMACY_ACCESS')")
+    public ResponseEntity<PrescriptionDto> reject(@PathVariable String prescriptionUid,
+                                                  @Valid @RequestBody(required = false) CancelPrescriptionRequest request) {
+        return ResponseEntity.ok(prescriptionService.reject(prescriptionUid, request));
     }
 
     @PostMapping("/encounters/prescriptions/uid/{prescriptionUid}/cancel")

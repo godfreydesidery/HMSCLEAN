@@ -26,8 +26,21 @@ export class PrescriptionService {
     return this.http.post<Prescription>(`${this.apiBase}/patients/uid/${patientUid}/outsider-prescriptions`, req);
   }
 
-  dispense(prescriptionUid: string): Observable<Prescription> {
-    return this.http.post<Prescription>(`${this.apiBase}/prescriptions/uid/${prescriptionUid}/dispense`, {});
+  // ---- pharmacy lifecycle transitions
+  accept(prescriptionUid: string): Observable<Prescription> {
+    return this.http.post<Prescription>(`${this.apiBase}/prescriptions/uid/${prescriptionUid}/accept`, {});
+  }
+  hold(prescriptionUid: string): Observable<Prescription> {
+    return this.http.post<Prescription>(`${this.apiBase}/prescriptions/uid/${prescriptionUid}/hold`, {});
+  }
+  verify(prescriptionUid: string): Observable<Prescription> {
+    return this.http.post<Prescription>(`${this.apiBase}/prescriptions/uid/${prescriptionUid}/verify`, {});
+  }
+  approve(prescriptionUid: string): Observable<Prescription> {
+    return this.http.post<Prescription>(`${this.apiBase}/prescriptions/uid/${prescriptionUid}/approve`, {});
+  }
+  reject(prescriptionUid: string, reason: string | null): Observable<Prescription> {
+    return this.http.post<Prescription>(`${this.apiBase}/prescriptions/uid/${prescriptionUid}/reject`, { reason });
   }
 
   cancel(prescriptionUid: string, reason: string | null): Observable<Prescription> {

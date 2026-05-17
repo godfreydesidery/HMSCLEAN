@@ -150,7 +150,7 @@ public class InvoiceService {
 
         // 3) Prescriptions that are DISPENSED — quantity-based
         for (Prescription rx : prescriptionRepository.findAllByConsultationUidOrderByRequestedAtDesc(consultationUid)) {
-            if (rx.getStatus() != PrescriptionStatus.DISPENSED) continue;
+            if (rx.getStatus() != PrescriptionStatus.SOLD) continue;
             Medicine medicine = medicineRepository.findByUid(rx.getMedicineUid()).orElse(null);
             PriceLookup.Resolved r = priceLookup.resolve(ServiceKind.MEDICINE, rx.getMedicineUid(), consultation.getInsurancePlanUid(), currency);
             currency = r.currency();
@@ -298,7 +298,7 @@ public class InvoiceService {
         // 2) Outsider prescriptions that are DISPENSED and not yet billed.
         for (Prescription rx :
                 prescriptionRepository.findAllByPatientUidAndConsultationUidIsNullOrderByRequestedAtDesc(patientUid)) {
-            if (rx.getStatus() != PrescriptionStatus.DISPENSED) continue;
+            if (rx.getStatus() != PrescriptionStatus.SOLD) continue;
             if (alreadyBilled.contains(rx.getUid())) continue;
             Medicine medicine = medicineRepository.findByUid(rx.getMedicineUid()).orElse(null);
             PriceLookup.Resolved r = priceLookup.resolve(ServiceKind.MEDICINE, rx.getMedicineUid(), patient.getInsurancePlanUid(), currency);

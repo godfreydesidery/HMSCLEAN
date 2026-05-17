@@ -37,8 +37,11 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('USER_READ')")
-    public ResponseEntity<PageResponse<UserSummary>> list(Pageable pageable) {
-        return ResponseEntity.ok(userService.list(pageable));
+    public ResponseEntity<PageResponse<UserSummary>> search(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String query,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Boolean enabled,
+            Pageable pageable) {
+        return ResponseEntity.ok(userService.search(query, enabled, pageable));
     }
 
     @GetMapping("/{uid}")

@@ -1,0 +1,129 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">Users</h1>
+    <p class="hmis-muted mb-0 small">Manage accounts, roles, lockouts, and passwords.</p>
+  </div>
+  <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="openCreate()">
+    <i class="bi bi-person-plus"></i>Add user
+  </button>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <div class="row g-2 align-items-center">
+      <div class="col-md-6">
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0"><i class="bi bi-search hmis-muted"></i></span>
+          <input type="search" name="query" autocomplete="off" class="form-control border-start-0 ps-0" placeholder="Search by username, name, or email…" [formControl]="query" aria-label="Search">
+        </div>
+      </div>
+      <div class="col-md-auto ms-md-auto">
+        <fieldset class="btn-group btn-group-sm border-0 p-0 m-0">
+          <legend class="visually-hidden">Status filter</legend>
+          <button type="button" class="btn btn-outline-secondary" [class.active]="enabledFilter() === 'ALL'" (click)="setEnabledFilter('ALL')">All</button>
+          <button type="button" class="btn btn-outline-secondary" [class.active]="enabledFilter() === 'ACTIVE'" (click)="setEnabledFilter('ACTIVE')">Active</button>
+          <button type="button" class="btn btn-outline-secondary" [class.active]="enabledFilter() === 'INACTIVE'" (click)="setEnabledFilter('INACTIVE')">Disabled</button>
+        </fieldset>
+      </div>
+    </div>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+@if (actionMessage()) {
+  <div class="alert alert-success d-flex align-items-center gap-2" role="alert"><i class="bi bi-check-circle"></i><span>{{ actionMessage() }}</span></div>
+}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0 hmis-table">
+      <thead><tr><th>Username</th><th>Name</th><th>Email</th><th>Roles</th><th>Status</th><th>Last login</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        @if (loading()) {
+          @for (i of [1,2,3,4,5,6]; track i) {
+            <tr><td><span class="hmis-skeleton" style="width:120px;"></span></td><td><span class="hmis-skeleton" style="width:160px;"></span></td><td><span class="hmis-skeleton" style="width:200px;"></span></td><td><span class="hmis-skeleton" style="width:140px;"></span></td><td><span class="hmis-skeleton" style="width:80px;"></span></td><td><span class="hmis-skeleton" style="width:120px;"></span></td><td></td></tr>
+          }
+        } @else if (users().length === 0) {
+          <tr><td colspan="7"><div class="hmis-empty"><i class="bi bi-people"></i><div class="fw-semibold mb-1">No users found</div><div class="small">Add the first user or change the filters.</div></div></td></tr>
+        } @else {
+          @for (u of users(); track u.uid) {
+            <tr [class.opacity-50]="!u.enabled">
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="patient-avatar" style="background:linear-gradient(135deg,#475569,#1e293b);">{{ initials(u) }}</span>
+                  <div>
+                    <div class="fw-semibold">{{ u.username }}</div>
+                    @if (u.passwordMustChange) {
+                      <div class="hmis-muted small text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Must change password</div>
+                    }
+                  </div>
+                </div>
+              </td>
+              <td>{{ u.firstName }} {{ u.lastName }}</td>
+              <td class="hmis-muted">{{ u.email || '—' }}</td>
+              <td>
+                @if (u.roles.length === 0) {
+                  <span class="hmis-muted small">—</span>
+                } @else {
+                  <div class="d-flex flex-wrap gap-1">
+                    @for (r of u.roles; track r) {
+                      <span class="badge text-bg-light border">{{ r }}</span>
+                    }
+                  </div>
+                }
+              </td>
+              <td>
+                @if (u.locked) {
+                  <span class="badge text-bg-warning-subtle text-warning-emphasis border border-warning-subtle"><i class="bi bi-lock me-1"></i>Locked</span>
+                } @else if (u.enabled) {
+                  <span class="badge text-bg-success-subtle text-success-emphasis border border-success-subtle">Active</span>
+                } @else {
+                  <span class="badge text-bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle">Disabled</span>
+                }
+              </td>
+              <td class="hmis-muted small">{{ u.lastLoginAt ? (u.lastLoginAt | date:'medium') : 'Never' }}</td>
+              <td class="text-end">
+                <div ngbDropdown placement="bottom-end" class="d-inline-block">
+                  <button type="button" class="btn btn-sm btn-light border" ngbDropdownToggle aria-label="Actions"><i class="bi bi-three-dots"></i></button>
+                  <div ngbDropdownMenu class="shadow-sm">
+                    <button type="button" ngbDropdownItem (click)="openRoles(u)"><i class="bi bi-shield-lock me-2"></i>Assign roles</button>
+                    <button type="button" ngbDropdownItem (click)="openReset(u)"><i class="bi bi-key me-2 text-danger"></i>Reset password</button>
+                    @if (u.locked) {
+                      <button type="button" ngbDropdownItem (click)="unlock(u)"><i class="bi bi-unlock me-2 text-warning"></i>Unlock</button>
+                    }
+                    <div class="dropdown-divider"></div>
+                    <button type="button" ngbDropdownItem (click)="toggleEnabled(u)">
+                      <i class="bi me-2" [class.bi-toggle-off]="u.enabled" [class.bi-toggle-on]="!u.enabled"></i>
+                      {{ u.enabled ? 'Disable' : 'Enable' }}
+                    </button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (!loading() && users().length > 0) {
+    <div class="card-footer bg-white d-flex flex-wrap align-items-center gap-2">
+      <div class="hmis-muted small">Showing {{ users().length }} of {{ totalElements() }}</div>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <label class="hmis-muted small mb-0" for="usr-page-size">Rows</label>
+        <select id="usr-page-size" name="pageSize" class="form-select form-select-sm" style="width:auto;" [value]="pageSize()" (change)="changePageSize(+$any($event.target).value)">
+          <option [value]="10">10</option><option [value]="15">15</option><option [value]="25">25</option><option [value]="50">50</option>
+        </select>
+        <nav aria-label="Pagination" class="ms-2">
+          <ul class="pagination pagination-sm mb-0">
+            <li class="page-item" [class.disabled]="page() === 0"><button type="button" class="page-link" (click)="goToPage(page() - 1)" aria-label="Previous"><i class="bi bi-chevron-left"></i></button></li>
+            @for (p of pageWindow(); track p) { <li class="page-item" [class.active]="p === page()"><button type="button" class="page-link" (click)="goToPage(p)">{{ p + 1 }}</button></li> }
+            <li class="page-item" [class.disabled]="page() >= totalPages() - 1"><button type="button" class="page-link" (click)="goToPage(page() + 1)" aria-label="Next"><i class="bi bi-chevron-right"></i></button></li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+  }
+</div>

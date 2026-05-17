@@ -21,7 +21,12 @@ final class IamMapper {
                 user.getFirstName(),
                 user.getLastName(),
                 user.getEmail(),
-                user.isEnabled());
+                user.isEnabled(),
+                user.isLocked(),
+                user.isPasswordMustChange(),
+                user.getLockedUntil(),
+                user.getLastLoginAt(),
+                roleNames(user));
     }
 
     static RoleDto toDto(Role role) {

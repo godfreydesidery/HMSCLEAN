@@ -44,8 +44,10 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<UserSummary> list(Pageable pageable) {
-        return PageResponse.from(userRepository.findAll(pageable).map(IamMapper::toSummary));
+    public PageResponse<UserSummary> search(String query, Boolean enabled, Pageable pageable) {
+        return PageResponse.from(
+                userRepository.search(query == null ? null : query.trim(), enabled, pageable)
+                        .map(IamMapper::toSummary));
     }
 
     @Transactional(readOnly = true)

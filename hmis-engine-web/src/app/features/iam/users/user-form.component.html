@@ -1,0 +1,61 @@
+<div class="modal-header">
+  <h5 class="modal-title">Add user</h5>
+  <button type="button" class="btn-close" (click)="activeModal.dismiss()" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label" for="uf-username">Username <span class="text-danger">*</span></label>
+        <input id="uf-username" name="username" type="text" class="form-control" formControlName="username" minlength="3" maxlength="64" autocomplete="off">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="uf-password">Initial password <span class="text-danger">*</span></label>
+        <input id="uf-password" name="password" type="password" class="form-control" formControlName="password" minlength="8" maxlength="128" autocomplete="new-password">
+        <div class="form-text">Min 8 characters. User will not be forced to change it on first login (use Reset password later if you want that).</div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="uf-first">First name <span class="text-danger">*</span></label>
+        <input id="uf-first" name="firstName" type="text" class="form-control" formControlName="firstName" maxlength="80">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="uf-last">Last name <span class="text-danger">*</span></label>
+        <input id="uf-last" name="lastName" type="text" class="form-control" formControlName="lastName" maxlength="80">
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="uf-email">Email</label>
+        <input id="uf-email" name="email" type="email" class="form-control" formControlName="email" maxlength="120">
+      </div>
+      <div class="col-12">
+        <label class="form-label d-block">Roles</label>
+        @if (loadingRoles()) {
+          <div class="hmis-muted small"><span class="spinner-border spinner-border-sm me-2"></span>Loading roles…</div>
+        } @else if (roles().length === 0) {
+          <div class="hmis-muted small">No roles defined yet.</div>
+        } @else {
+          <div class="d-flex flex-wrap gap-2">
+            @for (r of roles(); track r.uid) {
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" [id]="'role-' + r.name" [checked]="hasRole(r.name)" (change)="toggleRole(r.name, $any($event.target).checked)">
+                <label class="form-check-label" [for]="'role-' + r.name">{{ r.name }}</label>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+  <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="submit()" [disabled]="submitting()">
+    @if (submitting()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }
+    <i class="bi bi-check2"></i>Create user
+  </button>
+</div>

@@ -95,6 +95,14 @@ export class PatientDetailComponent {
     });
   }
 
+  admit(): void {
+    const p = this.patient();
+    if (!p) return;
+    void this.router.navigate(['/encounters', 'admissions', 'new'], {
+      queryParams: { patientUid: p.uid }
+    });
+  }
+
   genderLabel(g: Gender): string { return GENDERS.find((x) => x.value === g)?.label ?? g; }
   typeLabel(t: PatientType): string { return PATIENT_TYPES.find((x) => x.value === t)?.label ?? t; }
   paymentLabel(p: PaymentType): string { return PAYMENT_TYPES.find((x) => x.value === p)?.label ?? p; }

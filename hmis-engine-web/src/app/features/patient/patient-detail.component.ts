@@ -1,8 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { finalize } from 'rxjs';
+import { finalize, forkJoin } from 'rxjs';
 
+import { ConsultationService } from '../encounter/consultation/consultation.service';
+import {
+  CONSULTATION_STATUSES, ConsultationStatus, ConsultationSummary
+} from '../encounter/consultation/consultation.types';
 import { PatientService } from './patient.service';
 import { GENDERS, Gender, PATIENT_TYPES, PAYMENT_TYPES, Patient, PatientType, PaymentType } from './patient.types';
 
@@ -17,8 +21,11 @@ export class PatientDetailComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly patientService = inject(PatientService);
+  private readonly consultationService = inject(ConsultationService);
 
+  readonly statuses = CONSULTATION_STATUSES;
   readonly patient = signal<Patient | null>(null);
+  readonly recentConsultations = signal<ConsultationSummary[]>([]);
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
 
@@ -47,17 +54,21 @@ export class PatientDetailComponent {
 
   constructor() {
     const uid = this.route.snapshot.paramMap.get('uid');
-    if (uid) {
-      this.patientService.findByUid(uid)
-        .pipe(finalize(() => this.loading.set(false)))
-        .subscribe({
-          next: (p) => this.patient.set(p),
-          error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load patient.')
-        });
-    } else {
+    if (!uid) {
       this.loading.set(false);
       this.errorMessage.set('Missing patient identifier.');
+      return;
     }
+    forkJoin({
+      patient: this.patientService.findByUid(uid),
+      recent: this.consultationService.recentForPatient(uid)
+    }).pipe(finalize(() => this.loading.set(false))).subscribe({
+      next: ({ patient, recent }) => {
+        this.patient.set(patient);
+        this.recentConsultations.set(recent);
+      },
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load patient.')
+    });
   }
 
   edit(): void {
@@ -76,7 +87,22 @@ export class PatientDetailComponent {
     });
   }
 
+  startConsultation(): void {
+    const p = this.patient();
+    if (!p) return;
+    void this.router.navigate(['/encounters', 'consultations', 'new'], {
+      queryParams: { patientUid: p.uid }
+    });
+  }
+
   genderLabel(g: Gender): string { return GENDERS.find((x) => x.value === g)?.label ?? g; }
   typeLabel(t: PatientType): string { return PATIENT_TYPES.find((x) => x.value === t)?.label ?? t; }
   paymentLabel(p: PaymentType): string { return PAYMENT_TYPES.find((x) => x.value === p)?.label ?? p; }
+
+  statusBadgeClass(s: ConsultationStatus): string {
+    return 'badge ' + (this.statuses.find((x) => x.value === s)?.badgeClass ?? '');
+  }
+  statusLabel(s: ConsultationStatus): string {
+    return this.statuses.find((x) => x.value === s)?.label ?? s;
+  }
 }

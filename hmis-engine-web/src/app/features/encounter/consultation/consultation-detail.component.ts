@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
+import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { finalize, forkJoin } from 'rxjs';
 
 import { AddDiagnosisComponent } from '../diagnosis/add-diagnosis.component';
@@ -12,6 +12,17 @@ import {
 } from '../diagnosis/consultation-diagnosis.types';
 import { ClinicalNoteService } from '../note/clinical-note.service';
 import { ClinicalNote } from '../note/clinical-note.types';
+import { AddOrderComponent } from '../order/add-order.component';
+import { ClinicalOrderService } from '../order/clinical-order.service';
+import {
+  CLINICAL_ORDER_KINDS, CLINICAL_ORDER_STATUSES, ClinicalOrder, ClinicalOrderKind, ClinicalOrderStatus,
+  ORDER_URGENCIES, OrderUrgency
+} from '../order/clinical-order.types';
+import { AddPrescriptionComponent } from '../prescription/add-prescription.component';
+import { PrescriptionService } from '../prescription/prescription.service';
+import {
+  PRESCRIPTION_STATUSES, Prescription, PrescriptionStatus
+} from '../prescription/prescription.types';
 import { VitalsFormComponent } from '../vitals/vitals-form.component';
 import { VitalsService } from '../vitals/vitals.service';
 import { PatientVitals } from '../vitals/vitals.types';
@@ -23,7 +34,7 @@ type TabKey = 'overview' | 'vitals' | 'notes' | 'diagnoses' | 'orders';
 @Component({
   selector: 'app-consultation-detail',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, NgbDropdownModule],
   templateUrl: './consultation-detail.component.html',
   styleUrl: './consultation-detail.component.scss'
 })
@@ -34,14 +45,22 @@ export class ConsultationDetailComponent {
   private readonly vitalsService = inject(VitalsService);
   private readonly noteService = inject(ClinicalNoteService);
   private readonly diagnosisService = inject(ConsultationDiagnosisService);
+  private readonly orderService = inject(ClinicalOrderService);
+  private readonly prescriptionService = inject(PrescriptionService);
   private readonly modal = inject(NgbModal);
   private readonly fb = inject(FormBuilder);
 
   readonly statuses = CONSULTATION_STATUSES;
   readonly diagnosisKinds = DIAGNOSIS_KINDS;
+  readonly orderKinds = CLINICAL_ORDER_KINDS;
+  readonly orderStatuses = CLINICAL_ORDER_STATUSES;
+  readonly orderUrgencies = ORDER_URGENCIES;
+  readonly prescriptionStatuses = PRESCRIPTION_STATUSES;
   readonly consultation = signal<Consultation | null>(null);
   readonly vitals = signal<PatientVitals[]>([]);
   readonly diagnoses = signal<ConsultationDiagnosis[]>([]);
+  readonly orders = signal<ClinicalOrder[]>([]);
+  readonly prescriptions = signal<Prescription[]>([]);
   readonly note = signal<ClinicalNote | null>(null);
   readonly noteDirty = signal(false);
   readonly notesSaving = signal(false);
@@ -84,12 +103,16 @@ export class ConsultationDetailComponent {
       consultation: this.consultationService.findByUid(uid),
       vitals: this.vitalsService.list(uid),
       note: this.noteService.get(uid),
-      diagnoses: this.diagnosisService.list(uid)
+      diagnoses: this.diagnosisService.list(uid),
+      orders: this.orderService.list(uid),
+      prescriptions: this.prescriptionService.list(uid)
     }).subscribe({
-      next: ({ consultation, vitals, note, diagnoses }) => {
+      next: ({ consultation, vitals, note, diagnoses, orders, prescriptions }) => {
         this.consultation.set(consultation);
         this.vitals.set(vitals);
         this.diagnoses.set(diagnoses);
+        this.orders.set(orders);
+        this.prescriptions.set(prescriptions);
         this.setNote(note);
         this.loading.set(false);
       },
@@ -212,6 +235,101 @@ export class ConsultationDetailComponent {
       next: (ds) => this.diagnoses.set(ds),
       error: () => { /* keep existing */ }
     });
+  }
+
+  // ----- Orders ----------------------------------------------------------
+
+  addOrder(initialKind: ClinicalOrderKind): void {
+    const c = this.consultation();
+    if (!c) return;
+    const ref = this.modal.open(AddOrderComponent, { size: 'lg', backdrop: 'static' });
+    const inst = ref.componentInstance as AddOrderComponent;
+    inst.consultationUid = c.uid;
+    inst.initialKind = initialKind;
+    ref.closed.subscribe(() => this.refreshOrders());
+  }
+
+  startOrder(o: ClinicalOrder): void {
+    this.orderService.start(o.uid).subscribe({
+      next: () => this.refreshOrders(),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not start order.')
+    });
+  }
+
+  completeOrder(o: ClinicalOrder): void {
+    const result = globalThis.prompt('Result / report for this order (optional):')?.trim() ?? null;
+    this.orderService.complete(o.uid, result).subscribe({
+      next: () => this.refreshOrders(),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not complete order.')
+    });
+  }
+
+  cancelOrder(o: ClinicalOrder): void {
+    const reason = globalThis.prompt('Reason for cancelling this order?')?.trim() ?? null;
+    this.orderService.cancel(o.uid, reason).subscribe({
+      next: () => this.refreshOrders(),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not cancel order.')
+    });
+  }
+
+  private refreshOrders(): void {
+    const c = this.consultation();
+    if (!c) return;
+    this.orderService.list(c.uid).subscribe({
+      next: (os) => this.orders.set(os),
+      error: () => { /* keep existing */ }
+    });
+  }
+
+  // ----- Prescriptions ---------------------------------------------------
+
+  addPrescription(): void {
+    const c = this.consultation();
+    if (!c) return;
+    const ref = this.modal.open(AddPrescriptionComponent, { size: 'lg', backdrop: 'static' });
+    (ref.componentInstance as AddPrescriptionComponent).consultationUid = c.uid;
+    ref.closed.subscribe(() => this.refreshPrescriptions());
+  }
+
+  cancelPrescription(p: Prescription): void {
+    const reason = globalThis.prompt('Reason for cancelling this prescription?')?.trim() ?? null;
+    this.prescriptionService.cancel(p.uid, reason).subscribe({
+      next: () => this.refreshPrescriptions(),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not cancel prescription.')
+    });
+  }
+
+  private refreshPrescriptions(): void {
+    const c = this.consultation();
+    if (!c) return;
+    this.prescriptionService.list(c.uid).subscribe({
+      next: (ps) => this.prescriptions.set(ps),
+      error: () => { /* keep existing */ }
+    });
+  }
+
+  // ----- Display helpers -------------------------------------------------
+
+  orderStatusBadgeClass(s: ClinicalOrderStatus): string {
+    return 'badge ' + (this.orderStatuses.find((x) => x.value === s)?.badgeClass ?? '');
+  }
+  orderStatusLabel(s: ClinicalOrderStatus): string {
+    return this.orderStatuses.find((x) => x.value === s)?.label ?? s;
+  }
+  orderKindLabel(k: ClinicalOrderKind): string {
+    return this.orderKinds.find((x) => x.value === k)?.label ?? k;
+  }
+  orderKindIcon(k: ClinicalOrderKind): string {
+    return this.orderKinds.find((x) => x.value === k)?.icon ?? 'bi-card-list';
+  }
+  urgencyBadgeClass(u: OrderUrgency): string {
+    return 'badge ' + (this.orderUrgencies.find((x) => x.value === u)?.badgeClass ?? '');
+  }
+  prescriptionStatusBadgeClass(s: PrescriptionStatus): string {
+    return 'badge ' + (this.prescriptionStatuses.find((x) => x.value === s)?.badgeClass ?? '');
+  }
+  prescriptionStatusLabel(s: PrescriptionStatus): string {
+    return this.prescriptionStatuses.find((x) => x.value === s)?.label ?? s;
   }
 
   private setNote(note: ClinicalNote | null): void {

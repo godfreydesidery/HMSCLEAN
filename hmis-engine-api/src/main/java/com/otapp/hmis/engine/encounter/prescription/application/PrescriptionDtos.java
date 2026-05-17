@@ -1,0 +1,45 @@
+package com.otapp.hmis.engine.encounter.prescription.application;
+
+import com.otapp.hmis.engine.encounter.prescription.domain.PrescriptionStatus;
+import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineForm;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import java.time.Instant;
+
+public final class PrescriptionDtos {
+
+    private PrescriptionDtos() {}
+
+    public record PrescriptionDto(
+            String uid,
+            String prescriptionNo,
+            String consultationUid,
+            String patientUid,
+            String medicineUid,
+            String medicineCode,
+            String medicineName,
+            String medicineStrength,
+            MedicineForm medicineForm,
+            PrescriptionStatus status,
+            String dose,
+            String frequency,
+            Integer durationDays,
+            Integer quantity,
+            String instructions,
+            Instant requestedAt,
+            Instant dispensedAt,
+            String cancelReason,
+            Instant createdAt,
+            Instant updatedAt) {}
+
+    public record CreatePrescriptionRequest(
+            @NotBlank @Size(min = 26, max = 26) String medicineUid,
+            @NotBlank @Size(max = 80) String dose,
+            @NotBlank @Size(max = 80) String frequency,
+            @Min(0) Integer durationDays,
+            @Min(0) Integer quantity,
+            @Size(max = 500) String instructions) {}
+
+    public record CancelPrescriptionRequest(@Size(max = 255) String reason) {}
+}

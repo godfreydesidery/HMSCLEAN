@@ -281,9 +281,145 @@
       </div>
     }
 
-    <!-- ===== Orders (placeholder) ===== -->
+    <!-- ===== Orders ===== -->
     @if (activeTab() === 'orders') {
-      <div class="hmis-empty"><i class="bi bi-card-list"></i><div class="fw-semibold mb-1">Orders coming soon</div><div class="small">Lab tests, radiology, procedures and prescriptions will appear here.</div></div>
+      <div class="row g-3">
+        <!-- Clinical orders -->
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header bg-white d-flex align-items-center justify-content-between">
+              <div>
+                <div class="fw-semibold"><i class="bi bi-card-list me-1"></i>Clinical orders</div>
+                <div class="hmis-muted small">Lab tests, radiology, and procedures raised during this visit.</div>
+              </div>
+              <div ngbDropdown class="d-inline-block">
+                <button type="button" class="btn btn-sm btn-primary d-flex align-items-center gap-2" ngbDropdownToggle [disabled]="!isEditable()">
+                  <i class="bi bi-plus-lg"></i>New order
+                </button>
+                <div ngbDropdownMenu class="shadow-sm">
+                  @for (k of orderKinds; track k.value) {
+                    <button type="button" ngbDropdownItem (click)="addOrder(k.value)">
+                      <i class="bi {{ k.icon }} me-2"></i>{{ k.label }}
+                    </button>
+                  }
+                </div>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0 hmis-table">
+                <thead>
+                  <tr>
+                    <th>#</th><th>Type</th><th>Service</th><th>Urgency</th><th>Status</th><th>Requested</th><th>Result</th><th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @if (orders().length === 0) {
+                    <tr><td colspan="8"><div class="hmis-empty"><i class="bi bi-card-list"></i><div class="small">No orders raised yet.</div></div></td></tr>
+                  } @else {
+                    @for (o of orders(); track o.uid) {
+                      <tr>
+                        <td><span class="hmis-code">{{ o.orderNo }}</span></td>
+                        <td>
+                          <span class="badge text-bg-light border d-inline-flex align-items-center gap-1">
+                            <i class="bi {{ orderKindIcon(o.kind) }}"></i>{{ orderKindLabel(o.kind) }}
+                          </span>
+                        </td>
+                        <td>
+                          <div class="fw-semibold">{{ o.serviceName || o.serviceUid }}</div>
+                          @if (o.instructions) { <div class="hmis-muted small text-truncate" style="max-width:260px;">{{ o.instructions }}</div> }
+                        </td>
+                        <td><span [class]="urgencyBadgeClass(o.urgency)">{{ o.urgency }}</span></td>
+                        <td><span [class]="orderStatusBadgeClass(o.status)">{{ orderStatusLabel(o.status) }}</span></td>
+                        <td class="hmis-muted small">{{ o.requestedAt | date:'short' }}</td>
+                        <td class="hmis-muted small text-truncate" style="max-width:220px;">{{ o.result || '—' }}</td>
+                        <td class="text-end">
+                          <div ngbDropdown placement="bottom-end" class="d-inline-block">
+                            <button type="button" class="btn btn-sm btn-light border" ngbDropdownToggle aria-label="Actions"><i class="bi bi-three-dots"></i></button>
+                            <div ngbDropdownMenu class="shadow-sm">
+                              @if (o.status === 'REQUESTED') {
+                                <button type="button" ngbDropdownItem (click)="startOrder(o)"><i class="bi bi-play-fill me-2"></i>Start</button>
+                              }
+                              @if (o.status === 'REQUESTED' || o.status === 'IN_PROGRESS') {
+                                <button type="button" ngbDropdownItem (click)="completeOrder(o)"><i class="bi bi-check2-all me-2"></i>Complete</button>
+                                <button type="button" ngbDropdownItem class="text-danger" (click)="cancelOrder(o)"><i class="bi bi-x-circle me-2"></i>Cancel</button>
+                              }
+                              @if (o.status === 'COMPLETED' || o.status === 'CANCELLED') {
+                                <button type="button" ngbDropdownItem disabled><i class="bi bi-lock me-2"></i>Closed</button>
+                              }
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Prescriptions -->
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header bg-white d-flex align-items-center justify-content-between">
+              <div>
+                <div class="fw-semibold"><i class="bi bi-capsule me-1"></i>Prescriptions</div>
+                <div class="hmis-muted small">Medications prescribed during this consultation.</div>
+              </div>
+              <button type="button" class="btn btn-sm btn-primary d-flex align-items-center gap-2" (click)="addPrescription()" [disabled]="!isEditable()">
+                <i class="bi bi-plus-lg"></i>Prescribe
+              </button>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0 hmis-table">
+                <thead>
+                  <tr>
+                    <th>#</th><th>Medicine</th><th>Dose</th><th>Frequency</th><th>Duration</th><th>Qty</th><th>Status</th><th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @if (prescriptions().length === 0) {
+                    <tr><td colspan="8"><div class="hmis-empty"><i class="bi bi-capsule"></i><div class="small">No prescriptions yet.</div></div></td></tr>
+                  } @else {
+                    @for (p of prescriptions(); track p.uid) {
+                      <tr>
+                        <td><span class="hmis-code">{{ p.prescriptionNo }}</span></td>
+                        <td>
+                          <div class="fw-semibold">{{ p.medicineName || p.medicineUid }}</div>
+                          @if (p.medicineStrength || p.medicineForm) {
+                            <div class="hmis-muted small">{{ p.medicineStrength }} {{ p.medicineForm }}</div>
+                          }
+                          @if (p.instructions) {
+                            <div class="hmis-muted small text-truncate" style="max-width:260px;">{{ p.instructions }}</div>
+                          }
+                        </td>
+                        <td>{{ p.dose }}</td>
+                        <td>{{ p.frequency }}</td>
+                        <td>{{ p.durationDays ? (p.durationDays + ' days') : '—' }}</td>
+                        <td>{{ p.quantity ?? '—' }}</td>
+                        <td><span [class]="prescriptionStatusBadgeClass(p.status)">{{ prescriptionStatusLabel(p.status) }}</span></td>
+                        <td class="text-end">
+                          <div ngbDropdown placement="bottom-end" class="d-inline-block">
+                            <button type="button" class="btn btn-sm btn-light border" ngbDropdownToggle aria-label="Actions"><i class="bi bi-three-dots"></i></button>
+                            <div ngbDropdownMenu class="shadow-sm">
+                              @if (p.status === 'REQUESTED') {
+                                <button type="button" ngbDropdownItem class="text-danger" (click)="cancelPrescription(p)"><i class="bi bi-x-circle me-2"></i>Cancel</button>
+                              }
+                              @if (p.status !== 'REQUESTED') {
+                                <button type="button" ngbDropdownItem disabled><i class="bi bi-lock me-2"></i>Closed</button>
+                              }
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
     }
   }
 }

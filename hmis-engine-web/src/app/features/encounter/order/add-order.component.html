@@ -1,0 +1,46 @@
+<div class="modal-header">
+  <h5 class="modal-title d-flex align-items-center gap-2"><i class="bi bi-card-list"></i>New order</h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss()"></button>
+</div>
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-body">
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3" role="alert"><i class="bi bi-exclamation-circle"></i><span class="small">{{ errorMessage() }}</span></div>
+    }
+    <div class="row g-3">
+      <div class="col-md-5">
+        <label class="form-label" for="ord-kind">Order type <span class="text-danger">*</span></label>
+        <select id="ord-kind" name="kind" class="form-select" formControlName="kind">
+          @for (k of kinds; track k.value) { <option [value]="k.value">{{ k.label }}</option> }
+        </select>
+      </div>
+      <div class="col-md-7">
+        <label class="form-label" for="ord-service">Service <span class="text-danger">*</span></label>
+        <select id="ord-service" name="serviceUid" class="form-select" formControlName="serviceUid">
+          <option value="" disabled>{{ loadingOptions() ? 'Loading…' : '— Select a service —' }}</option>
+          @for (o of options(); track o.uid) { <option [value]="o.uid">{{ o.label }}</option> }
+        </select>
+      </div>
+      <div class="col-md-5">
+        <label class="form-label" for="ord-urgency">Urgency <span class="text-danger">*</span></label>
+        <select id="ord-urgency" name="urgency" class="form-select" formControlName="urgency">
+          @for (u of urgencies; track u.value) { <option [value]="u.value">{{ u.label }}</option> }
+        </select>
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="ord-instructions">Instructions</label>
+        <textarea id="ord-instructions" rows="3" class="form-control" formControlName="instructions" placeholder="Specimen handling, prep, special notes"></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+    <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting()">
+      @if (submitting()) {
+        <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output>Saving…
+      } @else {
+        <i class="bi bi-check2"></i>Raise order
+      }
+    </button>
+  </div>
+</form>

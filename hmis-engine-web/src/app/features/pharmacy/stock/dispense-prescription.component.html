@@ -1,0 +1,49 @@
+<div class="modal-header">
+  <div>
+    <h5 class="modal-title">Dispense prescription</h5>
+    <div class="hmis-muted small mt-1">
+      <span class="hmis-code me-2">{{ prescription.prescriptionNo }}</span>
+      <span>{{ prescription.medicineName || prescription.medicineUid }}</span>
+    </div>
+  </div>
+  <button type="button" class="btn-close" (click)="activeModal.dismiss()" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  }
+
+  <div class="card bg-light border-0 mb-3">
+    <div class="card-body py-2">
+      <div class="row small">
+        <div class="col-md-4"><span class="hmis-muted">Dose</span><div class="fw-semibold">{{ prescription.dose }}</div></div>
+        <div class="col-md-4"><span class="hmis-muted">Frequency</span><div class="fw-semibold">{{ prescription.frequency }}</div></div>
+        <div class="col-md-4"><span class="hmis-muted">Quantity</span><div class="fw-semibold">{{ prescription.quantity ?? '—' }}</div></div>
+      </div>
+    </div>
+  </div>
+
+  @if (!prescription.quantity || prescription.quantity <= 0) {
+    <div class="alert alert-warning small"><i class="bi bi-exclamation-triangle me-1"></i>This prescription has no dispense quantity set. Cancel and re-issue with a quantity, or amend the prescription before dispensing.</div>
+  }
+
+  <form [formGroup]="form" novalidate>
+    <label class="form-label" for="dp-pharm">Dispense from pharmacy <span class="text-danger">*</span></label>
+    <select id="dp-pharm" name="pharmacyUid" class="form-select" formControlName="pharmacyUid">
+      <option value="" disabled>{{ loadingPharmacies() ? 'Loading…' : '— Select pharmacy —' }}</option>
+      @for (p of pharmacies(); track p.uid) {
+        <option [value]="p.uid">{{ p.name }} ({{ p.code }})</option>
+      }
+    </select>
+    <div class="form-text">Stock will be decremented from this pharmacy. The prescription will be marked dispensed in the same step.</div>
+  </form>
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+  <button type="button" class="btn btn-success d-flex align-items-center gap-2" (click)="dispense()" [disabled]="submitting() || form.invalid || !prescription.quantity || prescription.quantity <= 0">
+    @if (submitting()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }
+    <i class="bi bi-box-arrow-up"></i>Dispense
+  </button>
+</div>

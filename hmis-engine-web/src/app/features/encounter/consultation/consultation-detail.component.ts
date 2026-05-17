@@ -22,6 +22,7 @@ import {
   ORDER_URGENCIES, OrderUrgency
 } from '../order/clinical-order.types';
 import { EnterResultComponent } from '../order/enter-result.component';
+import { DispensePrescriptionComponent } from '../../pharmacy/stock/dispense-prescription.component';
 import { AddPrescriptionComponent } from '../prescription/add-prescription.component';
 import { PrescriptionService } from '../prescription/prescription.service';
 import {
@@ -305,6 +306,14 @@ export class ConsultationDetailComponent {
     this.prescriptionService.cancel(p.uid, reason).subscribe({
       next: () => this.refreshPrescriptions(),
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not cancel prescription.')
+    });
+  }
+
+  dispensePrescription(p: Prescription): void {
+    const ref = this.modal.open(DispensePrescriptionComponent, { backdrop: 'static' });
+    (ref.componentInstance as DispensePrescriptionComponent).prescription = p;
+    ref.closed.subscribe((movement) => {
+      if (movement) this.refreshPrescriptions();
     });
   }
 

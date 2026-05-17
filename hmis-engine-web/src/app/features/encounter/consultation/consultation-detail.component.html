@@ -412,6 +412,7 @@
                             <button type="button" class="btn btn-sm btn-light border" ngbDropdownToggle aria-label="Actions"><i class="bi bi-three-dots"></i></button>
                             <div ngbDropdownMenu class="shadow-sm">
                               @if (p.status === 'REQUESTED') {
+                                <button type="button" ngbDropdownItem (click)="dispensePrescription(p)"><i class="bi bi-box-arrow-up me-2 text-success"></i>Dispense</button>
                                 <button type="button" ngbDropdownItem class="text-danger" (click)="cancelPrescription(p)"><i class="bi bi-x-circle me-2"></i>Cancel</button>
                               }
                               @if (p.status !== 'REQUESTED') {

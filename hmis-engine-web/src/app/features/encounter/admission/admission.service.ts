@@ -25,24 +25,24 @@ export class AdmissionService {
     return this.http.get<PageResponse<AdmissionSummary>>(this.base, { params: p });
   }
 
-  findByUid(uid: string): Observable<Admission> { return this.http.get<Admission>(`${this.base}/${uid}`); }
+  findByUid(uid: string): Observable<Admission> { return this.http.get<Admission>(`${this.base}/uid/${uid}`); }
   admit(req: AdmitPatientRequest): Observable<Admission> { return this.http.post<Admission>(this.base, req); }
   transferWard(uid: string, req: TransferWardRequest): Observable<Admission> {
-    return this.http.post<Admission>(`${this.base}/${uid}/transfer`, req);
+    return this.http.post<Admission>(`${this.base}/uid/${uid}/transfer`, req);
   }
   discharge(uid: string, summary: string | null): Observable<Admission> {
-    return this.http.post<Admission>(`${this.base}/${uid}/discharge`, { summary });
+    return this.http.post<Admission>(`${this.base}/uid/${uid}/discharge`, { summary });
   }
   markDeceased(uid: string, summary: string | null): Observable<Admission> {
-    return this.http.post<Admission>(`${this.base}/${uid}/deceased`, { summary });
+    return this.http.post<Admission>(`${this.base}/uid/${uid}/deceased`, { summary });
   }
   transferOut(uid: string, summary: string | null): Observable<Admission> {
-    return this.http.post<Admission>(`${this.base}/${uid}/transfer-out`, { summary });
+    return this.http.post<Admission>(`${this.base}/uid/${uid}/transfer-out`, { summary });
   }
   cancel(uid: string, reason: string | null): Observable<Admission> {
-    return this.http.post<Admission>(`${this.base}/${uid}/cancel`, { reason });
+    return this.http.post<Admission>(`${this.base}/uid/${uid}/cancel`, { reason });
   }
   recentForPatient(patientUid: string): Observable<AdmissionSummary[]> {
-    return this.http.get<AdmissionSummary[]>(`${this.base}/by-patient/${patientUid}/recent`);
+    return this.http.get<AdmissionSummary[]>(`${this.base}/by-patient/uid/${patientUid}/recent`);
   }
 }

@@ -23,9 +23,9 @@ export class ProcedureTypeService {
     return this.http.get<PageResponse<ProcedureType>>(this.base, { params: p });
   }
 
-  findByUid(uid: string): Observable<ProcedureType> { return this.http.get<ProcedureType>(`${this.base}/${uid}`); }
+  findByUid(uid: string): Observable<ProcedureType> { return this.http.get<ProcedureType>(`${this.base}/uid/${uid}`); }
   create(req: CreateProcedureTypeRequest): Observable<ProcedureType> { return this.http.post<ProcedureType>(this.base, req); }
-  update(uid: string, req: UpdateProcedureTypeRequest): Observable<ProcedureType> { return this.http.put<ProcedureType>(`${this.base}/${uid}`, req); }
-  setActive(uid: string, active: boolean): Observable<ProcedureType> { return this.http.put<ProcedureType>(`${this.base}/${uid}/active`, { active }); }
-  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/${uid}`); }
+  update(uid: string, req: UpdateProcedureTypeRequest): Observable<ProcedureType> { return this.http.put<ProcedureType>(`${this.base}/uid/${uid}`, req); }
+  setActive(uid: string, active: boolean): Observable<ProcedureType> { return this.http.put<ProcedureType>(`${this.base}/uid/${uid}/active`, { active }); }
+  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/uid/${uid}`); }
 }

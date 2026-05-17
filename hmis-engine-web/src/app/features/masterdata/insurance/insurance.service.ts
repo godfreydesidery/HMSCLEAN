@@ -23,9 +23,9 @@ export class InsuranceProviderService {
     return this.http.get<PageResponse<InsuranceProvider>>(this.base, { params: p });
   }
 
-  findByUid(uid: string): Observable<InsuranceProvider> { return this.http.get<InsuranceProvider>(`${this.base}/${uid}`); }
+  findByUid(uid: string): Observable<InsuranceProvider> { return this.http.get<InsuranceProvider>(`${this.base}/uid/${uid}`); }
   create(req: CreateInsuranceProviderRequest): Observable<InsuranceProvider> { return this.http.post<InsuranceProvider>(this.base, req); }
-  update(uid: string, req: UpdateInsuranceProviderRequest): Observable<InsuranceProvider> { return this.http.put<InsuranceProvider>(`${this.base}/${uid}`, req); }
-  setActive(uid: string, active: boolean): Observable<InsuranceProvider> { return this.http.put<InsuranceProvider>(`${this.base}/${uid}/active`, { active }); }
-  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/${uid}`); }
+  update(uid: string, req: UpdateInsuranceProviderRequest): Observable<InsuranceProvider> { return this.http.put<InsuranceProvider>(`${this.base}/uid/${uid}`, req); }
+  setActive(uid: string, active: boolean): Observable<InsuranceProvider> { return this.http.put<InsuranceProvider>(`${this.base}/uid/${uid}/active`, { active }); }
+  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/uid/${uid}`); }
 }

@@ -23,19 +23,19 @@ export class StockService {
   private readonly base = `${environment.apiUrl}/pharmacy`;
 
   listBalances(pharmacyUid: string): Observable<StockBalance[]> {
-    return this.http.get<StockBalance[]>(`${this.base}/pharmacies/${pharmacyUid}/stock`);
+    return this.http.get<StockBalance[]>(`${this.base}/pharmacies/uid/${pharmacyUid}/stock`);
   }
 
   receive(pharmacyUid: string, req: ReceiveStockRequest): Observable<StockBalance> {
-    return this.http.post<StockBalance>(`${this.base}/pharmacies/${pharmacyUid}/stock/receive`, req);
+    return this.http.post<StockBalance>(`${this.base}/pharmacies/uid/${pharmacyUid}/stock/receive`, req);
   }
 
   adjust(pharmacyUid: string, req: AdjustStockRequest): Observable<StockBalance> {
-    return this.http.post<StockBalance>(`${this.base}/pharmacies/${pharmacyUid}/stock/adjust`, req);
+    return this.http.post<StockBalance>(`${this.base}/pharmacies/uid/${pharmacyUid}/stock/adjust`, req);
   }
 
   dispense(pharmacyUid: string, prescriptionUid: string): Observable<StockMovement> {
-    return this.http.post<StockMovement>(`${this.base}/pharmacies/${pharmacyUid}/dispense/${prescriptionUid}`, {});
+    return this.http.post<StockMovement>(`${this.base}/pharmacies/uid/${pharmacyUid}/dispense/uid/${prescriptionUid}`, {});
   }
 
   searchMovements(params: MovementSearchParams = {}): Observable<PageResponse<StockMovement>> {

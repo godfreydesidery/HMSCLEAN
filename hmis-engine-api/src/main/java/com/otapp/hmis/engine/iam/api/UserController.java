@@ -44,35 +44,35 @@ public class UserController {
         return ResponseEntity.ok(userService.search(query, enabled, pageable));
     }
 
-    @GetMapping("/{uid}")
+    @GetMapping("/uid/{userUid}")
     @PreAuthorize("hasAuthority('USER_READ')")
-    public ResponseEntity<UserSummary> findByUid(@PathVariable String uid) {
-        return ResponseEntity.ok(userService.findByUid(uid));
+    public ResponseEntity<UserSummary> findByUid(@PathVariable String userUid) {
+        return ResponseEntity.ok(userService.findByUid(userUid));
     }
 
-    @PutMapping("/{uid}/enabled")
+    @PutMapping("/uid/{userUid}/enabled")
     @PreAuthorize("hasAuthority('USER_UPDATE')")
-    public ResponseEntity<UserSummary> setEnabled(@PathVariable String uid, @RequestBody EnabledRequest request) {
-        return ResponseEntity.ok(userService.setEnabled(uid, request.enabled()));
+    public ResponseEntity<UserSummary> setEnabled(@PathVariable String userUid, @RequestBody EnabledRequest request) {
+        return ResponseEntity.ok(userService.setEnabled(userUid, request.enabled()));
     }
 
-    @PutMapping("/{uid}/roles")
+    @PutMapping("/uid/{userUid}/roles")
     @PreAuthorize("hasAuthority('USER_UPDATE')")
-    public ResponseEntity<UserSummary> replaceRoles(@PathVariable String uid, @RequestBody Set<String> roleNames) {
-        return ResponseEntity.ok(userService.replaceRoles(uid, roleNames));
+    public ResponseEntity<UserSummary> replaceRoles(@PathVariable String userUid, @RequestBody Set<String> roleNames) {
+        return ResponseEntity.ok(userService.replaceRoles(userUid, roleNames));
     }
 
-    @PostMapping("/{uid}/reset-password")
+    @PostMapping("/uid/{userUid}/reset-password")
     @PreAuthorize("hasAuthority('USER_UPDATE')")
-    public ResponseEntity<UserSummary> resetPassword(@PathVariable String uid,
+    public ResponseEntity<UserSummary> resetPassword(@PathVariable String userUid,
                                                      @Valid @RequestBody ResetPasswordRequest request) {
-        return ResponseEntity.ok(userService.resetPassword(uid, request.newPassword()));
+        return ResponseEntity.ok(userService.resetPassword(userUid, request.newPassword()));
     }
 
-    @PostMapping("/{uid}/unlock")
+    @PostMapping("/uid/{userUid}/unlock")
     @PreAuthorize("hasAuthority('USER_UPDATE')")
-    public ResponseEntity<UserSummary> unlock(@PathVariable String uid) {
-        return ResponseEntity.ok(userService.unlock(uid));
+    public ResponseEntity<UserSummary> unlock(@PathVariable String userUid) {
+        return ResponseEntity.ok(userService.unlock(userUid));
     }
 
     public record EnabledRequest(boolean enabled) {}

@@ -27,7 +27,7 @@ public class ProcedureTypeController {
     @PostMapping
     public ResponseEntity<ProcedureTypeDto> create(@Valid @RequestBody CreateProcedureTypeRequest request) {
         ProcedureTypeDto created = service.create(request);
-        URI loc = UriComponentsBuilder.fromPath("/masterdata/procedures/{uid}").buildAndExpand(created.uid()).toUri();
+        URI loc = UriComponentsBuilder.fromPath("/masterdata/procedures/uid/{procedureUid}").buildAndExpand(created.uid()).toUri();
         return ResponseEntity.created(loc).body(created);
     }
 
@@ -39,24 +39,24 @@ public class ProcedureTypeController {
         return ResponseEntity.ok(service.search(query, active, pageable));
     }
 
-    @GetMapping("/{uid}")
-    public ResponseEntity<ProcedureTypeDto> findByUid(@PathVariable String uid) {
-        return ResponseEntity.ok(service.findByUid(uid));
+    @GetMapping("/uid/{procedureUid}")
+    public ResponseEntity<ProcedureTypeDto> findByUid(@PathVariable String procedureUid) {
+        return ResponseEntity.ok(service.findByUid(procedureUid));
     }
 
-    @PutMapping("/{uid}")
-    public ResponseEntity<ProcedureTypeDto> update(@PathVariable String uid, @Valid @RequestBody UpdateProcedureTypeRequest request) {
-        return ResponseEntity.ok(service.update(uid, request));
+    @PutMapping("/uid/{procedureUid}")
+    public ResponseEntity<ProcedureTypeDto> update(@PathVariable String procedureUid, @Valid @RequestBody UpdateProcedureTypeRequest request) {
+        return ResponseEntity.ok(service.update(procedureUid, request));
     }
 
-    @PutMapping("/{uid}/active")
-    public ResponseEntity<ProcedureTypeDto> setActive(@PathVariable String uid, @RequestBody ActiveRequest request) {
-        return ResponseEntity.ok(service.setActive(uid, request.active()));
+    @PutMapping("/uid/{procedureUid}/active")
+    public ResponseEntity<ProcedureTypeDto> setActive(@PathVariable String procedureUid, @RequestBody ActiveRequest request) {
+        return ResponseEntity.ok(service.setActive(procedureUid, request.active()));
     }
 
-    @DeleteMapping("/{uid}")
-    public ResponseEntity<Void> delete(@PathVariable String uid) {
-        service.delete(uid);
+    @DeleteMapping("/uid/{procedureUid}")
+    public ResponseEntity<Void> delete(@PathVariable String procedureUid) {
+        service.delete(procedureUid);
         return ResponseEntity.noContent().build();
     }
 

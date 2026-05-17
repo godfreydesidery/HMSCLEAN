@@ -36,7 +36,7 @@ public class ClinicController {
     @PostMapping
     public ResponseEntity<ClinicDto> create(@Valid @RequestBody CreateClinicRequest request) {
         ClinicDto created = clinicService.create(request);
-        URI location = UriComponentsBuilder.fromPath("/masterdata/clinics/{uid}")
+        URI location = UriComponentsBuilder.fromPath("/masterdata/clinics/uid/{clinicUid}")
                 .buildAndExpand(created.uid())
                 .toUri();
         return ResponseEntity.created(location).body(created);
@@ -51,24 +51,24 @@ public class ClinicController {
         return ResponseEntity.ok(clinicService.search(query, active, type, pageable));
     }
 
-    @GetMapping("/{uid}")
-    public ResponseEntity<ClinicDto> findByUid(@PathVariable String uid) {
-        return ResponseEntity.ok(clinicService.findByUid(uid));
+    @GetMapping("/uid/{clinicUid}")
+    public ResponseEntity<ClinicDto> findByUid(@PathVariable String clinicUid) {
+        return ResponseEntity.ok(clinicService.findByUid(clinicUid));
     }
 
-    @PutMapping("/{uid}")
-    public ResponseEntity<ClinicDto> update(@PathVariable String uid, @Valid @RequestBody UpdateClinicRequest request) {
-        return ResponseEntity.ok(clinicService.update(uid, request));
+    @PutMapping("/uid/{clinicUid}")
+    public ResponseEntity<ClinicDto> update(@PathVariable String clinicUid, @Valid @RequestBody UpdateClinicRequest request) {
+        return ResponseEntity.ok(clinicService.update(clinicUid, request));
     }
 
-    @PutMapping("/{uid}/active")
-    public ResponseEntity<ClinicDto> setActive(@PathVariable String uid, @RequestBody ActiveRequest request) {
-        return ResponseEntity.ok(clinicService.setActive(uid, request.active()));
+    @PutMapping("/uid/{clinicUid}/active")
+    public ResponseEntity<ClinicDto> setActive(@PathVariable String clinicUid, @RequestBody ActiveRequest request) {
+        return ResponseEntity.ok(clinicService.setActive(clinicUid, request.active()));
     }
 
-    @DeleteMapping("/{uid}")
-    public ResponseEntity<Void> delete(@PathVariable String uid) {
-        clinicService.delete(uid);
+    @DeleteMapping("/uid/{clinicUid}")
+    public ResponseEntity<Void> delete(@PathVariable String clinicUid) {
+        clinicService.delete(clinicUid);
         return ResponseEntity.noContent().build();
     }
 

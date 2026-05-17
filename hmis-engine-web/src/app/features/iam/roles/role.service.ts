@@ -11,10 +11,10 @@ export class RoleService {
   private readonly base = `${environment.apiUrl}/iam`;
 
   list(): Observable<Role[]> { return this.http.get<Role[]>(`${this.base}/roles`); }
-  findByUid(uid: string): Observable<Role> { return this.http.get<Role>(`${this.base}/roles/${uid}`); }
+  findByUid(uid: string): Observable<Role> { return this.http.get<Role>(`${this.base}/roles/uid/${uid}`); }
   create(req: CreateRoleRequest): Observable<Role> { return this.http.post<Role>(`${this.base}/roles`, req); }
   replacePrivileges(uid: string, privileges: string[]): Observable<Role> {
-    return this.http.put<Role>(`${this.base}/roles/${uid}/privileges`, privileges);
+    return this.http.put<Role>(`${this.base}/roles/uid/${uid}/privileges`, privileges);
   }
 
   listPrivileges(): Observable<Privilege[]> { return this.http.get<Privilege[]>(`${this.base}/privileges`); }

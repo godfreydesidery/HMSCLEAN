@@ -27,7 +27,7 @@ public class PharmacyController {
     @PostMapping
     public ResponseEntity<PharmacyDto> create(@Valid @RequestBody CreatePharmacyRequest request) {
         PharmacyDto created = pharmacyService.create(request);
-        URI loc = UriComponentsBuilder.fromPath("/masterdata/pharmacies/{uid}").buildAndExpand(created.uid()).toUri();
+        URI loc = UriComponentsBuilder.fromPath("/masterdata/pharmacies/uid/{pharmacyUid}").buildAndExpand(created.uid()).toUri();
         return ResponseEntity.created(loc).body(created);
     }
 
@@ -39,24 +39,24 @@ public class PharmacyController {
         return ResponseEntity.ok(pharmacyService.search(query, active, pageable));
     }
 
-    @GetMapping("/{uid}")
-    public ResponseEntity<PharmacyDto> findByUid(@PathVariable String uid) {
-        return ResponseEntity.ok(pharmacyService.findByUid(uid));
+    @GetMapping("/uid/{pharmacyUid}")
+    public ResponseEntity<PharmacyDto> findByUid(@PathVariable String pharmacyUid) {
+        return ResponseEntity.ok(pharmacyService.findByUid(pharmacyUid));
     }
 
-    @PutMapping("/{uid}")
-    public ResponseEntity<PharmacyDto> update(@PathVariable String uid, @Valid @RequestBody UpdatePharmacyRequest request) {
-        return ResponseEntity.ok(pharmacyService.update(uid, request));
+    @PutMapping("/uid/{pharmacyUid}")
+    public ResponseEntity<PharmacyDto> update(@PathVariable String pharmacyUid, @Valid @RequestBody UpdatePharmacyRequest request) {
+        return ResponseEntity.ok(pharmacyService.update(pharmacyUid, request));
     }
 
-    @PutMapping("/{uid}/active")
-    public ResponseEntity<PharmacyDto> setActive(@PathVariable String uid, @RequestBody ActiveRequest request) {
-        return ResponseEntity.ok(pharmacyService.setActive(uid, request.active()));
+    @PutMapping("/uid/{pharmacyUid}/active")
+    public ResponseEntity<PharmacyDto> setActive(@PathVariable String pharmacyUid, @RequestBody ActiveRequest request) {
+        return ResponseEntity.ok(pharmacyService.setActive(pharmacyUid, request.active()));
     }
 
-    @DeleteMapping("/{uid}")
-    public ResponseEntity<Void> delete(@PathVariable String uid) {
-        pharmacyService.delete(uid);
+    @DeleteMapping("/uid/{pharmacyUid}")
+    public ResponseEntity<Void> delete(@PathVariable String pharmacyUid) {
+        pharmacyService.delete(pharmacyUid);
         return ResponseEntity.noContent().build();
     }
 

@@ -21,9 +21,9 @@ export class StoreService {
     return this.http.get<PageResponse<Store>>(this.base, { params: p });
   }
 
-  findByUid(uid: string): Observable<Store> { return this.http.get<Store>(`${this.base}/${uid}`); }
+  findByUid(uid: string): Observable<Store> { return this.http.get<Store>(`${this.base}/uid/${uid}`); }
   create(req: CreateStoreRequest): Observable<Store> { return this.http.post<Store>(this.base, req); }
-  update(uid: string, req: UpdateStoreRequest): Observable<Store> { return this.http.put<Store>(`${this.base}/${uid}`, req); }
-  setActive(uid: string, active: boolean): Observable<Store> { return this.http.put<Store>(`${this.base}/${uid}/active`, { active }); }
-  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/${uid}`); }
+  update(uid: string, req: UpdateStoreRequest): Observable<Store> { return this.http.put<Store>(`${this.base}/uid/${uid}`, req); }
+  setActive(uid: string, active: boolean): Observable<Store> { return this.http.put<Store>(`${this.base}/uid/${uid}/active`, { active }); }
+  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/uid/${uid}`); }
 }

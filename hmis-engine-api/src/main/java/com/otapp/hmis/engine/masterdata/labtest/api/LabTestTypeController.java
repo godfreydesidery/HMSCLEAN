@@ -27,7 +27,7 @@ public class LabTestTypeController {
     @PostMapping
     public ResponseEntity<LabTestTypeDto> create(@Valid @RequestBody CreateLabTestTypeRequest request) {
         LabTestTypeDto created = service.create(request);
-        URI loc = UriComponentsBuilder.fromPath("/masterdata/lab-tests/{uid}").buildAndExpand(created.uid()).toUri();
+        URI loc = UriComponentsBuilder.fromPath("/masterdata/lab-tests/uid/{labTestUid}").buildAndExpand(created.uid()).toUri();
         return ResponseEntity.created(loc).body(created);
     }
 
@@ -39,24 +39,24 @@ public class LabTestTypeController {
         return ResponseEntity.ok(service.search(query, active, pageable));
     }
 
-    @GetMapping("/{uid}")
-    public ResponseEntity<LabTestTypeDto> findByUid(@PathVariable String uid) {
-        return ResponseEntity.ok(service.findByUid(uid));
+    @GetMapping("/uid/{labTestUid}")
+    public ResponseEntity<LabTestTypeDto> findByUid(@PathVariable String labTestUid) {
+        return ResponseEntity.ok(service.findByUid(labTestUid));
     }
 
-    @PutMapping("/{uid}")
-    public ResponseEntity<LabTestTypeDto> update(@PathVariable String uid, @Valid @RequestBody UpdateLabTestTypeRequest request) {
-        return ResponseEntity.ok(service.update(uid, request));
+    @PutMapping("/uid/{labTestUid}")
+    public ResponseEntity<LabTestTypeDto> update(@PathVariable String labTestUid, @Valid @RequestBody UpdateLabTestTypeRequest request) {
+        return ResponseEntity.ok(service.update(labTestUid, request));
     }
 
-    @PutMapping("/{uid}/active")
-    public ResponseEntity<LabTestTypeDto> setActive(@PathVariable String uid, @RequestBody ActiveRequest request) {
-        return ResponseEntity.ok(service.setActive(uid, request.active()));
+    @PutMapping("/uid/{labTestUid}/active")
+    public ResponseEntity<LabTestTypeDto> setActive(@PathVariable String labTestUid, @RequestBody ActiveRequest request) {
+        return ResponseEntity.ok(service.setActive(labTestUid, request.active()));
     }
 
-    @DeleteMapping("/{uid}")
-    public ResponseEntity<Void> delete(@PathVariable String uid) {
-        service.delete(uid);
+    @DeleteMapping("/uid/{labTestUid}")
+    public ResponseEntity<Void> delete(@PathVariable String labTestUid) {
+        service.delete(labTestUid);
         return ResponseEntity.noContent().build();
     }
 

@@ -27,7 +27,7 @@ public class StoreController {
     @PostMapping
     public ResponseEntity<StoreDto> create(@Valid @RequestBody CreateStoreRequest request) {
         StoreDto created = storeService.create(request);
-        URI loc = UriComponentsBuilder.fromPath("/masterdata/stores/{uid}").buildAndExpand(created.uid()).toUri();
+        URI loc = UriComponentsBuilder.fromPath("/masterdata/stores/uid/{storeUid}").buildAndExpand(created.uid()).toUri();
         return ResponseEntity.created(loc).body(created);
     }
 
@@ -39,24 +39,24 @@ public class StoreController {
         return ResponseEntity.ok(storeService.search(query, active, pageable));
     }
 
-    @GetMapping("/{uid}")
-    public ResponseEntity<StoreDto> findByUid(@PathVariable String uid) {
-        return ResponseEntity.ok(storeService.findByUid(uid));
+    @GetMapping("/uid/{storeUid}")
+    public ResponseEntity<StoreDto> findByUid(@PathVariable String storeUid) {
+        return ResponseEntity.ok(storeService.findByUid(storeUid));
     }
 
-    @PutMapping("/{uid}")
-    public ResponseEntity<StoreDto> update(@PathVariable String uid, @Valid @RequestBody UpdateStoreRequest request) {
-        return ResponseEntity.ok(storeService.update(uid, request));
+    @PutMapping("/uid/{storeUid}")
+    public ResponseEntity<StoreDto> update(@PathVariable String storeUid, @Valid @RequestBody UpdateStoreRequest request) {
+        return ResponseEntity.ok(storeService.update(storeUid, request));
     }
 
-    @PutMapping("/{uid}/active")
-    public ResponseEntity<StoreDto> setActive(@PathVariable String uid, @RequestBody ActiveRequest request) {
-        return ResponseEntity.ok(storeService.setActive(uid, request.active()));
+    @PutMapping("/uid/{storeUid}/active")
+    public ResponseEntity<StoreDto> setActive(@PathVariable String storeUid, @RequestBody ActiveRequest request) {
+        return ResponseEntity.ok(storeService.setActive(storeUid, request.active()));
     }
 
-    @DeleteMapping("/{uid}")
-    public ResponseEntity<Void> delete(@PathVariable String uid) {
-        storeService.delete(uid);
+    @DeleteMapping("/uid/{storeUid}")
+    public ResponseEntity<Void> delete(@PathVariable String storeUid) {
+        storeService.delete(storeUid);
         return ResponseEntity.noContent().build();
     }
 

@@ -25,24 +25,24 @@ public class StockController {
 
     private final StockService stockService;
 
-    @GetMapping("/pharmacies/{pharmacyUid}/stock")
+    @GetMapping("/pharmacies/uid/{pharmacyUid}/stock")
     public ResponseEntity<List<StockBalanceDto>> listBalances(@PathVariable String pharmacyUid) {
         return ResponseEntity.ok(stockService.listBalances(pharmacyUid));
     }
 
-    @PostMapping("/pharmacies/{pharmacyUid}/stock/receive")
+    @PostMapping("/pharmacies/uid/{pharmacyUid}/stock/receive")
     public ResponseEntity<StockBalanceDto> receive(@PathVariable String pharmacyUid,
                                                    @Valid @RequestBody ReceiveStockRequest request) {
         return ResponseEntity.ok(stockService.receive(pharmacyUid, request));
     }
 
-    @PostMapping("/pharmacies/{pharmacyUid}/stock/adjust")
+    @PostMapping("/pharmacies/uid/{pharmacyUid}/stock/adjust")
     public ResponseEntity<StockBalanceDto> adjust(@PathVariable String pharmacyUid,
                                                   @Valid @RequestBody AdjustStockRequest request) {
         return ResponseEntity.ok(stockService.adjust(pharmacyUid, request));
     }
 
-    @PostMapping("/pharmacies/{pharmacyUid}/dispense/{prescriptionUid}")
+    @PostMapping("/pharmacies/uid/{pharmacyUid}/dispense/uid/{prescriptionUid}")
     public ResponseEntity<StockMovementDto> dispense(@PathVariable String pharmacyUid,
                                                      @PathVariable String prescriptionUid) {
         return ResponseEntity.ok(stockService.dispense(pharmacyUid, prescriptionUid));

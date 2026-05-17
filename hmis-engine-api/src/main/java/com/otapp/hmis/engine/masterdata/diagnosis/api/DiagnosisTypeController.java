@@ -27,7 +27,7 @@ public class DiagnosisTypeController {
     @PostMapping
     public ResponseEntity<DiagnosisTypeDto> create(@Valid @RequestBody CreateDiagnosisTypeRequest request) {
         DiagnosisTypeDto created = service.create(request);
-        URI loc = UriComponentsBuilder.fromPath("/masterdata/diagnoses/{uid}").buildAndExpand(created.uid()).toUri();
+        URI loc = UriComponentsBuilder.fromPath("/masterdata/diagnoses/uid/{diagnosisTypeUid}").buildAndExpand(created.uid()).toUri();
         return ResponseEntity.created(loc).body(created);
     }
 
@@ -39,24 +39,24 @@ public class DiagnosisTypeController {
         return ResponseEntity.ok(service.search(query, active, pageable));
     }
 
-    @GetMapping("/{uid}")
-    public ResponseEntity<DiagnosisTypeDto> findByUid(@PathVariable String uid) {
-        return ResponseEntity.ok(service.findByUid(uid));
+    @GetMapping("/uid/{diagnosisTypeUid}")
+    public ResponseEntity<DiagnosisTypeDto> findByUid(@PathVariable String diagnosisTypeUid) {
+        return ResponseEntity.ok(service.findByUid(diagnosisTypeUid));
     }
 
-    @PutMapping("/{uid}")
-    public ResponseEntity<DiagnosisTypeDto> update(@PathVariable String uid, @Valid @RequestBody UpdateDiagnosisTypeRequest request) {
-        return ResponseEntity.ok(service.update(uid, request));
+    @PutMapping("/uid/{diagnosisTypeUid}")
+    public ResponseEntity<DiagnosisTypeDto> update(@PathVariable String diagnosisTypeUid, @Valid @RequestBody UpdateDiagnosisTypeRequest request) {
+        return ResponseEntity.ok(service.update(diagnosisTypeUid, request));
     }
 
-    @PutMapping("/{uid}/active")
-    public ResponseEntity<DiagnosisTypeDto> setActive(@PathVariable String uid, @RequestBody ActiveRequest request) {
-        return ResponseEntity.ok(service.setActive(uid, request.active()));
+    @PutMapping("/uid/{diagnosisTypeUid}/active")
+    public ResponseEntity<DiagnosisTypeDto> setActive(@PathVariable String diagnosisTypeUid, @RequestBody ActiveRequest request) {
+        return ResponseEntity.ok(service.setActive(diagnosisTypeUid, request.active()));
     }
 
-    @DeleteMapping("/{uid}")
-    public ResponseEntity<Void> delete(@PathVariable String uid) {
-        service.delete(uid);
+    @DeleteMapping("/uid/{diagnosisTypeUid}")
+    public ResponseEntity<Void> delete(@PathVariable String diagnosisTypeUid) {
+        service.delete(diagnosisTypeUid);
         return ResponseEntity.noContent().build();
     }
 

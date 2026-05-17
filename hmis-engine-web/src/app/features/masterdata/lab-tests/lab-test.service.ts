@@ -23,9 +23,9 @@ export class LabTestTypeService {
     return this.http.get<PageResponse<LabTestType>>(this.base, { params: p });
   }
 
-  findByUid(uid: string): Observable<LabTestType> { return this.http.get<LabTestType>(`${this.base}/${uid}`); }
+  findByUid(uid: string): Observable<LabTestType> { return this.http.get<LabTestType>(`${this.base}/uid/${uid}`); }
   create(req: CreateLabTestTypeRequest): Observable<LabTestType> { return this.http.post<LabTestType>(this.base, req); }
-  update(uid: string, req: UpdateLabTestTypeRequest): Observable<LabTestType> { return this.http.put<LabTestType>(`${this.base}/${uid}`, req); }
-  setActive(uid: string, active: boolean): Observable<LabTestType> { return this.http.put<LabTestType>(`${this.base}/${uid}/active`, { active }); }
-  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/${uid}`); }
+  update(uid: string, req: UpdateLabTestTypeRequest): Observable<LabTestType> { return this.http.put<LabTestType>(`${this.base}/uid/${uid}`, req); }
+  setActive(uid: string, active: boolean): Observable<LabTestType> { return this.http.put<LabTestType>(`${this.base}/uid/${uid}/active`, { active }); }
+  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/uid/${uid}`); }
 }

@@ -39,16 +39,16 @@ public class RoleController {
         return ResponseEntity.ok(roleService.list());
     }
 
-    @GetMapping("/roles/{uid}")
+    @GetMapping("/roles/uid/{roleUid}")
     @PreAuthorize("hasAuthority('ROLE_READ')")
-    public ResponseEntity<RoleDto> findByUid(@PathVariable String uid) {
-        return ResponseEntity.ok(roleService.findByUid(uid));
+    public ResponseEntity<RoleDto> findByUid(@PathVariable String roleUid) {
+        return ResponseEntity.ok(roleService.findByUid(roleUid));
     }
 
-    @PutMapping("/roles/{uid}/privileges")
+    @PutMapping("/roles/uid/{roleUid}/privileges")
     @PreAuthorize("hasAuthority('ROLE_UPDATE')")
-    public ResponseEntity<RoleDto> replacePrivileges(@PathVariable String uid, @RequestBody Set<String> privilegeNames) {
-        return ResponseEntity.ok(roleService.replacePrivileges(uid, privilegeNames));
+    public ResponseEntity<RoleDto> replacePrivileges(@PathVariable String roleUid, @RequestBody Set<String> privilegeNames) {
+        return ResponseEntity.ok(roleService.replacePrivileges(roleUid, privilegeNames));
     }
 
     @GetMapping("/privileges")

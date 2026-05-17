@@ -30,7 +30,7 @@ public class ConsultationController {
     @PostMapping
     public ResponseEntity<ConsultationDto> book(@Valid @RequestBody StartConsultationRequest request) {
         ConsultationDto created = consultationService.book(request);
-        URI loc = UriComponentsBuilder.fromPath("/encounters/consultations/{uid}")
+        URI loc = UriComponentsBuilder.fromPath("/encounters/consultations/uid/{consultationUid}")
                 .buildAndExpand(created.uid()).toUri();
         return ResponseEntity.created(loc).body(created);
     }
@@ -46,28 +46,28 @@ public class ConsultationController {
         return ResponseEntity.ok(consultationService.search(query, status, clinicUid, patientUid, clinicianUsername, pageable));
     }
 
-    @GetMapping("/{uid}")
-    public ResponseEntity<ConsultationDto> findByUid(@PathVariable String uid) {
-        return ResponseEntity.ok(consultationService.findByUid(uid));
+    @GetMapping("/uid/{consultationUid}")
+    public ResponseEntity<ConsultationDto> findByUid(@PathVariable String consultationUid) {
+        return ResponseEntity.ok(consultationService.findByUid(consultationUid));
     }
 
-    @PostMapping("/{uid}/start")
-    public ResponseEntity<ConsultationDto> start(@PathVariable String uid) {
-        return ResponseEntity.ok(consultationService.start(uid));
+    @PostMapping("/uid/{consultationUid}/start")
+    public ResponseEntity<ConsultationDto> start(@PathVariable String consultationUid) {
+        return ResponseEntity.ok(consultationService.start(consultationUid));
     }
 
-    @PostMapping("/{uid}/complete")
-    public ResponseEntity<ConsultationDto> complete(@PathVariable String uid) {
-        return ResponseEntity.ok(consultationService.complete(uid));
+    @PostMapping("/uid/{consultationUid}/complete")
+    public ResponseEntity<ConsultationDto> complete(@PathVariable String consultationUid) {
+        return ResponseEntity.ok(consultationService.complete(consultationUid));
     }
 
-    @PostMapping("/{uid}/cancel")
-    public ResponseEntity<ConsultationDto> cancel(@PathVariable String uid,
+    @PostMapping("/uid/{consultationUid}/cancel")
+    public ResponseEntity<ConsultationDto> cancel(@PathVariable String consultationUid,
                                                   @Valid @RequestBody(required = false) CancelConsultationRequest request) {
-        return ResponseEntity.ok(consultationService.cancel(uid, request));
+        return ResponseEntity.ok(consultationService.cancel(consultationUid, request));
     }
 
-    @GetMapping("/by-patient/{patientUid}/recent")
+    @GetMapping("/by-patient/uid/{patientUid}/recent")
     public ResponseEntity<List<ConsultationSummary>> recentForPatient(@PathVariable String patientUid) {
         return ResponseEntity.ok(consultationService.recentForPatient(patientUid));
     }

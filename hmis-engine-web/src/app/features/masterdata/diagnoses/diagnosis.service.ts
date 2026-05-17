@@ -23,9 +23,9 @@ export class DiagnosisTypeService {
     return this.http.get<PageResponse<DiagnosisType>>(this.base, { params: p });
   }
 
-  findByUid(uid: string): Observable<DiagnosisType> { return this.http.get<DiagnosisType>(`${this.base}/${uid}`); }
+  findByUid(uid: string): Observable<DiagnosisType> { return this.http.get<DiagnosisType>(`${this.base}/uid/${uid}`); }
   create(req: CreateDiagnosisTypeRequest): Observable<DiagnosisType> { return this.http.post<DiagnosisType>(this.base, req); }
-  update(uid: string, req: UpdateDiagnosisTypeRequest): Observable<DiagnosisType> { return this.http.put<DiagnosisType>(`${this.base}/${uid}`, req); }
-  setActive(uid: string, active: boolean): Observable<DiagnosisType> { return this.http.put<DiagnosisType>(`${this.base}/${uid}/active`, { active }); }
-  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/${uid}`); }
+  update(uid: string, req: UpdateDiagnosisTypeRequest): Observable<DiagnosisType> { return this.http.put<DiagnosisType>(`${this.base}/uid/${uid}`, req); }
+  setActive(uid: string, active: boolean): Observable<DiagnosisType> { return this.http.put<DiagnosisType>(`${this.base}/uid/${uid}/active`, { active }); }
+  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/uid/${uid}`); }
 }

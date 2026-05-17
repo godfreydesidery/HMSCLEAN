@@ -21,19 +21,19 @@ export class UserService {
     return this.http.get<PageResponse<User>>(`${this.base}/users`, { params: p });
   }
 
-  findByUid(uid: string): Observable<User> { return this.http.get<User>(`${this.base}/users/${uid}`); }
+  findByUid(uid: string): Observable<User> { return this.http.get<User>(`${this.base}/users/uid/${uid}`); }
   create(req: CreateUserRequest): Observable<User> { return this.http.post<User>(`${this.base}/users`, req); }
   setEnabled(uid: string, enabled: boolean): Observable<User> {
-    return this.http.put<User>(`${this.base}/users/${uid}/enabled`, { enabled });
+    return this.http.put<User>(`${this.base}/users/uid/${uid}/enabled`, { enabled });
   }
   replaceRoles(uid: string, roleNames: string[]): Observable<User> {
-    return this.http.put<User>(`${this.base}/users/${uid}/roles`, roleNames);
+    return this.http.put<User>(`${this.base}/users/uid/${uid}/roles`, roleNames);
   }
   resetPassword(uid: string, newPassword: string): Observable<User> {
-    return this.http.post<User>(`${this.base}/users/${uid}/reset-password`, { newPassword });
+    return this.http.post<User>(`${this.base}/users/uid/${uid}/reset-password`, { newPassword });
   }
   unlock(uid: string): Observable<User> {
-    return this.http.post<User>(`${this.base}/users/${uid}/unlock`, {});
+    return this.http.post<User>(`${this.base}/users/uid/${uid}/unlock`, {});
   }
 
   listRoles(): Observable<Role[]> { return this.http.get<Role[]>(`${this.base}/roles`); }

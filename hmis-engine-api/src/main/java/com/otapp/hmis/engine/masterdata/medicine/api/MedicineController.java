@@ -28,7 +28,7 @@ public class MedicineController {
     @PostMapping
     public ResponseEntity<MedicineDto> create(@Valid @RequestBody CreateMedicineRequest request) {
         MedicineDto created = service.create(request);
-        URI loc = UriComponentsBuilder.fromPath("/masterdata/medicines/{uid}").buildAndExpand(created.uid()).toUri();
+        URI loc = UriComponentsBuilder.fromPath("/masterdata/medicines/uid/{medicineUid}").buildAndExpand(created.uid()).toUri();
         return ResponseEntity.created(loc).body(created);
     }
 
@@ -41,24 +41,24 @@ public class MedicineController {
         return ResponseEntity.ok(service.search(query, active, form, pageable));
     }
 
-    @GetMapping("/{uid}")
-    public ResponseEntity<MedicineDto> findByUid(@PathVariable String uid) {
-        return ResponseEntity.ok(service.findByUid(uid));
+    @GetMapping("/uid/{medicineUid}")
+    public ResponseEntity<MedicineDto> findByUid(@PathVariable String medicineUid) {
+        return ResponseEntity.ok(service.findByUid(medicineUid));
     }
 
-    @PutMapping("/{uid}")
-    public ResponseEntity<MedicineDto> update(@PathVariable String uid, @Valid @RequestBody UpdateMedicineRequest request) {
-        return ResponseEntity.ok(service.update(uid, request));
+    @PutMapping("/uid/{medicineUid}")
+    public ResponseEntity<MedicineDto> update(@PathVariable String medicineUid, @Valid @RequestBody UpdateMedicineRequest request) {
+        return ResponseEntity.ok(service.update(medicineUid, request));
     }
 
-    @PutMapping("/{uid}/active")
-    public ResponseEntity<MedicineDto> setActive(@PathVariable String uid, @RequestBody ActiveRequest request) {
-        return ResponseEntity.ok(service.setActive(uid, request.active()));
+    @PutMapping("/uid/{medicineUid}/active")
+    public ResponseEntity<MedicineDto> setActive(@PathVariable String medicineUid, @RequestBody ActiveRequest request) {
+        return ResponseEntity.ok(service.setActive(medicineUid, request.active()));
     }
 
-    @DeleteMapping("/{uid}")
-    public ResponseEntity<Void> delete(@PathVariable String uid) {
-        service.delete(uid);
+    @DeleteMapping("/uid/{medicineUid}")
+    public ResponseEntity<Void> delete(@PathVariable String medicineUid) {
+        service.delete(medicineUid);
         return ResponseEntity.noContent().build();
     }
 

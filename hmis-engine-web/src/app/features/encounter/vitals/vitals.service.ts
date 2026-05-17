@@ -10,7 +10,7 @@ export class VitalsService {
   private readonly http = inject(HttpClient);
 
   private base(consultationUid: string): string {
-    return `${environment.apiUrl}/encounters/consultations/${consultationUid}/vitals`;
+    return `${environment.apiUrl}/encounters/consultations/uid/${consultationUid}/vitals`;
   }
 
   list(consultationUid: string): Observable<PatientVitals[]> {
@@ -22,6 +22,6 @@ export class VitalsService {
   }
 
   delete(consultationUid: string, uid: string): Observable<void> {
-    return this.http.delete<void>(`${this.base(consultationUid)}/${uid}`);
+    return this.http.delete<void>(`${this.base(consultationUid)}/uid/${uid}`);
   }
 }

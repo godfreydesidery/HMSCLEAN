@@ -26,12 +26,12 @@ export class ConsultationService {
     return this.http.get<PageResponse<ConsultationSummary>>(this.base, { params: p });
   }
 
-  findByUid(uid: string): Observable<Consultation> { return this.http.get<Consultation>(`${this.base}/${uid}`); }
+  findByUid(uid: string): Observable<Consultation> { return this.http.get<Consultation>(`${this.base}/uid/${uid}`); }
   book(req: StartConsultationRequest): Observable<Consultation> { return this.http.post<Consultation>(this.base, req); }
-  start(uid: string): Observable<Consultation> { return this.http.post<Consultation>(`${this.base}/${uid}/start`, {}); }
-  complete(uid: string): Observable<Consultation> { return this.http.post<Consultation>(`${this.base}/${uid}/complete`, {}); }
-  cancel(uid: string, reason: string | null): Observable<Consultation> { return this.http.post<Consultation>(`${this.base}/${uid}/cancel`, { reason }); }
+  start(uid: string): Observable<Consultation> { return this.http.post<Consultation>(`${this.base}/uid/${uid}/start`, {}); }
+  complete(uid: string): Observable<Consultation> { return this.http.post<Consultation>(`${this.base}/uid/${uid}/complete`, {}); }
+  cancel(uid: string, reason: string | null): Observable<Consultation> { return this.http.post<Consultation>(`${this.base}/uid/${uid}/cancel`, { reason }); }
   recentForPatient(patientUid: string): Observable<ConsultationSummary[]> {
-    return this.http.get<ConsultationSummary[]>(`${this.base}/by-patient/${patientUid}/recent`);
+    return this.http.get<ConsultationSummary[]>(`${this.base}/by-patient/uid/${patientUid}/recent`);
   }
 }

@@ -29,6 +29,6 @@ export class ServicePriceService {
   }
 
   delete(uid: string): Observable<void> {
-    return this.http.delete<void>(`${this.base}/${uid}`);
+    return this.http.delete<void>(`${this.base}/uid/${uid}`);
   }
 }

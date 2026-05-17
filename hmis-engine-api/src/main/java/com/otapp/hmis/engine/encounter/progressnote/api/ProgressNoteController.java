@@ -20,20 +20,20 @@ public class ProgressNoteController {
 
     private final ProgressNoteService noteService;
 
-    @GetMapping("/encounters/admissions/{admissionUid}/progress-notes")
+    @GetMapping("/encounters/admissions/uid/{admissionUid}/progress-notes")
     public ResponseEntity<List<ProgressNoteDto>> list(@PathVariable String admissionUid) {
         return ResponseEntity.ok(noteService.listForAdmission(admissionUid));
     }
 
-    @PostMapping("/encounters/admissions/{admissionUid}/progress-notes")
+    @PostMapping("/encounters/admissions/uid/{admissionUid}/progress-notes")
     public ResponseEntity<ProgressNoteDto> add(@PathVariable String admissionUid,
                                                @Valid @RequestBody CreateProgressNoteRequest request) {
         return ResponseEntity.ok(noteService.add(admissionUid, request));
     }
 
-    @DeleteMapping("/encounters/progress-notes/{uid}")
-    public ResponseEntity<ProgressNoteDto> softDelete(@PathVariable String uid,
+    @DeleteMapping("/encounters/progress-notes/uid/{progressNoteUid}")
+    public ResponseEntity<ProgressNoteDto> softDelete(@PathVariable String progressNoteUid,
                                                       @Valid @RequestBody(required = false) DeleteProgressNoteRequest request) {
-        return ResponseEntity.ok(noteService.softDelete(uid, request));
+        return ResponseEntity.ok(noteService.softDelete(progressNoteUid, request));
     }
 }

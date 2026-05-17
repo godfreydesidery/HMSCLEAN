@@ -60,9 +60,9 @@ export class PharmacySaleOrderService {
     return this.http.post<PharmacySaleOrder>(`${this.base}/uid/${saleUid}/lines/uid/${lineUid}/cancel`, { reason });
   }
 
-  /** Final dispense of an APPROVED line — decrements stock and marks the line SOLD. */
-  dispenseLine(pharmacyUid: string, saleLineUid: string): Observable<StockMovement> {
-    return this.http.post<StockMovement>(
+  /** Final dispense of an APPROVED line — decrements stock (FEFO across batches) and marks the line SOLD. */
+  dispenseLine(pharmacyUid: string, saleLineUid: string): Observable<StockMovement[]> {
+    return this.http.post<StockMovement[]>(
       `${this.pharmacyBase}/pharmacies/uid/${pharmacyUid}/dispense-sale-line/uid/${saleLineUid}`, {});
   }
 }

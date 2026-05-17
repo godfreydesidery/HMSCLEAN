@@ -12,19 +12,34 @@
   }
 
   <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-    <div class="mb-3">
-      <label class="form-label" for="se-medicine">Medicine <span class="text-danger">*</span></label>
-      @if (prefillMedicineUid) {
-        <input id="se-medicine" type="text" class="form-control" [value]="prefillMedicineLabel" disabled>
-      } @else {
+    @if (mode === 'receive') {
+      <div class="mb-3">
+        <label class="form-label" for="se-medicine">Medicine <span class="text-danger">*</span></label>
         <select id="se-medicine" name="medicineUid" class="form-select" formControlName="medicineUid">
           <option value="" disabled>{{ loadingMedicines() ? 'Loading…' : '— Select medicine —' }}</option>
           @for (m of medicines(); track m.uid) {
             <option [value]="m.uid">{{ m.code }} — {{ m.name }}@if (m.strength) { <span> · {{ m.strength }}</span> }</option>
           }
         </select>
-      }
-    </div>
+      </div>
+
+      <div class="row g-2 mb-3">
+        <div class="col-md-6">
+          <label class="form-label" for="se-batch">Batch number <span class="text-danger">*</span></label>
+          <input id="se-batch" name="batchNo" type="text" class="form-control" formControlName="batchNo" maxlength="64" placeholder="e.g. LOT-A1024">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="se-exp">Expires</label>
+          <input id="se-exp" name="expiresAt" type="date" class="form-control" formControlName="expiresAt">
+          <div class="form-text">Leave blank if the batch has no labelled expiry.</div>
+        </div>
+      </div>
+    } @else {
+      <div class="mb-3">
+        <label class="form-label" for="se-batch-label">Batch</label>
+        <input id="se-batch-label" type="text" class="form-control" [value]="prefillBatchLabel" disabled>
+      </div>
+    }
 
     <div class="mb-3">
       <label class="form-label" for="se-qty">{{ quantityLabel }} <span class="text-danger">*</span></label>
@@ -36,7 +51,7 @@
 
     <div class="mb-2">
       <label class="form-label" for="se-note">Note</label>
-      <textarea id="se-note" name="note" rows="3" class="form-control" formControlName="note" maxlength="500" placeholder="Reference document, reason for adjustment, batch number…"></textarea>
+      <textarea id="se-note" name="note" rows="3" class="form-control" formControlName="note" maxlength="500" placeholder="Reference document, reason for adjustment…"></textarea>
     </div>
   </form>
 </div>

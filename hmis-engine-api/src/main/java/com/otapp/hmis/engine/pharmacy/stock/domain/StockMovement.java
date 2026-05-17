@@ -18,7 +18,8 @@ import lombok.NoArgsConstructor;
                @Index(name = "idx_stock_movement_pharmacy", columnList = "pharmacy_uid, occurred_at"),
                @Index(name = "idx_stock_movement_medicine", columnList = "medicine_uid"),
                @Index(name = "idx_stock_movement_kind",     columnList = "kind"),
-               @Index(name = "idx_stock_movement_reference",columnList = "reference_uid")
+               @Index(name = "idx_stock_movement_reference",columnList = "reference_uid"),
+               @Index(name = "idx_stock_movement_batch",    columnList = "batch_uid")
        })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -47,6 +48,14 @@ public class StockMovement extends AuditableEntity {
     @Column(name = "reference_uid", length = 26)
     private String referenceUid;
 
+    /** Batch this movement decremented / incremented (null only for legacy data). */
+    @Column(name = "batch_uid", length = 26)
+    private String batchUid;
+
+    /** Convenience copy of the batch number for fast stock-card display. */
+    @Column(name = "batch_no", length = 64)
+    private String batchNo;
+
     @Column(length = 500)
     private String note;
 
@@ -58,6 +67,7 @@ public class StockMovement extends AuditableEntity {
 
     public StockMovement(String pharmacyUid, String medicineUid, StockMovementKind kind,
                          int quantity, int balanceAfter, String referenceUid,
+                         String batchUid, String batchNo,
                          String note, String actorUsername) {
         this.pharmacyUid = pharmacyUid;
         this.medicineUid = medicineUid;
@@ -65,6 +75,8 @@ public class StockMovement extends AuditableEntity {
         this.quantity = quantity;
         this.balanceAfter = balanceAfter;
         this.referenceUid = referenceUid;
+        this.batchUid = batchUid;
+        this.batchNo = batchNo;
         this.note = note;
         this.actorUsername = actorUsername;
         this.occurredAt = Instant.now();

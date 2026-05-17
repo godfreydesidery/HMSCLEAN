@@ -4,6 +4,7 @@ import com.otapp.hmis.engine.common.api.PageResponse;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.AdjustStockRequest;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.ReceiveStockRequest;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.StockBalanceDto;
+import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.StockBatchDto;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.StockMovementDto;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockService;
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockMovementKind;
@@ -31,26 +32,26 @@ public class StockController {
     }
 
     @PostMapping("/pharmacies/uid/{pharmacyUid}/stock/receive")
-    public ResponseEntity<StockBalanceDto> receive(@PathVariable String pharmacyUid,
-                                                   @Valid @RequestBody ReceiveStockRequest request) {
+    public ResponseEntity<StockBatchDto> receive(@PathVariable String pharmacyUid,
+                                                 @Valid @RequestBody ReceiveStockRequest request) {
         return ResponseEntity.ok(stockService.receive(pharmacyUid, request));
     }
 
     @PostMapping("/pharmacies/uid/{pharmacyUid}/stock/adjust")
-    public ResponseEntity<StockBalanceDto> adjust(@PathVariable String pharmacyUid,
-                                                  @Valid @RequestBody AdjustStockRequest request) {
+    public ResponseEntity<StockBatchDto> adjust(@PathVariable String pharmacyUid,
+                                                @Valid @RequestBody AdjustStockRequest request) {
         return ResponseEntity.ok(stockService.adjust(pharmacyUid, request));
     }
 
     @PostMapping("/pharmacies/uid/{pharmacyUid}/dispense/uid/{prescriptionUid}")
-    public ResponseEntity<StockMovementDto> dispense(@PathVariable String pharmacyUid,
-                                                     @PathVariable String prescriptionUid) {
+    public ResponseEntity<List<StockMovementDto>> dispense(@PathVariable String pharmacyUid,
+                                                           @PathVariable String prescriptionUid) {
         return ResponseEntity.ok(stockService.dispense(pharmacyUid, prescriptionUid));
     }
 
     @PostMapping("/pharmacies/uid/{pharmacyUid}/dispense-sale-line/uid/{saleLineUid}")
-    public ResponseEntity<StockMovementDto> dispenseSaleLine(@PathVariable String pharmacyUid,
-                                                             @PathVariable String saleLineUid) {
+    public ResponseEntity<List<StockMovementDto>> dispenseSaleLine(@PathVariable String pharmacyUid,
+                                                                   @PathVariable String saleLineUid) {
         return ResponseEntity.ok(stockService.dispenseSaleLine(pharmacyUid, saleLineUid));
     }
 

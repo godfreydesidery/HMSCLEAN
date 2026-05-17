@@ -8,7 +8,9 @@ import { PharmacyService } from '../../masterdata/pharmacies/pharmacy.service';
 import { Pharmacy } from '../../masterdata/pharmacies/pharmacy.types';
 import { StockEditComponent } from './stock-edit.component';
 import { StockService } from './stock.service';
-import { STOCK_MOVEMENT_KINDS, StockBalance, StockMovement, StockMovementKind } from './stock.types';
+import {
+  STOCK_MOVEMENT_KINDS, StockBalance, StockBatch, StockMovement, StockMovementKind
+} from './stock.types';
 
 const LOW_STOCK_THRESHOLD = 10;
 
@@ -31,8 +33,10 @@ export class StockListComponent {
   readonly selectedPharmacyUid = signal<string | null>(null);
   readonly balances = signal<StockBalance[]>([]);
   readonly movements = signal<StockMovement[]>([]);
+  readonly expanded = signal<Set<string>>(new Set());
   readonly query = signal('');
   readonly lowOnly = signal(false);
+  readonly expiringOnly = signal(false);
 
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
@@ -44,11 +48,22 @@ export class StockListComponent {
 
   readonly filteredBalances = computed(() => {
     const q = this.query().trim().toLowerCase();
-    const arr = this.balances().filter((b) => !this.lowOnly() || b.quantity <= LOW_STOCK_THRESHOLD);
-    if (!q) return arr;
-    return arr.filter((b) =>
-      (b.medicineName ?? '').toLowerCase().includes(q)
-      || (b.medicineCode ?? '').toLowerCase().includes(q));
+    let arr = this.balances();
+    if (this.lowOnly()) {
+      arr = arr.filter((b) => b.totalQuantity <= LOW_STOCK_THRESHOLD);
+    }
+    if (this.expiringOnly()) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() + 30);
+      arr = arr.filter((b) => b.batchDetails.some((batch) =>
+        batch.expiresAt != null && new Date(batch.expiresAt) <= cutoff));
+    }
+    if (q) {
+      arr = arr.filter((b) =>
+        (b.medicineName ?? '').toLowerCase().includes(q)
+        || (b.medicineCode ?? '').toLowerCase().includes(q));
+    }
+    return arr;
   });
 
   readonly selectedPharmacy = computed(() =>
@@ -97,6 +112,23 @@ export class StockListComponent {
 
   setQuery(v: string): void { this.query.set(v); }
   toggleLowOnly(): void { this.lowOnly.update((v) => !v); }
+  toggleExpiringOnly(): void { this.expiringOnly.update((v) => !v); }
+
+  isExpanded(medicineUid: string): boolean { return this.expanded().has(medicineUid); }
+  toggleExpanded(medicineUid: string): void {
+    this.expanded.update((s) => {
+      const next = new Set(s);
+      if (next.has(medicineUid)) next.delete(medicineUid); else next.add(medicineUid);
+      return next;
+    });
+  }
+
+  isBatchExpiringSoon(batch: StockBatch): boolean {
+    if (!batch.expiresAt) return false;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() + 30);
+    return new Date(batch.expiresAt) <= cutoff;
+  }
 
   openReceive(): void {
     const pharm = this.selectedPharmacy(); if (!pharm) return;
@@ -105,24 +137,22 @@ export class StockListComponent {
     inst.pharmacyUid = pharm.uid;
     inst.pharmacyName = pharm.name;
     inst.mode = 'receive';
-    ref.closed.subscribe((updated: StockBalance | undefined) => {
+    ref.closed.subscribe((updated) => {
       if (updated) { this.actionMessage.set('Stock received.'); this.refresh(); }
     });
   }
 
-  openAdjust(balance?: StockBalance): void {
+  openAdjustBatch(batch: StockBatch): void {
     const pharm = this.selectedPharmacy(); if (!pharm) return;
     const ref = this.modal.open(StockEditComponent, { backdrop: 'static' });
     const inst = ref.componentInstance as StockEditComponent;
     inst.pharmacyUid = pharm.uid;
     inst.pharmacyName = pharm.name;
     inst.mode = 'adjust';
-    if (balance) {
-      inst.prefillMedicineUid = balance.medicineUid;
-      inst.prefillMedicineLabel = `${balance.medicineCode ?? ''} — ${balance.medicineName ?? ''}`.trim();
-    }
-    ref.closed.subscribe((updated: StockBalance | undefined) => {
-      if (updated) { this.actionMessage.set('Stock adjusted.'); this.refresh(); }
+    inst.prefillBatchUid = batch.uid;
+    inst.prefillBatchLabel = `${batch.medicineName ?? batch.medicineUid} · batch ${batch.batchNo}`;
+    ref.closed.subscribe((updated) => {
+      if (updated) { this.actionMessage.set('Batch adjusted.'); this.refresh(); }
     });
   }
 

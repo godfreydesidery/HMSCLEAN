@@ -1,0 +1,45 @@
+package com.otapp.hmis.engine.encounter.result.api;
+
+import com.otapp.hmis.engine.encounter.result.application.OrderResultDtos.OrderResultDto;
+import com.otapp.hmis.engine.encounter.result.application.OrderResultDtos.SaveResultRequest;
+import com.otapp.hmis.engine.encounter.result.application.OrderResultService;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+@Tag(name = "Order results")
+@RestController
+@RequestMapping("/encounters/orders/{orderUid}/result")
+@RequiredArgsConstructor
+@PreAuthorize("hasAuthority('ENCOUNTER_ACCESS')")
+public class OrderResultController {
+
+    private final OrderResultService resultService;
+
+    @GetMapping
+    public ResponseEntity<OrderResultDto> find(@PathVariable String orderUid) {
+        return resultService.findForOrder(orderUid)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    @PutMapping
+    public ResponseEntity<OrderResultDto> save(@PathVariable String orderUid,
+                                               @Valid @RequestBody SaveResultRequest request) {
+        return ResponseEntity.ok(resultService.save(orderUid, request));
+    }
+
+    @PostMapping("/finalize")
+    public ResponseEntity<OrderResultDto> finalizeResult(@PathVariable String orderUid) {
+        return ResponseEntity.ok(resultService.finalizeResult(orderUid));
+    }
+
+    @PutMapping("/amend")
+    public ResponseEntity<OrderResultDto> amend(@PathVariable String orderUid,
+                                                @Valid @RequestBody SaveResultRequest request) {
+        return ResponseEntity.ok(resultService.amend(orderUid, request));
+    }
+}

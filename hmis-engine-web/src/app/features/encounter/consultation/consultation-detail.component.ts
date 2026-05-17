@@ -21,6 +21,7 @@ import {
   CLINICAL_ORDER_KINDS, CLINICAL_ORDER_STATUSES, ClinicalOrder, ClinicalOrderKind, ClinicalOrderStatus,
   ORDER_URGENCIES, OrderUrgency
 } from '../order/clinical-order.types';
+import { EnterResultComponent } from '../order/enter-result.component';
 import { AddPrescriptionComponent } from '../prescription/add-prescription.component';
 import { PrescriptionService } from '../prescription/prescription.service';
 import {
@@ -265,12 +266,11 @@ export class ConsultationDetailComponent {
     });
   }
 
-  completeOrder(o: ClinicalOrder): void {
-    const result = globalThis.prompt('Result / report for this order (optional):')?.trim() ?? null;
-    this.orderService.complete(o.uid, result).subscribe({
-      next: () => this.refreshOrders(),
-      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not complete order.')
-    });
+  enterResult(o: ClinicalOrder): void {
+    const ref = this.modal.open(EnterResultComponent, { size: 'lg', backdrop: 'static' });
+    const inst = ref.componentInstance as EnterResultComponent;
+    inst.order = o;
+    ref.closed.subscribe(() => this.refreshOrders());
   }
 
   cancelOrder(o: ClinicalOrder): void {

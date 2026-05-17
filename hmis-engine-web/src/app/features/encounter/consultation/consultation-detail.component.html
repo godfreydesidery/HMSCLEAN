@@ -346,11 +346,14 @@
                                 <button type="button" ngbDropdownItem (click)="startOrder(o)"><i class="bi bi-play-fill me-2"></i>Start</button>
                               }
                               @if (o.status === 'REQUESTED' || o.status === 'IN_PROGRESS') {
-                                <button type="button" ngbDropdownItem (click)="completeOrder(o)"><i class="bi bi-check2-all me-2"></i>Complete</button>
+                                <button type="button" ngbDropdownItem (click)="enterResult(o)"><i class="bi bi-clipboard2-data me-2"></i>Enter result / Complete</button>
                                 <button type="button" ngbDropdownItem class="text-danger" (click)="cancelOrder(o)"><i class="bi bi-x-circle me-2"></i>Cancel</button>
                               }
-                              @if (o.status === 'COMPLETED' || o.status === 'CANCELLED') {
-                                <button type="button" ngbDropdownItem disabled><i class="bi bi-lock me-2"></i>Closed</button>
+                              @if (o.status === 'COMPLETED') {
+                                <button type="button" ngbDropdownItem (click)="enterResult(o)"><i class="bi bi-clipboard2-pulse me-2"></i>View / amend result</button>
+                              }
+                              @if (o.status === 'CANCELLED') {
+                                <button type="button" ngbDropdownItem disabled><i class="bi bi-lock me-2"></i>Cancelled</button>
                               }
                             </div>
                           </div>

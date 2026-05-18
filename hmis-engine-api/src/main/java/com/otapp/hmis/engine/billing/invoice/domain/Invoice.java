@@ -48,6 +48,8 @@ public class Invoice extends AuditableEntity {
     @Setter @Column(nullable = false, length = 3) private String currency;
     @Setter @Column(nullable = false, precision = 14, scale = 2) private BigDecimal subtotal = BigDecimal.ZERO;
     @Setter @Column(name = "total_paid", nullable = false, precision = 14, scale = 2) private BigDecimal totalPaid = BigDecimal.ZERO;
+    /** Sum of applied credit notes — write-downs that reduce the patient's outstanding balance. */
+    @Setter @Column(name = "total_credited", nullable = false, precision = 14, scale = 2) private BigDecimal totalCredited = BigDecimal.ZERO;
 
     @Setter
     @Enumerated(EnumType.STRING)
@@ -95,8 +97,14 @@ public class Invoice extends AuditableEntity {
         return consultationUid == null && admissionUid == null;
     }
 
+    /** What the patient still owes: billed amount minus cash received minus authorised write-downs. */
     public BigDecimal balance() {
-        return subtotal.subtract(totalPaid);
+        return subtotal.subtract(totalPaid).subtract(totalCredited);
+    }
+
+    /** Cash received + write-downs — used by status roll-ups so a fully-credited invoice settles. */
+    public BigDecimal settledAmount() {
+        return totalPaid.add(totalCredited);
     }
 
     public void issue() {
@@ -127,11 +135,67 @@ public class Invoice extends AuditableEntity {
             throw new BusinessRuleException("Cannot apply payment to a cancelled invoice");
         }
         BigDecimal newTotal = totalPaid.add(amount);
-        if (newTotal.compareTo(subtotal) > 0) {
+        if (newTotal.add(totalCredited).compareTo(subtotal) > 0) {
             throw new BusinessRuleException("Payment exceeds invoice balance");
         }
         totalPaid = newTotal;
-        if (totalPaid.compareTo(subtotal) >= 0) {
+        recomputeStatusAfterCredit();
+    }
+
+    /**
+     * Applies an authorised write-down. Reduces balance without recording
+     * cash. The caller (CreditNoteService) is responsible for the
+     * {@link com.otapp.hmis.engine.billing.creditnote.domain.CreditNote}
+     * audit record.
+     */
+    public void applyCreditNote(BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0) {
+            throw new BusinessRuleException("Credit-note amount must be positive");
+        }
+        if (status == InvoiceStatus.DRAFT) {
+            throw new BusinessRuleException("Cannot credit a DRAFT invoice (issue it first)");
+        }
+        if (status == InvoiceStatus.CANCELLED) {
+            throw new BusinessRuleException("Cannot credit a cancelled invoice");
+        }
+        BigDecimal newCredited = totalCredited.add(amount);
+        if (newCredited.add(totalPaid).compareTo(subtotal) > 0) {
+            throw new BusinessRuleException("Credit-note exceeds invoice outstanding balance");
+        }
+        totalCredited = newCredited;
+        recomputeStatusAfterCredit();
+    }
+
+    /**
+     * Returns money against this invoice. Reduces {@link #totalPaid} and
+     * may roll the status back from PAID to PARTIALLY_PAID / ISSUED.
+     */
+    public void applyRefund(BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0) {
+            throw new BusinessRuleException("Refund amount must be positive");
+        }
+        if (status == InvoiceStatus.DRAFT) {
+            throw new BusinessRuleException("Cannot refund a DRAFT invoice");
+        }
+        if (status == InvoiceStatus.CANCELLED) {
+            throw new BusinessRuleException("Cannot refund a cancelled invoice");
+        }
+        if (amount.compareTo(totalPaid) > 0) {
+            throw new BusinessRuleException("Refund exceeds amount paid");
+        }
+        totalPaid = totalPaid.subtract(amount);
+        // Status may need to roll back: settled-fully → partially → still issued.
+        if (settledAmount().signum() == 0) {
+            status = InvoiceStatus.ISSUED;
+            paidAt = null;
+        } else if (settledAmount().compareTo(subtotal) < 0) {
+            status = InvoiceStatus.PARTIALLY_PAID;
+            paidAt = null;
+        }
+    }
+
+    private void recomputeStatusAfterCredit() {
+        if (settledAmount().compareTo(subtotal) >= 0) {
             status = InvoiceStatus.PAID;
             paidAt = Instant.now();
         } else {

@@ -696,8 +696,8 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Invoice status (DRAFT → ISSUED → PARTIALLY_PAID → PAID / CANCELLED) | ✅ | Phase 3. Equivalent semantics to legacy. |
 | Payment recording (multiple methods, partial allocation) | ✅ | Phase 3. |
 | Insurance-specific pricing | ⚠️ | Via the cross-cutting `ServicePrice` table; legacy uses per-service tables. Acceptable design simplification — must verify all 6 service kinds have entries. |
-| Credit note / write-off | ❌ | |
-| Refunds | ❌ | |
+| Credit note / write-off | ✅ | Phase 25 — `CreditNote` aggregate per invoice with `CreditNoteReason` (HARDSHIP / GOODWILL / ERROR_CORRECTION / SERVICE_NOT_RENDERED / ROUNDING / OTHER). Invoice gains `totalCredited`; `balance = subtotal - totalPaid - totalCredited`. POST `/billing/invoices/uid/{uid}/credit-notes`. |
+| Refunds | ✅ | Phase 25 — `Refund` aggregate per invoice with `RefundReason` (OVERPAYMENT / SERVICE_NOT_RENDERED / DOUBLE_PAYMENT / CANCELLATION / OTHER) + `PaymentMethod`. Reduces `totalPaid` and rolls invoice status back from PAID → PARTIALLY_PAID / ISSUED as needed. POST `/billing/invoices/uid/{uid}/refunds`. |
 | End-of-day cash collection vs. invoice reconciliation | ❌ | |
 | Registration / consultation fee that gates clinical activity for cash patients | ⚠️ | Invoices exist but workflow does not block consultation if unpaid. |
 
@@ -788,7 +788,10 @@ phase that respects the modulith boundaries:
     all three: `Theatre` masterdata, scheduling fields on `ClinicalOrder`,
     and the structured `OperativeRecord` aggregate with surgeon /
     anaesthetist / timing fields.
-11. **Credit notes, refunds, collections** — billing extensions.
+11. **Credit notes, refunds, collections** — billing extensions. Phase 25
+    delivered credit notes + refunds with the invoice settlement
+    semantics (totalCredited + rollback on refund). End-of-day cash
+    collection reconciliation still pending.
 12. **HR module** — employees, payroll, clinician performance.
 13. **Reporting** — revenue, IPD register, stock-out, clinician case load.
 14. **Master data polish** — company profile, theatres, consumables,

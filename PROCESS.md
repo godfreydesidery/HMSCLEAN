@@ -615,10 +615,10 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Ward / bed assignment | ✅ | Bed labels (free text) on the admission; legacy uses a `WardBed` entity for true bed availability. |
 | Ward-to-ward transfer (in-stay) | ✅ | `transferWard()` on Admission. |
 | Progress notes (per-shift) | ✅ | Phase 6 — kinds DOCTOR / NURSING / OBSERVATION / HANDOVER. |
-| Patient observation chart (vitals across stay) | ⚠️ | Single Vitals record per consultation; no continuous chart yet. Needs an `AdmissionVitalsEntry` series. |
-| Nursing care plan | ❌ | |
+| Patient observation chart (vitals across stay) | ✅ | Phase 22b — `AdmissionVitalsEntry` series at `/encounters/admissions/uid/{uid}/vitals`, immutable rows, per-shift / per-round trend. |
+| Nursing care plan | ✅ | Phase 22b — `NursingCarePlanItem` per problem with goal + intervention + evaluation, ACTIVE → RESOLVED / CANCELLED. |
 | Patient consumable chart | ❌ | Requires inventory link from ward issue to pharmacy/store. |
-| Patient dressing chart | ❌ | |
+| Patient dressing chart | ✅ | Phase 22b — `DressingChartEntry` series with `WoundStatus` enum (CLEAN, HEALING, GRANULATING, SLOUGHY, INFECTED, NECROTIC, DEHISCED) + dressing applied. |
 | Discharge plan (structured) | ✅ | Phase 22a — `DischargePlan` aggregate with structured fields (history, investigation, management, op note, ICU note, recommendations) + PENDING → APPROVED → drives admission closure on approval. Free-text `Admission.dischargeSummary` becomes a back-pointer to the plan. |
 | Deceased note / referral plan | ✅ | Phase 22a — same `DischargePlan` aggregate with `kind = DECEASED` (requires timeOfDeath + causeOfDeath) or `REFERRAL` (requires referralFacility + referralReason). Approval routes the admission to DECEASED / TRANSFERRED. |
 
@@ -770,8 +770,11 @@ phase that respects the modulith boundaries:
    with APPROVED state, deceased + referral structured notes. Phase 22a
    delivered the unified `DischargePlan` aggregate (DISCHARGE / DECEASED
    / REFERRAL kinds) with the PENDING → APPROVED gate that drives the
-   admission closure. Observation-chart series, nursing care plan,
-   consumable chart, and dressing chart still to come (Phase 22b+).
+   admission closure. Phase 22b added the observation chart
+   (`AdmissionVitalsEntry`), nursing care plan
+   (`NursingCarePlanItem`) and dressing chart
+   (`DressingChartEntry`). Consumable chart still pending — needs a
+   ward→pharmacy issue path first.
 9. **Procurement gates + supplier price list** — add VERIFIED / APPROVED
    PO states, per-supplier item catalog.
 10. **Theatre + procedure scheduling** — theatre entity, scheduled date /

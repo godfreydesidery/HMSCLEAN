@@ -72,6 +72,40 @@ public class StoreStockService {
                 emptyToNull(referenceUid), emptyToNull(note));
     }
 
+    /**
+     * Cross-module entry point used by the pharmacy-to-store return service
+     * when a return is completed. Same machinery as
+     * {@link #receiveFromProcurement} but records a {@code RETURN}
+     * movement so finance can split returns from real procurement in
+     * reports.
+     */
+    @Transactional
+    public StoreStockBatchDto receiveFromPharmacyReturn(String storeUid, String medicineUid,
+                                                        String batchNo, LocalDate expiresAt,
+                                                        int quantity, String referenceUid, String note) {
+        if (quantity <= 0) {
+            throw new BusinessRuleException("Return quantity must be positive");
+        }
+        Store store = activeStore(storeUid);
+        Medicine medicine = activeMedicine(medicineUid);
+
+        StoreStockBatch batch = batchRepository
+                .findByStoreUidAndMedicineUidAndBatchNo(store.getUid(), medicine.getUid(), batchNo)
+                .orElseGet(() -> batchRepository.save(
+                        new StoreStockBatch(store.getUid(), medicine.getUid(), batchNo, expiresAt)));
+        if (expiresAt != null && !expiresAt.equals(batch.getExpiresAt())) {
+            batch.setExpiresAt(expiresAt);
+        }
+        batch.applyDelta(quantity);
+
+        StoreStockBalance balance = lockOrCreateBalance(store.getUid(), medicine.getUid());
+        balance.applyDelta(quantity);
+
+        recordMovement(balance, batch, StoreStockMovementKind.RETURN, quantity,
+                emptyToNull(referenceUid), emptyToNull(note));
+        return toBatchDto(batch, medicine);
+    }
+
     private StoreStockBatchDto doReceive(String storeUid, String medicineUid, String batchNo,
                                          LocalDate expiresAt, int quantity, String referenceUid, String note) {
         Store store = activeStore(storeUid);

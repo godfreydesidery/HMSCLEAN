@@ -660,7 +660,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Prescription pay-status | ❌ | |
 | Pharmacy sales order (retail / OTC) | ❌ | No separate PharmacySaleOrder entity. |
 | Pharmacy → Pharmacy transfer (RO / TO / RN) | ✅ | Phase 20b — requesting pharmacy RO → delivering pharmacy TO → requesting pharmacy RN, FEFO TRANSFER_OUT / TRANSFER_IN movements, shares the `TransferDocStatus` / `ReceiveNoteStatus` enums in `transfer.common.domain`. |
-| Pharmacy ↔ Store transfer (RO / TO / RN) | ⚠️ | Phase 20a: forward direction only — pharmacy RO → store TO → pharmacy RN, with FEFO store-side issue and per-batch propagation to the pharmacy. Reverse-direction (pharmacy returns to store) deferred. |
+| Pharmacy ↔ Store transfer (RO / TO / RN) | ✅ | Phase 20a forward (pharmacy RO → store TO → pharmacy RN, FEFO store-side issue, per-batch propagation) plus Phase 30 reverse (single-document `PharmacyStoreReturn`: DRAFT → SUBMITTED → COMPLETED with FEFO TRANSFER_OUT at the pharmacy + RETURN credit at the store). |
 | Conversion coefficients on items | ❌ | Single unit per medicine today. |
 | Batch + expiry tracking per pharmacy | ❌ | Stock balance is a single integer per (pharmacy, medicine); no batch granularity. |
 | Wastage / transfer-in / transfer-out movement kinds | ⚠️ | Enum has them but no flows emit them yet. |

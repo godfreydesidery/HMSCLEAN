@@ -4,6 +4,7 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Encounter",
-        allowedDependencies = {"common", "common.*", "iam", "masterdata", "patient"}
+        allowedDependencies = {"common", "iam", "masterdata", "patient"},
+        type = org.springframework.modulith.ApplicationModule.Type.OPEN
 )
 package com.otapp.hmis.engine.encounter;

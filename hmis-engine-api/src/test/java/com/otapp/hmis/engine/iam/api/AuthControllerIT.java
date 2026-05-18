@@ -19,7 +19,7 @@ class AuthControllerIT extends AbstractIntegrationTest {
     @Test
     void rootCanLoginAndReceivesPrivileges() {
         ResponseEntity<LoginResponse> response = rest.postForEntity(
-                "/api/auth/login",
+                "/auth/login",
                 new LoginRequest("root", "TestRoot!123"),
                 LoginResponse.class);
 
@@ -36,7 +36,7 @@ class AuthControllerIT extends AbstractIntegrationTest {
     @Test
     void invalidPasswordRejectedAsUnauthorized() {
         ResponseEntity<String> response = rest.postForEntity(
-                "/api/auth/login",
+                "/auth/login",
                 new LoginRequest("root", "WrongPassword!"),
                 String.class);
 

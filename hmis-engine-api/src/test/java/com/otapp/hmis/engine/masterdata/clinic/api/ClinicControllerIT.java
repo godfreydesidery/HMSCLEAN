@@ -28,7 +28,7 @@ class ClinicControllerIT extends AbstractIntegrationTest {
     @BeforeEach
     void signIn() {
         LoginResponse login = rest.postForObject(
-                "/api/auth/login",
+                "/auth/login",
                 new LoginRequest("root", "TestRoot!123"),
                 LoginResponse.class);
         accessToken = login.tokens().accessToken();
@@ -41,7 +41,7 @@ class ClinicControllerIT extends AbstractIntegrationTest {
                 "ENT", "Ear, Nose & Throat", ClinicType.SPECIALTY,
                 "ENT specialist clinic", "Block C");
         ResponseEntity<ClinicDto> created = rest.exchange(
-                "/api/masterdata/clinics",
+                "/masterdata/clinics",
                 HttpMethod.POST,
                 new HttpEntity<>(create, authHeaders()),
                 ClinicDto.class);
@@ -54,7 +54,7 @@ class ClinicControllerIT extends AbstractIntegrationTest {
 
         // Deactivate
         ResponseEntity<ClinicDto> deactivated = rest.exchange(
-                "/api/masterdata/clinics/" + saved.uid() + "/active",
+                "/masterdata/clinics/" + saved.uid() + "/active",
                 HttpMethod.PUT,
                 new HttpEntity<>("{\"active\":false}", jsonHeaders()),
                 ClinicDto.class);
@@ -63,7 +63,7 @@ class ClinicControllerIT extends AbstractIntegrationTest {
 
         // Delete
         ResponseEntity<Void> deleted = rest.exchange(
-                "/api/masterdata/clinics/" + saved.uid(),
+                "/masterdata/clinics/" + saved.uid(),
                 HttpMethod.DELETE,
                 new HttpEntity<>(authHeaders()),
                 Void.class);
@@ -73,7 +73,7 @@ class ClinicControllerIT extends AbstractIntegrationTest {
     @Test
     void unauthenticatedRequestIsRejected() {
         ResponseEntity<String> response = rest.getForEntity(
-                "/api/masterdata/clinics",
+                "/masterdata/clinics",
                 String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }

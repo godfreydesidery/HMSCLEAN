@@ -34,7 +34,8 @@ public class ClinicalOrder extends AuditableEntity {
     @Column(name = "order_no", nullable = false, length = 32)
     private String orderNo;
 
-    @Column(name = "consultation_uid", nullable = false, length = 26) private String consultationUid;
+    /** Null for OUTSIDER (walk-in) orders raised directly against the patient. */
+    @Column(name = "consultation_uid", length = 26) private String consultationUid;
     @Column(name = "patient_uid",      nullable = false, length = 26) private String patientUid;
 
     @Enumerated(EnumType.STRING)

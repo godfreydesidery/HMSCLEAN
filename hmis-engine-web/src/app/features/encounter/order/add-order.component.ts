@@ -26,7 +26,10 @@ interface ServiceOption {
   templateUrl: './add-order.component.html'
 })
 export class AddOrderComponent implements OnInit {
-  @Input({ required: true }) consultationUid!: string;
+  /** Set for the OUTPATIENT pathway — order is raised inside a consultation. */
+  @Input() consultationUid: string | null = null;
+  /** Set for the OUTSIDER pathway — order is raised directly against a patient. */
+  @Input() outsiderPatientUid: string | null = null;
   @Input() initialKind: ClinicalOrderKind = 'LAB_TEST';
 
   private readonly fb = inject(FormBuilder);
@@ -85,15 +88,23 @@ export class AddOrderComponent implements OnInit {
 
   submit(): void {
     if (this.form.invalid || this.submitting()) { this.form.markAllAsTouched(); return; }
+    if (!this.consultationUid && !this.outsiderPatientUid) {
+      this.errorMessage.set('Missing target — order needs a consultation or an outsider patient.');
+      return;
+    }
     this.submitting.set(true);
     this.errorMessage.set(null);
     const raw = this.form.getRawValue();
-    this.orderService.request(this.consultationUid, {
+    const payload = {
       kind: raw.kind,
       serviceUid: raw.serviceUid,
       urgency: raw.urgency,
       instructions: raw.instructions?.trim() || null
-    }).pipe(finalize(() => this.submitting.set(false))).subscribe({
+    };
+    const request$ = this.consultationUid
+      ? this.orderService.request(this.consultationUid, payload)
+      : this.orderService.requestForOutsider(this.outsiderPatientUid!, payload);
+    request$.pipe(finalize(() => this.submitting.set(false))).subscribe({
       next: (o) => this.activeModal.close(o),
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not raise order.')
     });

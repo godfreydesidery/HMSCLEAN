@@ -5,7 +5,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { PageResponse } from '../../../core/http/page.types';
 import {
-  AdjustStockRequest, ReceiveStockRequest, StockBalance, StockMovement, StockMovementKind
+  AdjustStockRequest, ReceiveStockRequest, StockBalance, StockBatch, StockMovement, StockMovementKind
 } from './stock.types';
 
 export interface MovementSearchParams {
@@ -23,19 +23,19 @@ export class StockService {
   private readonly base = `${environment.apiUrl}/pharmacy`;
 
   listBalances(pharmacyUid: string): Observable<StockBalance[]> {
-    return this.http.get<StockBalance[]>(`${this.base}/pharmacies/${pharmacyUid}/stock`);
+    return this.http.get<StockBalance[]>(`${this.base}/pharmacies/uid/${pharmacyUid}/stock`);
   }
 
-  receive(pharmacyUid: string, req: ReceiveStockRequest): Observable<StockBalance> {
-    return this.http.post<StockBalance>(`${this.base}/pharmacies/${pharmacyUid}/stock/receive`, req);
+  receive(pharmacyUid: string, req: ReceiveStockRequest): Observable<StockBatch> {
+    return this.http.post<StockBatch>(`${this.base}/pharmacies/uid/${pharmacyUid}/stock/receive`, req);
   }
 
-  adjust(pharmacyUid: string, req: AdjustStockRequest): Observable<StockBalance> {
-    return this.http.post<StockBalance>(`${this.base}/pharmacies/${pharmacyUid}/stock/adjust`, req);
+  adjust(pharmacyUid: string, req: AdjustStockRequest): Observable<StockBatch> {
+    return this.http.post<StockBatch>(`${this.base}/pharmacies/uid/${pharmacyUid}/stock/adjust`, req);
   }
 
-  dispense(pharmacyUid: string, prescriptionUid: string): Observable<StockMovement> {
-    return this.http.post<StockMovement>(`${this.base}/pharmacies/${pharmacyUid}/dispense/${prescriptionUid}`, {});
+  dispense(pharmacyUid: string, prescriptionUid: string): Observable<StockMovement[]> {
+    return this.http.post<StockMovement[]>(`${this.base}/pharmacies/uid/${pharmacyUid}/dispense/uid/${prescriptionUid}`, {});
   }
 
   searchMovements(params: MovementSearchParams = {}): Observable<PageResponse<StockMovement>> {

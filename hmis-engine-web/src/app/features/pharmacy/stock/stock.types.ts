@@ -9,17 +9,31 @@ export const STOCK_MOVEMENT_KINDS: { value: StockMovementKind; label: string; ba
   { value: 'TRANSFER_OUT', label: 'Transfer out', badgeClass: 'text-bg-info-subtle text-info-emphasis border border-info-subtle',           icon: 'bi-arrow-right' }
 ];
 
-export interface StockBalance {
+export interface StockBatch {
   uid: string;
+  pharmacyUid: string;
+  medicineUid: string;
+  medicineCode: string | null;
+  medicineName: string | null;
+  medicineStrength: string | null;
+  batchNo: string;
+  expiresAt: string | null;
+  expired: boolean;
+  quantity: number;
+  receivedAt: string;
+}
+
+export interface StockBalance {
   pharmacyUid: string;
   pharmacyName: string | null;
   medicineUid: string;
   medicineCode: string | null;
   medicineName: string | null;
   medicineStrength: string | null;
-  quantity: number;
-  createdAt: string;
-  updatedAt: string;
+  totalQuantity: number;
+  batches: number;
+  earliestExpiry: string | null;
+  batchDetails: StockBatch[];
 }
 
 export interface StockMovement {
@@ -29,6 +43,8 @@ export interface StockMovement {
   medicineUid: string;
   medicineCode: string | null;
   medicineName: string | null;
+  batchUid: string | null;
+  batchNo: string | null;
   kind: StockMovementKind;
   quantity: number;
   balanceAfter: number;
@@ -41,12 +57,14 @@ export interface StockMovement {
 
 export interface ReceiveStockRequest {
   medicineUid: string;
+  batchNo: string;
+  expiresAt: string | null;
   quantity: number;
   note: string | null;
 }
 
 export interface AdjustStockRequest {
-  medicineUid: string;
+  batchUid: string;
   delta: number;
   note: string | null;
 }

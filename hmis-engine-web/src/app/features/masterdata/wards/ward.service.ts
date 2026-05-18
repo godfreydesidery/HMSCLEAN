@@ -22,9 +22,9 @@ export class WardService {
     return this.http.get<PageResponse<Ward>>(this.base, { params: p });
   }
 
-  findByUid(uid: string): Observable<Ward> { return this.http.get<Ward>(`${this.base}/${uid}`); }
+  findByUid(uid: string): Observable<Ward> { return this.http.get<Ward>(`${this.base}/uid/${uid}`); }
   create(req: CreateWardRequest): Observable<Ward> { return this.http.post<Ward>(this.base, req); }
-  update(uid: string, req: UpdateWardRequest): Observable<Ward> { return this.http.put<Ward>(`${this.base}/${uid}`, req); }
-  setActive(uid: string, active: boolean): Observable<Ward> { return this.http.put<Ward>(`${this.base}/${uid}/active`, { active }); }
-  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/${uid}`); }
+  update(uid: string, req: UpdateWardRequest): Observable<Ward> { return this.http.put<Ward>(`${this.base}/uid/${uid}`, req); }
+  setActive(uid: string, active: boolean): Observable<Ward> { return this.http.put<Ward>(`${this.base}/uid/${uid}/active`, { active }); }
+  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/uid/${uid}`); }
 }

@@ -21,9 +21,9 @@ export class PharmacyService {
     return this.http.get<PageResponse<Pharmacy>>(this.base, { params: p });
   }
 
-  findByUid(uid: string): Observable<Pharmacy> { return this.http.get<Pharmacy>(`${this.base}/${uid}`); }
+  findByUid(uid: string): Observable<Pharmacy> { return this.http.get<Pharmacy>(`${this.base}/uid/${uid}`); }
   create(req: CreatePharmacyRequest): Observable<Pharmacy> { return this.http.post<Pharmacy>(this.base, req); }
-  update(uid: string, req: UpdatePharmacyRequest): Observable<Pharmacy> { return this.http.put<Pharmacy>(`${this.base}/${uid}`, req); }
-  setActive(uid: string, active: boolean): Observable<Pharmacy> { return this.http.put<Pharmacy>(`${this.base}/${uid}/active`, { active }); }
-  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/${uid}`); }
+  update(uid: string, req: UpdatePharmacyRequest): Observable<Pharmacy> { return this.http.put<Pharmacy>(`${this.base}/uid/${uid}`, req); }
+  setActive(uid: string, active: boolean): Observable<Pharmacy> { return this.http.put<Pharmacy>(`${this.base}/uid/${uid}/active`, { active }); }
+  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/uid/${uid}`); }
 }

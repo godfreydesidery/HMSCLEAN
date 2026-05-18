@@ -1,10 +1,9 @@
 <div class="hmis-page-header">
   <div>
     <h1 class="hmis-page-title">Pharmacy stock</h1>
-    <p class="hmis-muted mb-0 small">Per-pharmacy on-hand balances and movement ledger.</p>
+    <p class="hmis-muted mb-0 small">Per-batch on-hand quantities (FEFO dispensing) and the movement ledger.</p>
   </div>
   <div class="d-flex gap-2">
-    <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="openAdjust()" [disabled]="!selectedPharmacyUid()"><i class="bi bi-sliders"></i>Adjust</button>
     <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="openReceive()" [disabled]="!selectedPharmacyUid()"><i class="bi bi-box-arrow-in-down"></i>Receive stock</button>
   </div>
 </div>
@@ -30,9 +29,13 @@
           </div>
         </div>
         <div class="col-md-auto ms-md-auto pt-md-4">
-          <div class="form-check">
+          <div class="form-check form-check-inline">
             <input id="st-low" class="form-check-input" type="checkbox" [checked]="lowOnly()" (change)="toggleLowOnly()">
-            <label class="form-check-label small" for="st-low">Low stock only (&le; {{ lowStockThreshold }})</label>
+            <label class="form-check-label small" for="st-low">Low (&le; {{ lowStockThreshold }})</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input id="st-exp" class="form-check-input" type="checkbox" [checked]="expiringOnly()" (change)="toggleExpiringOnly()">
+            <label class="form-check-label small" for="st-exp">Expiring &le; 30d</label>
           </div>
         </div>
       </div>
@@ -53,25 +56,59 @@
       <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-box-seam me-2 text-primary"></i>On-hand balances</div>
       <div class="table-responsive">
         <table class="table align-middle mb-0 hmis-table">
-          <thead><tr><th>Code</th><th>Medicine</th><th>Strength</th><th class="text-end">Quantity</th><th class="text-end"></th></tr></thead>
+          <thead><tr><th></th><th>Code</th><th>Medicine</th><th class="text-end">Total qty</th><th class="text-end">Batches</th><th>Earliest expiry</th></tr></thead>
           <tbody>
             @if (loading()) {
               @for (i of [1,2,3,4,5,6]; track i) {
-                <tr><td><span class="hmis-skeleton" style="width:80px;"></span></td><td><span class="hmis-skeleton" style="width:220px;"></span></td><td><span class="hmis-skeleton" style="width:80px;"></span></td><td><span class="hmis-skeleton" style="width:60px;"></span></td><td></td></tr>
+                <tr><td></td><td><span class="hmis-skeleton" style="width:80px;"></span></td><td><span class="hmis-skeleton" style="width:220px;"></span></td><td><span class="hmis-skeleton" style="width:60px;"></span></td><td><span class="hmis-skeleton" style="width:40px;"></span></td><td><span class="hmis-skeleton" style="width:100px;"></span></td></tr>
               }
             } @else if (filteredBalances().length === 0) {
-              <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-box-seam"></i><div class="fw-semibold mb-1">Nothing on hand</div><div class="small">Use "Receive stock" to add the first item.</div></div></td></tr>
+              <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-box-seam"></i><div class="fw-semibold mb-1">Nothing on hand</div><div class="small">Use "Receive stock" to add the first batch.</div></div></td></tr>
             } @else {
-              @for (b of filteredBalances(); track b.uid) {
-                <tr [class.table-warning]="b.quantity <= lowStockThreshold">
-                  <td><span class="hmis-code">{{ b.medicineCode || '—' }}</span></td>
-                  <td><div class="fw-semibold">{{ b.medicineName || b.medicineUid }}</div></td>
-                  <td class="hmis-muted small">{{ b.medicineStrength || '—' }}</td>
-                  <td class="text-end fw-semibold">{{ b.quantity }}</td>
-                  <td class="text-end">
-                    <button type="button" class="btn btn-sm btn-light border" (click)="openAdjust(b)"><i class="bi bi-sliders me-1"></i>Adjust</button>
+              @for (b of filteredBalances(); track b.medicineUid) {
+                <tr [class.table-warning]="b.totalQuantity <= lowStockThreshold" style="cursor:pointer;" (click)="toggleExpanded(b.medicineUid)">
+                  <td>
+                    <i class="bi" [class.bi-caret-right-fill]="!isExpanded(b.medicineUid)" [class.bi-caret-down-fill]="isExpanded(b.medicineUid)"></i>
                   </td>
+                  <td><span class="hmis-code">{{ b.medicineCode || '—' }}</span></td>
+                  <td>
+                    <div class="fw-semibold">{{ b.medicineName || b.medicineUid }}</div>
+                    @if (b.medicineStrength) { <div class="hmis-muted small">{{ b.medicineStrength }}</div> }
+                  </td>
+                  <td class="text-end fw-semibold">{{ b.totalQuantity }}</td>
+                  <td class="text-end">{{ b.batches }}</td>
+                  <td class="hmis-muted small">{{ b.earliestExpiry || '—' }}</td>
                 </tr>
+                @if (isExpanded(b.medicineUid)) {
+                  <tr>
+                    <td colspan="6" class="bg-light">
+                      <table class="table table-sm mb-0">
+                        <thead><tr><th>Batch #</th><th>Expires</th><th>Received</th><th class="text-end">Quantity</th><th class="text-end"></th></tr></thead>
+                        <tbody>
+                          @for (batch of b.batchDetails; track batch.uid) {
+                            <tr [class.text-danger]="batch.expired" [class.fw-semibold]="isBatchExpiringSoon(batch)">
+                              <td><span class="hmis-code">{{ batch.batchNo }}</span></td>
+                              <td>
+                                @if (batch.expired) {
+                                  <span class="badge text-bg-danger-subtle text-danger-emphasis border border-danger-subtle">Expired {{ batch.expiresAt | date:'mediumDate' }}</span>
+                                } @else if (batch.expiresAt) {
+                                  <span [class.text-warning-emphasis]="isBatchExpiringSoon(batch)">{{ batch.expiresAt | date:'mediumDate' }}</span>
+                                } @else {
+                                  <span class="hmis-muted">—</span>
+                                }
+                              </td>
+                              <td class="hmis-muted small">{{ batch.receivedAt | date:'short' }}</td>
+                              <td class="text-end">{{ batch.quantity }}</td>
+                              <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-light border" (click)="openAdjustBatch(batch); $event.stopPropagation()"><i class="bi bi-sliders me-1"></i>Adjust</button>
+                              </td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                }
               }
             }
           </tbody>
@@ -95,7 +132,10 @@
                 <span [class]="movementBadgeClass(m.kind)"><i class="bi {{ movementIcon(m.kind) }}"></i>{{ movementLabel(m.kind) }}</span>
                 <div class="flex-grow-1">
                   <div class="fw-semibold small">{{ m.medicineName || m.medicineUid }}</div>
-                  <div class="hmis-muted small">{{ m.occurredAt | date:'short' }}@if (m.actorUsername) { <span> · {{ m.actorUsername }}</span> }</div>
+                  <div class="hmis-muted small">
+                    {{ m.occurredAt | date:'short' }}@if (m.actorUsername) { <span> · {{ m.actorUsername }}</span> }
+                    @if (m.batchNo) { <span> · batch {{ m.batchNo }}</span> }
+                  </div>
                   @if (m.note) { <div class="small">{{ m.note }}</div> }
                 </div>
                 <div class="text-end small">

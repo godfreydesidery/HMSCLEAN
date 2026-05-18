@@ -7,7 +7,7 @@ import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
 import { PatientService } from './patient.service';
-import { GENDERS, Gender, PAYMENT_TYPES, PatientSummary, PaymentType } from './patient.types';
+import { GENDERS, Gender, PATIENT_TYPES, PAYMENT_TYPES, PatientSummary, PatientType, PaymentType } from './patient.types';
 
 @Component({
   selector: 'app-patient-list',
@@ -114,5 +114,13 @@ export class PatientListComponent {
 
   paymentLabel(p: PaymentType): string {
     return this.paymentTypes.find((x) => x.value === p)?.label ?? p;
+  }
+
+  typeLabel(t: PatientType): string {
+    return PATIENT_TYPES.find((x) => x.value === t)?.label ?? t;
+  }
+
+  typeBadgeClass(t: PatientType): string {
+    return 'badge ' + (PATIENT_TYPES.find((x) => x.value === t)?.badgeClass ?? '');
   }
 }

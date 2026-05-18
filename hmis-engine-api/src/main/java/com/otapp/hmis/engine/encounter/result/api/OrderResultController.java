@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Order results")
 @RestController
-@RequestMapping("/encounters/orders/{orderUid}/result")
+@RequestMapping("/encounters/orders/uid/{orderUid}/result")
 @RequiredArgsConstructor
 @PreAuthorize("hasAuthority('ENCOUNTER_ACCESS')")
 public class OrderResultController {

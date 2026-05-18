@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Clinical notes")
 @RestController
-@RequestMapping("/encounters/consultations/{consultationUid}/clinical-note")
+@RequestMapping("/encounters/consultations/uid/{consultationUid}/clinical-note")
 @RequiredArgsConstructor
 @PreAuthorize("hasAuthority('ENCOUNTER_ACCESS')")
 public class ClinicalNoteController {

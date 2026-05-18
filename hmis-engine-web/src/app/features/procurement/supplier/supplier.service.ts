@@ -23,8 +23,8 @@ export class SupplierService {
     return this.http.get<PageResponse<Supplier>>(this.base, { params: p });
   }
 
-  findByUid(uid: string): Observable<Supplier> { return this.http.get<Supplier>(`${this.base}/${uid}`); }
+  findByUid(uid: string): Observable<Supplier> { return this.http.get<Supplier>(`${this.base}/uid/${uid}`); }
   create(req: CreateSupplierRequest): Observable<Supplier> { return this.http.post<Supplier>(this.base, req); }
-  update(uid: string, req: UpdateSupplierRequest): Observable<Supplier> { return this.http.put<Supplier>(`${this.base}/${uid}`, req); }
-  setActive(uid: string, active: boolean): Observable<Supplier> { return this.http.put<Supplier>(`${this.base}/${uid}/active`, { active }); }
+  update(uid: string, req: UpdateSupplierRequest): Observable<Supplier> { return this.http.put<Supplier>(`${this.base}/uid/${uid}`, req); }
+  setActive(uid: string, active: boolean): Observable<Supplier> { return this.http.put<Supplier>(`${this.base}/uid/${uid}/active`, { active }); }
 }

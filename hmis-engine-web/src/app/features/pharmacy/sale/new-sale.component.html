@@ -1,0 +1,142 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">New sale</h1>
+    <p class="hmis-muted mb-0 small">Retail / OTC sale — add lines, submit. Each line moves through accept → verify → approve → dispense.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-light border" (click)="cancel()" [disabled]="submitting()">Cancel</button>
+    <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="submit()" [disabled]="submitting() || loadingLookups() || cart().length === 0">
+      @if (submitting()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }
+      <i class="bi bi-check2"></i>Open sale ({{ cart().length }} line{{ cart().length === 1 ? '' : 's' }})
+    </button>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card mb-3">
+      <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-person me-2 text-primary"></i>Customer</div>
+      <div class="card-body">
+        <form [formGroup]="form" novalidate>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label" for="ns-pharm">Pharmacy <span class="text-danger">*</span></label>
+              <select id="ns-pharm" name="pharmacyUid" class="form-select" formControlName="pharmacyUid">
+                <option value="" disabled>{{ loadingLookups() ? 'Loading…' : '— Select pharmacy —' }}</option>
+                @for (p of pharmacies(); track p.uid) {
+                  <option [value]="p.uid">{{ p.name }} ({{ p.code }})</option>
+                }
+              </select>
+            </div>
+            <div class="col-md-7">
+              <label class="form-label" for="ns-name">Customer name <span class="text-danger">*</span></label>
+              <input id="ns-name" name="customerName" type="text" class="form-control" formControlName="customerName" maxlength="160" placeholder="e.g. Walk-in or full name">
+            </div>
+            <div class="col-md-5">
+              <label class="form-label" for="ns-phone">Phone</label>
+              <input id="ns-phone" name="customerPhone" type="text" class="form-control" formControlName="customerPhone" maxlength="40">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="ns-pay">Payment <span class="text-danger">*</span></label>
+              <select id="ns-pay" name="paymentType" class="form-select" formControlName="paymentType">
+                @for (pt of paymentTypes; track pt.value) { <option [value]="pt.value">{{ pt.label }}</option> }
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="ns-plan">Insurance plan @if (insuranceRequired) { <span class="text-danger">*</span> }</label>
+              <select id="ns-plan" name="insurancePlanUid" class="form-select" formControlName="insurancePlanUid">
+                <option value="">— No plan —</option>
+                @for (pl of plans(); track pl.uid) {
+                  <option [value]="pl.uid">{{ pl.name }}</option>
+                }
+              </select>
+              @if (form.controls.insurancePlanUid.errors?.['required'] && form.controls.insurancePlanUid.touched) {
+                <div class="invalid-feedback d-block">Plan required for this payment type.</div>
+              }
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-plus-circle me-2 text-primary"></i>Add medicine</div>
+      <div class="card-body">
+        <form [formGroup]="lineForm" novalidate>
+          <div class="row g-2">
+            <div class="col-12">
+              <label class="form-label" for="ns-med">Medicine</label>
+              <select id="ns-med" name="medicineUid" class="form-select" formControlName="medicineUid">
+                <option value="" disabled>{{ loadingLookups() ? 'Loading…' : '— Pick a medicine —' }}</option>
+                @for (m of medicines(); track m.uid) {
+                  <option [value]="m.uid">{{ medicineLabel(m) }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-4">
+              <label class="form-label" for="ns-qty">Qty</label>
+              <input id="ns-qty" name="quantity" type="number" min="1" step="1" class="form-control" formControlName="quantity">
+            </div>
+            <div class="col-8">
+              <label class="form-label" for="ns-price">Unit price</label>
+              <input id="ns-price" name="unitPrice" type="number" min="0" step="0.01" class="form-control" formControlName="unitPrice">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="ns-dose">Dose</label>
+              <input id="ns-dose" name="dose" type="text" class="form-control" formControlName="dose" maxlength="80">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="ns-freq">Frequency</label>
+              <input id="ns-freq" name="frequency" type="text" class="form-control" formControlName="frequency" maxlength="80">
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="ns-instr">Instructions</label>
+              <textarea id="ns-instr" name="instructions" rows="2" class="form-control" formControlName="instructions" maxlength="500"></textarea>
+            </div>
+          </div>
+          <div class="d-flex justify-content-end mt-2">
+            <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2" (click)="addLineToCart()" [disabled]="lineForm.invalid">
+              <i class="bi bi-plus-lg"></i>Add to cart
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-cart me-2 text-primary"></i>Cart ({{ cart().length }})</div>
+      @if (cart().length === 0) {
+        <div class="card-body"><div class="hmis-empty"><i class="bi bi-cart"></i><div class="small">Pick a medicine on the left and click "Add to cart".</div></div></div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead><tr><th>Medicine</th><th>Dose · freq</th><th class="text-end">Qty</th><th class="text-end">Unit</th><th class="text-end">Amount</th><th></th></tr></thead>
+            <tbody>
+              @for (line of cart(); track $index) {
+                <tr>
+                  <td><div class="fw-semibold">{{ line.medicineLabel }}</div></td>
+                  <td class="hmis-muted small">{{ line.dose || '—' }}@if (line.frequency) { <span> · {{ line.frequency }}</span> }</td>
+                  <td class="text-end">{{ line.quantity }}</td>
+                  <td class="text-end">{{ line.unitPrice | number:'1.2-2' }}</td>
+                  <td class="text-end fw-semibold">{{ (line.quantity * line.unitPrice) | number:'1.2-2' }}</td>
+                  <td class="text-end">
+                    <button type="button" class="btn btn-sm btn-light border" (click)="removeCartLine($index)" title="Remove"><i class="bi bi-x-lg"></i></button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr><td colspan="4" class="text-end fw-semibold">Subtotal</td><td class="text-end fw-semibold">{{ cartSubtotal() | number:'1.2-2' }}</td><td></td></tr>
+            </tfoot>
+          </table>
+        </div>
+      }
+    </div>
+  </div>
+</div>

@@ -309,6 +309,43 @@ export class ConsultationDetailComponent {
     });
   }
 
+  acceptPrescription(p: Prescription): void {
+    this.prescriptionService.accept(p.uid).subscribe({
+      next: () => this.refreshPrescriptions(),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not accept prescription.')
+    });
+  }
+
+  holdPrescription(p: Prescription): void {
+    this.prescriptionService.hold(p.uid).subscribe({
+      next: () => this.refreshPrescriptions(),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not hold prescription.')
+    });
+  }
+
+  verifyPrescription(p: Prescription): void {
+    this.prescriptionService.verify(p.uid).subscribe({
+      next: () => this.refreshPrescriptions(),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not verify prescription.')
+    });
+  }
+
+  approvePrescription(p: Prescription): void {
+    this.prescriptionService.approve(p.uid).subscribe({
+      next: () => this.refreshPrescriptions(),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not approve prescription.')
+    });
+  }
+
+  rejectPrescription(p: Prescription): void {
+    const reason = globalThis.prompt('Reason for rejecting this prescription?')?.trim() ?? null;
+    if (reason === null) return;
+    this.prescriptionService.reject(p.uid, reason || null).subscribe({
+      next: () => this.refreshPrescriptions(),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not reject prescription.')
+    });
+  }
+
   dispensePrescription(p: Prescription): void {
     const ref = this.modal.open(DispensePrescriptionComponent, { backdrop: 'static' });
     (ref.componentInstance as DispensePrescriptionComponent).prescription = p;

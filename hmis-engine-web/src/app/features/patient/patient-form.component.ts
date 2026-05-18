@@ -43,7 +43,7 @@ export class PatientFormComponent implements OnInit {
 
     dateOfBirth: ['', [Validators.required]],
     gender: ['MALE' as Gender, [Validators.required]],
-    type: ['NEW' as PatientType, [Validators.required]],
+    type: ['OUTPATIENT' as PatientType, [Validators.required]],
     paymentType: ['CASH' as PaymentType, [Validators.required]],
 
     insurancePlanUid: [''],

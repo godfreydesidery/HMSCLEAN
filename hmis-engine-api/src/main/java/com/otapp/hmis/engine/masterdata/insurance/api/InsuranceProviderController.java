@@ -27,7 +27,7 @@ public class InsuranceProviderController {
     @PostMapping
     public ResponseEntity<InsuranceProviderDto> create(@Valid @RequestBody CreateInsuranceProviderRequest request) {
         InsuranceProviderDto created = service.create(request);
-        URI loc = UriComponentsBuilder.fromPath("/masterdata/insurance-providers/{uid}").buildAndExpand(created.uid()).toUri();
+        URI loc = UriComponentsBuilder.fromPath("/masterdata/insurance-providers/uid/{providerUid}").buildAndExpand(created.uid()).toUri();
         return ResponseEntity.created(loc).body(created);
     }
 
@@ -39,24 +39,24 @@ public class InsuranceProviderController {
         return ResponseEntity.ok(service.search(query, active, pageable));
     }
 
-    @GetMapping("/{uid}")
-    public ResponseEntity<InsuranceProviderDto> findByUid(@PathVariable String uid) {
-        return ResponseEntity.ok(service.findByUid(uid));
+    @GetMapping("/uid/{providerUid}")
+    public ResponseEntity<InsuranceProviderDto> findByUid(@PathVariable String providerUid) {
+        return ResponseEntity.ok(service.findByUid(providerUid));
     }
 
-    @PutMapping("/{uid}")
-    public ResponseEntity<InsuranceProviderDto> update(@PathVariable String uid, @Valid @RequestBody UpdateInsuranceProviderRequest request) {
-        return ResponseEntity.ok(service.update(uid, request));
+    @PutMapping("/uid/{providerUid}")
+    public ResponseEntity<InsuranceProviderDto> update(@PathVariable String providerUid, @Valid @RequestBody UpdateInsuranceProviderRequest request) {
+        return ResponseEntity.ok(service.update(providerUid, request));
     }
 
-    @PutMapping("/{uid}/active")
-    public ResponseEntity<InsuranceProviderDto> setActive(@PathVariable String uid, @RequestBody ActiveRequest request) {
-        return ResponseEntity.ok(service.setActive(uid, request.active()));
+    @PutMapping("/uid/{providerUid}/active")
+    public ResponseEntity<InsuranceProviderDto> setActive(@PathVariable String providerUid, @RequestBody ActiveRequest request) {
+        return ResponseEntity.ok(service.setActive(providerUid, request.active()));
     }
 
-    @DeleteMapping("/{uid}")
-    public ResponseEntity<Void> delete(@PathVariable String uid) {
-        service.delete(uid);
+    @DeleteMapping("/uid/{providerUid}")
+    public ResponseEntity<Void> delete(@PathVariable String providerUid) {
+        service.delete(providerUid);
         return ResponseEntity.noContent().build();
     }
 

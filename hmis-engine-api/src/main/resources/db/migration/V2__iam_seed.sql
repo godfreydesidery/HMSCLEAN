@@ -24,7 +24,8 @@ INSERT INTO iam_privilege (uid, name, description, created_at, updated_at, creat
     ('01J5KQRPCD0000000000000PVE', 'BILLING_ACCESS',     'Access the billing module',        NOW(), NOW(), 'system', 'system', 0),
     ('01J5KQRPCD0000000000000PVF', 'HR_ACCESS',          'Access the HR module',             NOW(), NOW(), 'system', 'system', 0),
     ('01J5KQRPCD0000000000000PVG', 'REPORTING_ACCESS',   'Access the reporting module',      NOW(), NOW(), 'system', 'system', 0),
-    ('01J5KQRPCD0000000000000PVH', 'MASTERDATA_MANAGE',  'Manage master data catalogs',      NOW(), NOW(), 'system', 'system', 0);
+    ('01J5KQRPCD0000000000000PVH', 'MASTERDATA_MANAGE',  'Manage master data catalogs',      NOW(), NOW(), 'system', 'system', 0),
+    ('01J5KQRPCD0000000000000PVJ', 'STORE_ACCESS',       'Access the central store module',  NOW(), NOW(), 'system', 'system', 0);
 
 INSERT INTO iam_role (uid, name, description, created_at, updated_at, created_by, updated_by, version) VALUES
     ('01J5KQRPCD0000000000000RB1', 'ROOT',         'Super administrator (all privileges)',          NOW(), NOW(), 'system', 'system', 0),
@@ -103,12 +104,12 @@ WHERE p.name IN ('HR_ACCESS');
 INSERT INTO iam_role_privilege (role_id, privilege_id)
 SELECT (SELECT id FROM iam_role WHERE name = 'PROCUREMENT'), p.id
 FROM iam_privilege p
-WHERE p.name IN ('PROCUREMENT_ACCESS');
+WHERE p.name IN ('PROCUREMENT_ACCESS','STORE_ACCESS');
 
 INSERT INTO iam_role_privilege (role_id, privilege_id)
 SELECT (SELECT id FROM iam_role WHERE name = 'STORE_PERSON'), p.id
 FROM iam_privilege p
-WHERE p.name IN ('PROCUREMENT_ACCESS','PHARMACY_ACCESS');
+WHERE p.name IN ('STORE_ACCESS','PROCUREMENT_ACCESS');
 
 INSERT INTO iam_role_privilege (role_id, privilege_id)
 SELECT (SELECT id FROM iam_role WHERE name = 'MANAGEMENT'), p.id

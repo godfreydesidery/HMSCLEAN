@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Consultation diagnoses")
 @RestController
-@RequestMapping("/encounters/consultations/{consultationUid}/diagnoses")
+@RequestMapping("/encounters/consultations/uid/{consultationUid}/diagnoses")
 @RequiredArgsConstructor
 @PreAuthorize("hasAuthority('ENCOUNTER_ACCESS')")
 public class ConsultationDiagnosisController {
@@ -31,9 +31,9 @@ public class ConsultationDiagnosisController {
         return ResponseEntity.ok(service.add(consultationUid, request));
     }
 
-    @DeleteMapping("/{uid}")
-    public ResponseEntity<Void> remove(@PathVariable String consultationUid, @PathVariable String uid) {
-        service.remove(uid);
+    @DeleteMapping("/uid/{diagnosisUid}")
+    public ResponseEntity<Void> remove(@PathVariable String consultationUid, @PathVariable String diagnosisUid) {
+        service.remove(diagnosisUid);
         return ResponseEntity.noContent().build();
     }
 }

@@ -24,9 +24,9 @@ export class MedicineService {
     return this.http.get<PageResponse<Medicine>>(this.base, { params: p });
   }
 
-  findByUid(uid: string): Observable<Medicine> { return this.http.get<Medicine>(`${this.base}/${uid}`); }
+  findByUid(uid: string): Observable<Medicine> { return this.http.get<Medicine>(`${this.base}/uid/${uid}`); }
   create(req: CreateMedicineRequest): Observable<Medicine> { return this.http.post<Medicine>(this.base, req); }
-  update(uid: string, req: UpdateMedicineRequest): Observable<Medicine> { return this.http.put<Medicine>(`${this.base}/${uid}`, req); }
-  setActive(uid: string, active: boolean): Observable<Medicine> { return this.http.put<Medicine>(`${this.base}/${uid}/active`, { active }); }
-  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/${uid}`); }
+  update(uid: string, req: UpdateMedicineRequest): Observable<Medicine> { return this.http.put<Medicine>(`${this.base}/uid/${uid}`, req); }
+  setActive(uid: string, active: boolean): Observable<Medicine> { return this.http.put<Medicine>(`${this.base}/uid/${uid}/active`, { active }); }
+  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/uid/${uid}`); }
 }

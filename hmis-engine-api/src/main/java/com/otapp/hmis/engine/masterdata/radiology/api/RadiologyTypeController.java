@@ -28,7 +28,7 @@ public class RadiologyTypeController {
     @PostMapping
     public ResponseEntity<RadiologyTypeDto> create(@Valid @RequestBody CreateRadiologyTypeRequest request) {
         RadiologyTypeDto created = service.create(request);
-        URI loc = UriComponentsBuilder.fromPath("/masterdata/radiology/{uid}").buildAndExpand(created.uid()).toUri();
+        URI loc = UriComponentsBuilder.fromPath("/masterdata/radiology/uid/{radiologyUid}").buildAndExpand(created.uid()).toUri();
         return ResponseEntity.created(loc).body(created);
     }
 
@@ -41,24 +41,24 @@ public class RadiologyTypeController {
         return ResponseEntity.ok(service.search(query, active, modality, pageable));
     }
 
-    @GetMapping("/{uid}")
-    public ResponseEntity<RadiologyTypeDto> findByUid(@PathVariable String uid) {
-        return ResponseEntity.ok(service.findByUid(uid));
+    @GetMapping("/uid/{radiologyUid}")
+    public ResponseEntity<RadiologyTypeDto> findByUid(@PathVariable String radiologyUid) {
+        return ResponseEntity.ok(service.findByUid(radiologyUid));
     }
 
-    @PutMapping("/{uid}")
-    public ResponseEntity<RadiologyTypeDto> update(@PathVariable String uid, @Valid @RequestBody UpdateRadiologyTypeRequest request) {
-        return ResponseEntity.ok(service.update(uid, request));
+    @PutMapping("/uid/{radiologyUid}")
+    public ResponseEntity<RadiologyTypeDto> update(@PathVariable String radiologyUid, @Valid @RequestBody UpdateRadiologyTypeRequest request) {
+        return ResponseEntity.ok(service.update(radiologyUid, request));
     }
 
-    @PutMapping("/{uid}/active")
-    public ResponseEntity<RadiologyTypeDto> setActive(@PathVariable String uid, @RequestBody ActiveRequest request) {
-        return ResponseEntity.ok(service.setActive(uid, request.active()));
+    @PutMapping("/uid/{radiologyUid}/active")
+    public ResponseEntity<RadiologyTypeDto> setActive(@PathVariable String radiologyUid, @RequestBody ActiveRequest request) {
+        return ResponseEntity.ok(service.setActive(radiologyUid, request.active()));
     }
 
-    @DeleteMapping("/{uid}")
-    public ResponseEntity<Void> delete(@PathVariable String uid) {
-        service.delete(uid);
+    @DeleteMapping("/uid/{radiologyUid}")
+    public ResponseEntity<Void> delete(@PathVariable String radiologyUid) {
+        service.delete(radiologyUid);
         return ResponseEntity.noContent().build();
     }
 

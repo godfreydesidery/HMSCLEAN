@@ -7,6 +7,7 @@ import com.otapp.hmis.engine.patient.application.dto.PatientDto;
 import com.otapp.hmis.engine.patient.application.dto.PatientSummary;
 import com.otapp.hmis.engine.patient.application.dto.UpdatePatientRequest;
 import com.otapp.hmis.engine.patient.domain.Gender;
+import com.otapp.hmis.engine.patient.domain.PatientType;
 import com.otapp.hmis.engine.patient.domain.PaymentType;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -30,7 +31,7 @@ public class PatientController {
     @PreAuthorize("hasAuthority('PATIENT_ACCESS')")
     public ResponseEntity<PatientDto> register(@Valid @RequestBody CreatePatientRequest request) {
         PatientDto created = patientService.register(request);
-        URI loc = UriComponentsBuilder.fromPath("/patients/{uid}").buildAndExpand(created.uid()).toUri();
+        URI loc = UriComponentsBuilder.fromPath("/patients/uid/{patientUid}").buildAndExpand(created.uid()).toUri();
         return ResponseEntity.created(loc).body(created);
     }
 
@@ -45,23 +46,31 @@ public class PatientController {
         return ResponseEntity.ok(patientService.search(query, active, gender, paymentType, pageable));
     }
 
-    @GetMapping("/{uid}")
+    @GetMapping("/uid/{patientUid}")
     @PreAuthorize("hasAuthority('PATIENT_ACCESS')")
-    public ResponseEntity<PatientDto> findByUid(@PathVariable String uid) {
-        return ResponseEntity.ok(patientService.findByUid(uid));
+    public ResponseEntity<PatientDto> findByUid(@PathVariable String patientUid) {
+        return ResponseEntity.ok(patientService.findByUid(patientUid));
     }
 
-    @PutMapping("/{uid}")
+    @PutMapping("/uid/{patientUid}")
     @PreAuthorize("hasAuthority('PATIENT_ACCESS')")
-    public ResponseEntity<PatientDto> update(@PathVariable String uid, @Valid @RequestBody UpdatePatientRequest request) {
-        return ResponseEntity.ok(patientService.update(uid, request));
+    public ResponseEntity<PatientDto> update(@PathVariable String patientUid, @Valid @RequestBody UpdatePatientRequest request) {
+        return ResponseEntity.ok(patientService.update(patientUid, request));
     }
 
-    @PutMapping("/{uid}/active")
+    @PutMapping("/uid/{patientUid}/active")
     @PreAuthorize("hasAuthority('PATIENT_ACCESS')")
-    public ResponseEntity<PatientDto> setActive(@PathVariable String uid, @RequestBody ActiveRequest request) {
-        return ResponseEntity.ok(patientService.setActive(uid, request.active()));
+    public ResponseEntity<PatientDto> setActive(@PathVariable String patientUid, @RequestBody ActiveRequest request) {
+        return ResponseEntity.ok(patientService.setActive(patientUid, request.active()));
+    }
+
+    @PutMapping("/uid/{patientUid}/type")
+    @PreAuthorize("hasAuthority('PATIENT_ACCESS')")
+    public ResponseEntity<PatientDto> changeType(@PathVariable String patientUid, @RequestBody TypeRequest request) {
+        return ResponseEntity.ok(patientService.changeType(patientUid, request.type()));
     }
 
     public record ActiveRequest(boolean active) {}
+
+    public record TypeRequest(PatientType type) {}
 }

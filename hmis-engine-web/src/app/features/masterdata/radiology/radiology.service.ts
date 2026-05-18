@@ -24,9 +24,9 @@ export class RadiologyTypeService {
     return this.http.get<PageResponse<RadiologyType>>(this.base, { params: p });
   }
 
-  findByUid(uid: string): Observable<RadiologyType> { return this.http.get<RadiologyType>(`${this.base}/${uid}`); }
+  findByUid(uid: string): Observable<RadiologyType> { return this.http.get<RadiologyType>(`${this.base}/uid/${uid}`); }
   create(req: CreateRadiologyTypeRequest): Observable<RadiologyType> { return this.http.post<RadiologyType>(this.base, req); }
-  update(uid: string, req: UpdateRadiologyTypeRequest): Observable<RadiologyType> { return this.http.put<RadiologyType>(`${this.base}/${uid}`, req); }
-  setActive(uid: string, active: boolean): Observable<RadiologyType> { return this.http.put<RadiologyType>(`${this.base}/${uid}/active`, { active }); }
-  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/${uid}`); }
+  update(uid: string, req: UpdateRadiologyTypeRequest): Observable<RadiologyType> { return this.http.put<RadiologyType>(`${this.base}/uid/${uid}`, req); }
+  setActive(uid: string, active: boolean): Observable<RadiologyType> { return this.http.put<RadiologyType>(`${this.base}/uid/${uid}/active`, { active }); }
+  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/uid/${uid}`); }
 }

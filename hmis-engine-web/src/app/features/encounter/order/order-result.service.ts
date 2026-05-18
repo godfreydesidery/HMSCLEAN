@@ -13,7 +13,7 @@ export class OrderResultService {
 
   findForOrder(orderUid: string): Observable<OrderResult | null> {
     return this.http
-      .get<OrderResult>(`${this.apiBase}/${orderUid}/result`, { observe: 'response' })
+      .get<OrderResult>(`${this.apiBase}/uid/${orderUid}/result`, { observe: 'response' })
       .pipe(
         map((res) => (res.status === 204 ? null : (res.body as OrderResult))),
         catchError((err) => (err?.status === 204 || err?.status === 404 ? of(null) : (() => { throw err; })()))
@@ -21,14 +21,14 @@ export class OrderResultService {
   }
 
   save(orderUid: string, req: SaveResultRequest): Observable<OrderResult> {
-    return this.http.put<OrderResult>(`${this.apiBase}/${orderUid}/result`, req);
+    return this.http.put<OrderResult>(`${this.apiBase}/uid/${orderUid}/result`, req);
   }
 
   finalize(orderUid: string): Observable<OrderResult> {
-    return this.http.post<OrderResult>(`${this.apiBase}/${orderUid}/result/finalize`, {});
+    return this.http.post<OrderResult>(`${this.apiBase}/uid/${orderUid}/result/finalize`, {});
   }
 
   amend(orderUid: string, req: SaveResultRequest): Observable<OrderResult> {
-    return this.http.put<OrderResult>(`${this.apiBase}/${orderUid}/result/amend`, req);
+    return this.http.put<OrderResult>(`${this.apiBase}/uid/${orderUid}/result/amend`, req);
   }
 }

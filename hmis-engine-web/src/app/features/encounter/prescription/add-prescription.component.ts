@@ -15,7 +15,10 @@ import { PrescriptionService } from './prescription.service';
   templateUrl: './add-prescription.component.html'
 })
 export class AddPrescriptionComponent implements OnInit {
-  @Input({ required: true }) consultationUid!: string;
+  /** Set for the OUTPATIENT pathway. */
+  @Input() consultationUid: string | null = null;
+  /** Set for the OUTSIDER pathway (direct-to-patient retail / OTC prescription). */
+  @Input() outsiderPatientUid: string | null = null;
 
   private readonly fb = inject(FormBuilder);
   private readonly prescriptionService = inject(PrescriptionService);
@@ -48,17 +51,25 @@ export class AddPrescriptionComponent implements OnInit {
 
   submit(): void {
     if (this.form.invalid || this.submitting()) { this.form.markAllAsTouched(); return; }
+    if (!this.consultationUid && !this.outsiderPatientUid) {
+      this.errorMessage.set('Missing target — prescription needs a consultation or an outsider patient.');
+      return;
+    }
     this.submitting.set(true);
     this.errorMessage.set(null);
     const raw = this.form.getRawValue();
-    this.prescriptionService.prescribe(this.consultationUid, {
+    const payload = {
       medicineUid: raw.medicineUid,
       dose: raw.dose.trim(),
       frequency: raw.frequency.trim(),
       durationDays: raw.durationDays ?? null,
       quantity: raw.quantity ?? null,
       instructions: raw.instructions?.trim() || null
-    }).pipe(finalize(() => this.submitting.set(false))).subscribe({
+    };
+    const request$ = this.consultationUid
+      ? this.prescriptionService.prescribe(this.consultationUid, payload)
+      : this.prescriptionService.prescribeForOutsider(this.outsiderPatientUid!, payload);
+    request$.pipe(finalize(() => this.submitting.set(false))).subscribe({
       next: (p) => this.activeModal.close(p),
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not save prescription.')
     });

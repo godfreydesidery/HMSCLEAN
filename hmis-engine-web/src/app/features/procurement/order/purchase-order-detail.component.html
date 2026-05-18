@@ -38,7 +38,7 @@
     <div class="card-body">
       <div class="row g-3">
         <div class="col-md-4"><div class="hmis-muted small">Supplier</div><div class="fw-semibold">{{ o.supplierName || '—' }}</div></div>
-        <div class="col-md-4"><div class="hmis-muted small">Receiving pharmacy</div><div class="fw-semibold">{{ o.pharmacyName || '—' }}</div></div>
+        <div class="col-md-4"><div class="hmis-muted small">Receiving store</div><div class="fw-semibold">{{ o.storeName || '—' }}</div></div>
         <div class="col-md-2"><div class="hmis-muted small">Status</div><span [class]="statusBadgeClass(o.status)">{{ statusLabel(o.status) }}</span></div>
         <div class="col-md-2"><div class="hmis-muted small">Expected</div><div class="fw-semibold">{{ o.expectedDeliveryDate || '—' }}</div></div>
         @if (o.notes) {

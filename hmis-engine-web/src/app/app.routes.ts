@@ -71,6 +71,12 @@ export const routes: Routes = [
           import('./features/procurement/procurement.routes').then((m) => m.PROCUREMENT_ROUTES)
       },
       {
+        path: 'store',
+        canActivate: [hasPrivilegeGuard('STORE_ACCESS')],
+        loadChildren: () =>
+          import('./features/store/store.routes').then((m) => m.STORE_ROUTES)
+      },
+      {
         path: 'billing',
         canActivate: [hasPrivilegeGuard('BILLING_ACCESS')],
         loadChildren: () =>

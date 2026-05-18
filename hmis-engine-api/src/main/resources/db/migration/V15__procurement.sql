@@ -33,7 +33,7 @@ CREATE TABLE purchase_order (
     order_no                 VARCHAR(32)  NOT NULL,
 
     supplier_uid             VARCHAR(26)  NOT NULL,
-    pharmacy_uid             VARCHAR(26)  NOT NULL,
+    store_uid                VARCHAR(26)  NOT NULL,
 
     status                   VARCHAR(24)  NOT NULL,
     expected_delivery_date   DATE,
@@ -54,7 +54,7 @@ CREATE TABLE purchase_order (
 );
 
 CREATE INDEX idx_purchase_order_supplier ON purchase_order(supplier_uid);
-CREATE INDEX idx_purchase_order_pharmacy ON purchase_order(pharmacy_uid);
+CREATE INDEX idx_purchase_order_store    ON purchase_order(store_uid);
 CREATE INDEX idx_purchase_order_status   ON purchase_order(status);
 
 CREATE TABLE purchase_order_line (
@@ -87,7 +87,7 @@ CREATE TABLE goods_receipt (
     receipt_no              VARCHAR(32)  NOT NULL,
 
     order_uid               VARCHAR(26)  NOT NULL,
-    pharmacy_uid            VARCHAR(26)  NOT NULL,
+    store_uid               VARCHAR(26)  NOT NULL,
 
     received_at             TIMESTAMP WITH TIME ZONE NOT NULL,
     received_by_username    VARCHAR(64),
@@ -104,7 +104,7 @@ CREATE TABLE goods_receipt (
 );
 
 CREATE INDEX idx_goods_receipt_order       ON goods_receipt(order_uid);
-CREATE INDEX idx_goods_receipt_pharmacy    ON goods_receipt(pharmacy_uid);
+CREATE INDEX idx_goods_receipt_store       ON goods_receipt(store_uid);
 CREATE INDEX idx_goods_receipt_received_at ON goods_receipt(received_at);
 
 CREATE TABLE goods_receipt_line (
@@ -115,6 +115,8 @@ CREATE TABLE goods_receipt_line (
     po_line_uid     VARCHAR(26)  NOT NULL,
     medicine_uid    VARCHAR(26)  NOT NULL,
     quantity        INTEGER      NOT NULL,
+    batch_no        VARCHAR(64)  NOT NULL,
+    expires_at      DATE,
 
     created_at      TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at      TIMESTAMP WITH TIME ZONE NOT NULL,

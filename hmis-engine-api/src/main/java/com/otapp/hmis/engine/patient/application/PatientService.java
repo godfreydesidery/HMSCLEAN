@@ -14,6 +14,7 @@ import com.otapp.hmis.engine.patient.application.dto.UpdatePatientRequest;
 import com.otapp.hmis.engine.patient.domain.Gender;
 import com.otapp.hmis.engine.patient.domain.Patient;
 import com.otapp.hmis.engine.patient.domain.PatientRepository;
+import com.otapp.hmis.engine.patient.domain.PatientType;
 import com.otapp.hmis.engine.patient.domain.PaymentType;
 import com.otapp.hmis.engine.patient.infrastructure.PatientNumberGenerator;
 import lombok.RequiredArgsConstructor;
@@ -75,6 +76,18 @@ public class PatientService {
     public PatientDto setActive(String uid, boolean active) {
         Patient patient = loadOrThrow(uid);
         if (active) patient.activate(); else patient.deactivate();
+        return toDto(patient);
+    }
+
+    /**
+     * Convert a patient's routing type — OUTPATIENT (clinic pathway) or
+     * OUTSIDER (walk-in). Does not retroactively change past encounters,
+     * only what's allowed going forward.
+     */
+    @Transactional
+    public PatientDto changeType(String uid, PatientType type) {
+        Patient patient = loadOrThrow(uid);
+        patient.setType(type);
         return toDto(patient);
     }
 

@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Patient vitals")
 @RestController
-@RequestMapping("/encounters/consultations/{consultationUid}/vitals")
+@RequestMapping("/encounters/consultations/uid/{consultationUid}/vitals")
 @RequiredArgsConstructor
 @PreAuthorize("hasAuthority('ENCOUNTER_ACCESS')")
 public class PatientVitalsController {
@@ -31,9 +31,9 @@ public class PatientVitalsController {
         return ResponseEntity.ok(vitalsService.record(consultationUid, request));
     }
 
-    @DeleteMapping("/{uid}")
-    public ResponseEntity<Void> delete(@PathVariable String consultationUid, @PathVariable String uid) {
-        vitalsService.delete(uid);
+    @DeleteMapping("/uid/{vitalsUid}")
+    public ResponseEntity<Void> delete(@PathVariable String consultationUid, @PathVariable String vitalsUid) {
+        vitalsService.delete(vitalsUid);
         return ResponseEntity.noContent().build();
     }
 }

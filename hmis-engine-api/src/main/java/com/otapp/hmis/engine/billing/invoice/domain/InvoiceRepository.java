@@ -15,6 +15,30 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     Optional<Invoice> findByAdmissionUid(String admissionUid);
 
+    /**
+     * The patient's currently-open OUTSIDER invoice (no consultation, no
+     * admission, still DRAFT). Used to decide whether to keep building lines
+     * on the existing invoice or start a fresh one.
+     */
+    @Query("""
+            SELECT i FROM Invoice i
+            WHERE i.patientUid = :patientUid
+              AND i.consultationUid IS NULL
+              AND i.admissionUid    IS NULL
+              AND i.status = com.otapp.hmis.engine.billing.invoice.domain.InvoiceStatus.DRAFT
+            """)
+    Optional<Invoice> findDraftOutsiderForPatient(@Param("patientUid") String patientUid);
+
+    /** All outsider invoices for a patient, newest first — for the patient detail view. */
+    @Query("""
+            SELECT i FROM Invoice i
+            WHERE i.patientUid = :patientUid
+              AND i.consultationUid IS NULL
+              AND i.admissionUid    IS NULL
+            ORDER BY i.createdAt DESC
+            """)
+    java.util.List<Invoice> findAllOutsiderForPatient(@Param("patientUid") String patientUid);
+
     @Query("""
             SELECT i FROM Invoice i
             WHERE (:search IS NULL OR :search = ''

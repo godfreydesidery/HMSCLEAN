@@ -55,7 +55,7 @@ export class DispensePrescriptionComponent implements OnInit {
     const raw = this.form.getRawValue();
     this.stockService.dispense(raw.pharmacyUid, this.prescription.uid)
       .pipe(finalize(() => this.submitting.set(false))).subscribe({
-        next: (movement: StockMovement) => this.activeModal.close(movement),
+        next: (movements: StockMovement[]) => this.activeModal.close(movements),
         error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not dispense.')
       });
   }

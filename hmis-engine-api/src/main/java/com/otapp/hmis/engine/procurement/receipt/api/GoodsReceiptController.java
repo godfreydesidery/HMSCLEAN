@@ -19,13 +19,13 @@ public class GoodsReceiptController {
 
     private final GoodsReceiptService receiptService;
 
-    @PostMapping("/procurement/purchase-orders/{orderUid}/receipts")
+    @PostMapping("/procurement/purchase-orders/uid/{orderUid}/receipts")
     public ResponseEntity<GoodsReceiptDto> record(@PathVariable String orderUid,
                                                   @Valid @RequestBody RecordReceiptRequest request) {
         return ResponseEntity.ok(receiptService.record(orderUid, request));
     }
 
-    @GetMapping("/procurement/purchase-orders/{orderUid}/receipts")
+    @GetMapping("/procurement/purchase-orders/uid/{orderUid}/receipts")
     public ResponseEntity<List<GoodsReceiptDto>> listForOrder(@PathVariable String orderUid) {
         return ResponseEntity.ok(receiptService.listForOrder(orderUid));
     }

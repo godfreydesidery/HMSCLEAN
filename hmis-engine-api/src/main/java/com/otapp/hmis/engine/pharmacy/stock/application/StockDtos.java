@@ -2,25 +2,43 @@ package com.otapp.hmis.engine.pharmacy.stock.application;
 
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockMovementKind;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
 
 public final class StockDtos {
 
     private StockDtos() {}
 
-    public record StockBalanceDto(
+    /** Per-batch row. The medicine total is the sum across the pharmacy's batches. */
+    public record StockBatchDto(
             String uid,
+            String pharmacyUid,
+            String medicineUid,
+            String medicineCode,
+            String medicineName,
+            String medicineStrength,
+            String batchNo,
+            LocalDate expiresAt,
+            boolean expired,
+            int quantity,
+            Instant receivedAt) {}
+
+    /** Aggregate row used by the list view — sums batches per medicine. */
+    public record StockBalanceDto(
             String pharmacyUid,
             String pharmacyName,
             String medicineUid,
             String medicineCode,
             String medicineName,
             String medicineStrength,
-            int quantity,
-            Instant createdAt,
-            Instant updatedAt) {}
+            int totalQuantity,
+            int batches,
+            LocalDate earliestExpiry,
+            List<StockBatchDto> batchDetails) {}
 
     public record StockMovementDto(
             String uid,
@@ -29,6 +47,8 @@ public final class StockDtos {
             String medicineUid,
             String medicineCode,
             String medicineName,
+            String batchUid,
+            String batchNo,
             StockMovementKind kind,
             int quantity,
             int balanceAfter,
@@ -39,13 +59,18 @@ public final class StockDtos {
             Instant createdAt) {}
 
     public record ReceiveStockRequest(
-            @Size(min = 26, max = 26) String medicineUid,
+            @NotBlank @Size(min = 26, max = 26) String medicineUid,
+            @NotBlank @Size(max = 64) String batchNo,
+            LocalDate expiresAt,
             @Min(1) int quantity,
             @Size(max = 500) String note) {}
 
+    /**
+     * Signed adjustment against a specific batch. The batch must already
+     * exist (you can't adjust a batch into existence — use receive for that).
+     */
     public record AdjustStockRequest(
-            @Size(min = 26, max = 26) String medicineUid,
-            /** Signed delta: positive adds, negative removes. */
+            @NotBlank @Size(min = 26, max = 26) String batchUid,
             @NotNull Integer delta,
             @Size(max = 500) String note) {}
 }

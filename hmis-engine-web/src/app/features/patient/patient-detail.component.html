@@ -27,14 +27,30 @@
       <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="edit()">
         <i class="bi bi-pencil"></i>Edit
       </button>
-      <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="admit()" [disabled]="!p.active">
-        <i class="bi bi-hospital"></i>Admit
+      <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="toggleType()" title="Switch routing between OUTPATIENT and OUTSIDER">
+        <i class="bi bi-arrow-left-right"></i>{{ p.type === 'OUTSIDER' ? 'Restore to outpatient' : 'Mark as walk-in' }}
       </button>
-      <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="startConsultation()" [disabled]="!p.active">
-        <i class="bi bi-clipboard2-pulse"></i>Start consultation
-      </button>
+      @if (p.type === 'OUTSIDER') {
+        <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="raiseOutsiderOrder()" [disabled]="!p.active">
+          <i class="bi bi-card-list"></i>Raise order
+        </button>
+        <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="raiseOutsiderPrescription()" [disabled]="!p.active">
+          <i class="bi bi-capsule"></i>Raise prescription
+        </button>
+      } @else {
+        <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="admit()" [disabled]="!p.active">
+          <i class="bi bi-hospital"></i>Admit
+        </button>
+        <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="startConsultation()" [disabled]="!p.active">
+          <i class="bi bi-clipboard2-pulse"></i>Start consultation
+        </button>
+      }
     </div>
   </div>
+
+  @if (actionMessage()) {
+    <div class="alert alert-success d-flex align-items-center gap-2" role="alert"><i class="bi bi-check-circle"></i><span>{{ actionMessage() }}</span></div>
+  }
 
   <div class="row g-3">
     <div class="col-lg-6">
@@ -43,7 +59,7 @@
         <div class="card-body">
           <dl class="row mb-0 patient-detail__dl">
             <dt class="col-sm-5">Date of birth</dt><dd class="col-sm-7">{{ p.dateOfBirth }}</dd>
-            <dt class="col-sm-5">Patient type</dt> <dd class="col-sm-7">{{ typeLabel(p.type) }}</dd>
+            <dt class="col-sm-5">Patient type</dt> <dd class="col-sm-7"><span [class]="typeBadgeClass(p.type)">{{ typeLabel(p.type) }}</span></dd>
             <dt class="col-sm-5">Nationality</dt>  <dd class="col-sm-7">{{ p.nationality || '—' }}</dd>
             <dt class="col-sm-5">National ID</dt>  <dd class="col-sm-7">{{ p.nationalId || '—' }}</dd>
             <dt class="col-sm-5">Passport</dt>     <dd class="col-sm-7">{{ p.passportNo || '—' }}</dd>
@@ -92,41 +108,109 @@
       </div>
     </div>
 
-    <div class="col-12">
-      <div class="card">
-        <div class="card-header bg-white d-flex align-items-center justify-content-between">
-          <div class="fw-semibold">Recent consultations</div>
-          <button type="button" class="btn btn-sm btn-light border" (click)="startConsultation()" [disabled]="!p.active">
-            <i class="bi bi-plus-lg me-1"></i>Start new
-          </button>
-        </div>
-        @if (recentConsultations().length === 0) {
-          <div class="card-body">
-            <div class="hmis-empty"><i class="bi bi-clipboard2-pulse"></i><div class="small">No consultations yet.</div></div>
-          </div>
-        } @else {
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 hmis-table">
-              <thead><tr><th>#</th><th>Clinic</th><th>Clinician</th><th>Status</th><th>Booked</th><th class="text-end"></th></tr></thead>
-              <tbody>
-                @for (c of recentConsultations(); track c.uid) {
-                  <tr>
-                    <td><a class="hmis-code" [routerLink]="['/encounters', 'consultations', c.uid]">{{ c.consultationNo }}</a></td>
-                    <td class="hmis-muted">{{ c.clinicName || '—' }}</td>
-                    <td class="hmis-muted">{{ c.clinicianName || '—' }}</td>
-                    <td><span [class]="statusBadgeClass(c.status)">{{ statusLabel(c.status) }}</span></td>
-                    <td class="hmis-muted small">{{ c.bookedAt | date:'medium' }}</td>
-                    <td class="text-end">
-                      <a class="btn btn-sm btn-light border" [routerLink]="['/encounters', 'consultations', c.uid]">Open <i class="bi bi-arrow-right ms-1"></i></a>
-                    </td>
-                  </tr>
+    @if (p.type === 'OUTSIDER') {
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header bg-white d-flex flex-wrap align-items-center gap-2 py-3">
+            <div>
+              <div class="fw-semibold"><i class="bi bi-cash-coin me-2 text-primary"></i>Outsider billing</div>
+              <div class="hmis-muted small">Open invoice for unbilled walk-in orders &amp; prescriptions</div>
+            </div>
+            @if (outsiderInvoice(); as inv) {
+              <span [class]="invoiceStatusBadgeClass(inv.status)">{{ invoiceStatusLabel(inv.status) }}</span>
+              <div class="ms-auto d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="generateOutsiderInvoice()" [disabled]="invoiceBusy() || inv.status !== 'DRAFT'"><i class="bi bi-arrow-clockwise me-1"></i>Regenerate</button>
+                @if (inv.status === 'DRAFT') {
+                  <button type="button" class="btn btn-sm btn-primary" (click)="issueOutsiderInvoice()" [disabled]="invoiceBusy()"><i class="bi bi-send me-1"></i>Issue</button>
                 }
-              </tbody>
-            </table>
+                @if (inv.status === 'ISSUED' || inv.status === 'PARTIALLY_PAID') {
+                  <button type="button" class="btn btn-sm btn-success" (click)="recordOutsiderPayment()" [disabled]="invoiceBusy()"><i class="bi bi-cash me-1"></i>Record payment</button>
+                }
+                @if (inv.status !== 'PAID' && inv.status !== 'CANCELLED') {
+                  <button type="button" class="btn btn-sm btn-outline-danger" (click)="cancelOutsiderInvoice()" [disabled]="invoiceBusy()"><i class="bi bi-x-octagon me-1"></i>Cancel</button>
+                }
+                <a class="btn btn-sm btn-light border" [routerLink]="['/billing', inv.uid]"><i class="bi bi-box-arrow-up-right me-1"></i>Open full view</a>
+              </div>
+            } @else {
+              <button type="button" class="btn btn-sm btn-primary ms-auto" (click)="generateOutsiderInvoice()" [disabled]="invoiceBusy() || !p.active"><i class="bi bi-receipt me-1"></i>Generate invoice</button>
+            }
           </div>
-        }
+          @if (outsiderInvoice(); as inv) {
+            <div class="card-body">
+              <div class="mb-3 d-flex flex-wrap gap-3 hmis-muted small">
+                <span><span class="hmis-code me-1">{{ inv.invoiceNo }}</span></span>
+                <span>Created {{ inv.createdAt | date:'medium' }}</span>
+                @if (inv.issuedAt) { <span>Issued {{ inv.issuedAt | date:'medium' }}</span> }
+              </div>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead><tr><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit price</th><th class="text-end">Amount</th></tr></thead>
+                  <tbody>
+                    @if (inv.lines.length === 0) {
+                      <tr><td colspan="4" class="text-center hmis-muted small py-3">No lines yet — regenerate after completing an outsider order or dispensing an Rx.</td></tr>
+                    } @else {
+                      @for (line of inv.lines; track line.uid) {
+                        <tr>
+                          <td>{{ line.description }}</td>
+                          <td class="text-end">{{ line.quantity }}</td>
+                          <td class="text-end">{{ line.unitPrice | number:'1.2-2' }}</td>
+                          <td class="text-end">{{ line.amount | number:'1.2-2' }}</td>
+                        </tr>
+                      }
+                    }
+                  </tbody>
+                  <tfoot>
+                    <tr><td colspan="3" class="text-end fw-semibold">Subtotal</td><td class="text-end fw-semibold">{{ inv.currency }} {{ inv.subtotal | number:'1.2-2' }}</td></tr>
+                    <tr><td colspan="3" class="text-end">Paid</td><td class="text-end">{{ inv.currency }} {{ inv.totalPaid | number:'1.2-2' }}</td></tr>
+                    <tr><td colspan="3" class="text-end fw-semibold">Balance</td><td class="text-end fw-semibold">{{ inv.currency }} {{ inv.balance | number:'1.2-2' }}</td></tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          } @else {
+            <div class="card-body">
+              <div class="hmis-empty"><i class="bi bi-receipt"></i><div class="small">No open invoice — generate one after completing an order or dispensing a prescription.</div></div>
+            </div>
+          }
+        </div>
       </div>
-    </div>
+    } @else {
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header bg-white d-flex align-items-center justify-content-between">
+            <div class="fw-semibold">Recent consultations</div>
+            <button type="button" class="btn btn-sm btn-light border" (click)="startConsultation()" [disabled]="!p.active">
+              <i class="bi bi-plus-lg me-1"></i>Start new
+            </button>
+          </div>
+          @if (recentConsultations().length === 0) {
+            <div class="card-body">
+              <div class="hmis-empty"><i class="bi bi-clipboard2-pulse"></i><div class="small">No consultations yet.</div></div>
+            </div>
+          } @else {
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0 hmis-table">
+                <thead><tr><th>#</th><th>Clinic</th><th>Clinician</th><th>Status</th><th>Booked</th><th class="text-end"></th></tr></thead>
+                <tbody>
+                  @for (c of recentConsultations(); track c.uid) {
+                    <tr>
+                      <td><a class="hmis-code" [routerLink]="['/encounters', 'consultations', c.uid]">{{ c.consultationNo }}</a></td>
+                      <td class="hmis-muted">{{ c.clinicName || '—' }}</td>
+                      <td class="hmis-muted">{{ c.clinicianName || '—' }}</td>
+                      <td><span [class]="statusBadgeClass(c.status)">{{ statusLabel(c.status) }}</span></td>
+                      <td class="hmis-muted small">{{ c.bookedAt | date:'medium' }}</td>
+                      <td class="text-end">
+                        <a class="btn btn-sm btn-light border" [routerLink]="['/encounters', 'consultations', c.uid]">Open <i class="bi bi-arrow-right ms-1"></i></a>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      </div>
+    }
   </div>
   }
 }

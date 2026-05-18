@@ -27,7 +27,7 @@ public class InsurancePlanController {
     @PostMapping
     public ResponseEntity<InsurancePlanDto> create(@Valid @RequestBody CreateInsurancePlanRequest request) {
         InsurancePlanDto created = service.create(request);
-        URI loc = UriComponentsBuilder.fromPath("/masterdata/insurance-plans/{uid}").buildAndExpand(created.uid()).toUri();
+        URI loc = UriComponentsBuilder.fromPath("/masterdata/insurance-plans/uid/{planUid}").buildAndExpand(created.uid()).toUri();
         return ResponseEntity.created(loc).body(created);
     }
 
@@ -40,24 +40,24 @@ public class InsurancePlanController {
         return ResponseEntity.ok(service.search(query, active, providerUid, pageable));
     }
 
-    @GetMapping("/{uid}")
-    public ResponseEntity<InsurancePlanDto> findByUid(@PathVariable String uid) {
-        return ResponseEntity.ok(service.findByUid(uid));
+    @GetMapping("/uid/{planUid}")
+    public ResponseEntity<InsurancePlanDto> findByUid(@PathVariable String planUid) {
+        return ResponseEntity.ok(service.findByUid(planUid));
     }
 
-    @PutMapping("/{uid}")
-    public ResponseEntity<InsurancePlanDto> update(@PathVariable String uid, @Valid @RequestBody UpdateInsurancePlanRequest request) {
-        return ResponseEntity.ok(service.update(uid, request));
+    @PutMapping("/uid/{planUid}")
+    public ResponseEntity<InsurancePlanDto> update(@PathVariable String planUid, @Valid @RequestBody UpdateInsurancePlanRequest request) {
+        return ResponseEntity.ok(service.update(planUid, request));
     }
 
-    @PutMapping("/{uid}/active")
-    public ResponseEntity<InsurancePlanDto> setActive(@PathVariable String uid, @RequestBody ActiveRequest request) {
-        return ResponseEntity.ok(service.setActive(uid, request.active()));
+    @PutMapping("/uid/{planUid}/active")
+    public ResponseEntity<InsurancePlanDto> setActive(@PathVariable String planUid, @RequestBody ActiveRequest request) {
+        return ResponseEntity.ok(service.setActive(planUid, request.active()));
     }
 
-    @DeleteMapping("/{uid}")
-    public ResponseEntity<Void> delete(@PathVariable String uid) {
-        service.delete(uid);
+    @DeleteMapping("/uid/{planUid}")
+    public ResponseEntity<Void> delete(@PathVariable String planUid) {
+        service.delete(planUid);
         return ResponseEntity.noContent().build();
     }
 

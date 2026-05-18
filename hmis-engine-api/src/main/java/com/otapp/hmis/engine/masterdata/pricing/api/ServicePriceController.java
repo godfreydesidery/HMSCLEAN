@@ -37,9 +37,9 @@ public class ServicePriceController {
         return ResponseEntity.ok(service.setPrice(request));
     }
 
-    @DeleteMapping("/{uid}")
-    public ResponseEntity<Void> delete(@PathVariable String uid) {
-        service.delete(uid);
+    @DeleteMapping("/uid/{servicePriceUid}")
+    public ResponseEntity<Void> delete(@PathVariable String servicePriceUid) {
+        service.delete(servicePriceUid);
         return ResponseEntity.noContent().build();
     }
 }

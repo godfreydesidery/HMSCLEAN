@@ -40,7 +40,9 @@ export class ReceiveGoodsComponent {
         poLineUid: [line.uid],
         medicineLabel: [(line.medicineCode ?? '') + ' — ' + (line.medicineName ?? '')],
         outstanding: [line.outstandingQuantity],
-        quantity: [line.outstandingQuantity, [Validators.min(0), Validators.max(line.outstandingQuantity)]]
+        quantity: [line.outstandingQuantity, [Validators.min(0), Validators.max(line.outstandingQuantity)]],
+        batchNo: ['', [Validators.required, Validators.maxLength(64)]],
+        expiresAt: ['']
       }));
     this.lineForms.set(forms);
   }
@@ -50,11 +52,18 @@ export class ReceiveGoodsComponent {
     const lines = this.lineForms()
       .map((fg) => ({
         poLineUid: fg.controls['poLineUid'].value as string,
-        quantity: Number(fg.controls['quantity'].value) || 0
+        quantity: Number(fg.controls['quantity'].value) || 0,
+        batchNo: ((fg.controls['batchNo'].value as string) || '').trim(),
+        expiresAt: ((fg.controls['expiresAt'].value as string) || '').trim() || null
       }))
       .filter((l) => l.quantity > 0);
     if (lines.length === 0) {
       this.errorMessage.set('Enter at least one line quantity greater than zero.');
+      return;
+    }
+    const missingBatch = lines.find((l) => !l.batchNo);
+    if (missingBatch) {
+      this.errorMessage.set('Every received line needs a batch number from the supplier.');
       return;
     }
     this.submitting.set(true);

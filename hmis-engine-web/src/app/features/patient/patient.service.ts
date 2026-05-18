@@ -5,7 +5,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { PageResponse } from '../../core/http/page.types';
 import {
-  CreatePatientRequest, Patient, PatientSearchParams, PatientSummary, UpdatePatientRequest
+  CreatePatientRequest, Patient, PatientSearchParams, PatientSummary, PatientType, UpdatePatientRequest
 } from './patient.types';
 
 @Injectable({ providedIn: 'root' })
@@ -25,8 +25,9 @@ export class PatientService {
     return this.http.get<PageResponse<PatientSummary>>(this.base, { params: p });
   }
 
-  findByUid(uid: string): Observable<Patient> { return this.http.get<Patient>(`${this.base}/${uid}`); }
+  findByUid(uid: string): Observable<Patient> { return this.http.get<Patient>(`${this.base}/uid/${uid}`); }
   register(req: CreatePatientRequest): Observable<Patient> { return this.http.post<Patient>(this.base, req); }
-  update(uid: string, req: UpdatePatientRequest): Observable<Patient> { return this.http.put<Patient>(`${this.base}/${uid}`, req); }
-  setActive(uid: string, active: boolean): Observable<Patient> { return this.http.put<Patient>(`${this.base}/${uid}/active`, { active }); }
+  update(uid: string, req: UpdatePatientRequest): Observable<Patient> { return this.http.put<Patient>(`${this.base}/uid/${uid}`, req); }
+  setActive(uid: string, active: boolean): Observable<Patient> { return this.http.put<Patient>(`${this.base}/uid/${uid}/active`, { active }); }
+  changeType(uid: string, type: PatientType): Observable<Patient> { return this.http.put<Patient>(`${this.base}/uid/${uid}/type`, { type }); }
 }

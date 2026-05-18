@@ -61,10 +61,11 @@ public class Invoice extends AuditableEntity {
 
     private Invoice(String invoiceNo, String consultationUid, String admissionUid, String patientUid,
                     PaymentType paymentType, String insurancePlanUid, String currency) {
-        if ((consultationUid == null) == (admissionUid == null)) {
+        if (consultationUid != null && admissionUid != null) {
             throw new BusinessRuleException(
-                    "An invoice must reference exactly one of consultation or admission");
+                    "An invoice cannot reference both a consultation and an admission");
         }
+        // both null is allowed — that's an OUTSIDER (walk-in) invoice keyed only by patient.
         this.invoiceNo = invoiceNo;
         this.consultationUid = consultationUid;
         this.admissionUid = admissionUid;
@@ -82,6 +83,16 @@ public class Invoice extends AuditableEntity {
     public static Invoice forAdmission(String invoiceNo, String admissionUid, String patientUid,
                                        PaymentType paymentType, String insurancePlanUid, String currency) {
         return new Invoice(invoiceNo, null, admissionUid, patientUid, paymentType, insurancePlanUid, currency);
+    }
+
+    /** OUTSIDER walk-in invoice — keyed only by patient, no consultation or admission. */
+    public static Invoice forOutsider(String invoiceNo, String patientUid,
+                                      PaymentType paymentType, String insurancePlanUid, String currency) {
+        return new Invoice(invoiceNo, null, null, patientUid, paymentType, insurancePlanUid, currency);
+    }
+
+    public boolean isOutsider() {
+        return consultationUid == null && admissionUid == null;
     }
 
     public BigDecimal balance() {

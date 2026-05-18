@@ -5,8 +5,8 @@ import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
 import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineRepository;
-import com.otapp.hmis.engine.masterdata.pharmacy.domain.Pharmacy;
-import com.otapp.hmis.engine.masterdata.pharmacy.domain.PharmacyRepository;
+import com.otapp.hmis.engine.masterdata.store.domain.Store;
+import com.otapp.hmis.engine.masterdata.store.domain.StoreRepository;
 import com.otapp.hmis.engine.procurement.order.application.PurchaseOrderDtos.AddLineRequest;
 import com.otapp.hmis.engine.procurement.order.application.PurchaseOrderDtos.CancelPurchaseOrderRequest;
 import com.otapp.hmis.engine.procurement.order.application.PurchaseOrderDtos.CreatePurchaseOrderRequest;
@@ -36,19 +36,19 @@ public class PurchaseOrderService {
     private final PurchaseOrderRepository orderRepository;
     private final PurchaseOrderLineRepository lineRepository;
     private final SupplierRepository supplierRepository;
-    private final PharmacyRepository pharmacyRepository;
+    private final StoreRepository storeRepository;
     private final MedicineRepository medicineRepository;
     private final PurchaseOrderNumberGenerator numberGenerator;
 
     @Transactional
     public PurchaseOrderDto create(CreatePurchaseOrderRequest request) {
         Supplier supplier = activeSupplier(request.supplierUid());
-        Pharmacy pharmacy = activePharmacy(request.pharmacyUid());
+        Store store = activeStore(request.storeUid());
 
         PurchaseOrder order = new PurchaseOrder(
                 numberGenerator.next(),
                 supplier.getUid(),
-                pharmacy.getUid(),
+                store.getUid(),
                 request.expectedDeliveryDate(),
                 emptyToNull(request.notes()));
         orderRepository.save(order);
@@ -130,13 +130,13 @@ public class PurchaseOrderService {
 
     @Transactional(readOnly = true)
     public PageResponse<PurchaseOrderSummary> search(String query, PurchaseOrderStatus status,
-                                                     String supplierUid, String pharmacyUid, Pageable pageable) {
+                                                     String supplierUid, String storeUid, Pageable pageable) {
         return PageResponse.from(
                 orderRepository.search(
                         query == null ? null : query.trim(),
                         status,
                         emptyToNull(supplierUid),
-                        emptyToNull(pharmacyUid),
+                        emptyToNull(storeUid),
                         pageable).map(this::toSummary));
     }
 
@@ -154,13 +154,13 @@ public class PurchaseOrderService {
         return supplier;
     }
 
-    private Pharmacy activePharmacy(String uid) {
-        Pharmacy pharmacy = pharmacyRepository.findByUid(uid)
-                .orElseThrow(() -> new NotFoundException("Pharmacy not found: " + uid));
-        if (!pharmacy.isActive()) {
-            throw new BusinessRuleException("Pharmacy is not active: " + pharmacy.getName());
+    private Store activeStore(String uid) {
+        Store store = storeRepository.findByUid(uid)
+                .orElseThrow(() -> new NotFoundException("Store not found: " + uid));
+        if (!store.isActive()) {
+            throw new BusinessRuleException("Store is not active: " + store.getName());
         }
-        return pharmacy;
+        return store;
     }
 
     private Medicine activeMedicine(String uid) {
@@ -176,7 +176,7 @@ public class PurchaseOrderService {
 
     private PurchaseOrderDto toDto(PurchaseOrder po) {
         Supplier supplier = supplierRepository.findByUid(po.getSupplierUid()).orElse(null);
-        Pharmacy pharmacy = pharmacyRepository.findByUid(po.getPharmacyUid()).orElse(null);
+        Store store = storeRepository.findByUid(po.getStoreUid()).orElse(null);
         List<PurchaseOrderLine> lines = lineRepository.findAllByOrderUidOrderByCreatedAtAsc(po.getUid());
         BigDecimal subtotal = lines.stream()
                 .map(PurchaseOrderLine::lineAmount)
@@ -188,8 +188,8 @@ public class PurchaseOrderService {
                 po.getOrderNo(),
                 po.getSupplierUid(),
                 supplier == null ? null : supplier.getName(),
-                po.getPharmacyUid(),
-                pharmacy == null ? null : pharmacy.getName(),
+                po.getStoreUid(),
+                store == null ? null : store.getName(),
                 po.getStatus(),
                 po.getExpectedDeliveryDate(),
                 po.getNotes(),
@@ -222,7 +222,7 @@ public class PurchaseOrderService {
 
     private PurchaseOrderSummary toSummary(PurchaseOrder po) {
         Supplier supplier = supplierRepository.findByUid(po.getSupplierUid()).orElse(null);
-        Pharmacy pharmacy = pharmacyRepository.findByUid(po.getPharmacyUid()).orElse(null);
+        Store store = storeRepository.findByUid(po.getStoreUid()).orElse(null);
         List<PurchaseOrderLine> lines = lineRepository.findAllByOrderUidOrderByCreatedAtAsc(po.getUid());
         BigDecimal subtotal = lines.stream()
                 .map(PurchaseOrderLine::lineAmount)
@@ -232,7 +232,7 @@ public class PurchaseOrderService {
                 po.getUid(),
                 po.getOrderNo(),
                 supplier == null ? null : supplier.getName(),
-                pharmacy == null ? null : pharmacy.getName(),
+                store == null ? null : store.getName(),
                 po.getStatus(),
                 po.getExpectedDeliveryDate(),
                 subtotal,

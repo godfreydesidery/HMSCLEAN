@@ -4,7 +4,7 @@
     @if (po(); as p) {
       <div class="hmis-muted small mt-1">
         <span class="hmis-code me-2">{{ p.orderNo }}</span>
-        <span>{{ p.supplierName }} → {{ p.pharmacyName }}</span>
+        <span>{{ p.supplierName }} → {{ p.storeName }}</span>
       </div>
     }
   </div>
@@ -34,12 +34,14 @@
   } @else {
     <div class="table-responsive">
       <table class="table table-sm align-middle mb-0">
-        <thead><tr><th>Medicine</th><th class="text-end">Outstanding</th><th class="text-end" style="width:120px;">Receive qty</th></tr></thead>
+        <thead><tr><th>Medicine</th><th class="text-end" style="width:90px;">Outstanding</th><th style="width:140px;">Batch #</th><th style="width:150px;">Expires</th><th class="text-end" style="width:110px;">Receive qty</th></tr></thead>
         <tbody>
           @for (lf of lineForms(); track $index) {
             <tr [formGroup]="lf">
               <td>{{ lf.controls['medicineLabel'].value }}</td>
               <td class="text-end fw-semibold">{{ lf.controls['outstanding'].value }}</td>
+              <td><input type="text" class="form-control form-control-sm" formControlName="batchNo" maxlength="64" placeholder="LOT-…"></td>
+              <td><input type="date" class="form-control form-control-sm" formControlName="expiresAt"></td>
               <td>
                 <input type="number" min="0" step="1" [max]="lf.controls['outstanding'].value" class="form-control form-control-sm text-end" formControlName="quantity">
               </td>

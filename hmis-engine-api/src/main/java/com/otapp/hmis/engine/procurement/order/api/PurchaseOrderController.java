@@ -31,7 +31,7 @@ public class PurchaseOrderController {
     @PostMapping
     public ResponseEntity<PurchaseOrderDto> create(@Valid @RequestBody CreatePurchaseOrderRequest request) {
         PurchaseOrderDto created = purchaseOrderService.create(request);
-        URI loc = UriComponentsBuilder.fromPath("/procurement/purchase-orders/{uid}")
+        URI loc = UriComponentsBuilder.fromPath("/procurement/purchase-orders/uid/{purchaseOrderUid}")
                 .buildAndExpand(created.uid()).toUri();
         return ResponseEntity.created(loc).body(created);
     }
@@ -41,43 +41,43 @@ public class PurchaseOrderController {
             @RequestParam(required = false) String query,
             @RequestParam(required = false) PurchaseOrderStatus status,
             @RequestParam(required = false) String supplierUid,
-            @RequestParam(required = false) String pharmacyUid,
+            @RequestParam(required = false) String storeUid,
             Pageable pageable) {
-        return ResponseEntity.ok(purchaseOrderService.search(query, status, supplierUid, pharmacyUid, pageable));
+        return ResponseEntity.ok(purchaseOrderService.search(query, status, supplierUid, storeUid, pageable));
     }
 
-    @GetMapping("/{uid}")
-    public ResponseEntity<PurchaseOrderDto> findByUid(@PathVariable String uid) {
-        return ResponseEntity.ok(purchaseOrderService.findByUid(uid));
+    @GetMapping("/uid/{purchaseOrderUid}")
+    public ResponseEntity<PurchaseOrderDto> findByUid(@PathVariable String purchaseOrderUid) {
+        return ResponseEntity.ok(purchaseOrderService.findByUid(purchaseOrderUid));
     }
 
-    @PostMapping("/{uid}/lines")
-    public ResponseEntity<PurchaseOrderDto> addLine(@PathVariable String uid,
+    @PostMapping("/uid/{purchaseOrderUid}/lines")
+    public ResponseEntity<PurchaseOrderDto> addLine(@PathVariable String purchaseOrderUid,
                                                     @Valid @RequestBody AddLineRequest request) {
-        return ResponseEntity.ok(purchaseOrderService.addLine(uid, request));
+        return ResponseEntity.ok(purchaseOrderService.addLine(purchaseOrderUid, request));
     }
 
-    @PutMapping("/{uid}/lines/{lineUid}")
-    public ResponseEntity<PurchaseOrderDto> updateLine(@PathVariable String uid,
+    @PutMapping("/uid/{purchaseOrderUid}/lines/uid/{lineUid}")
+    public ResponseEntity<PurchaseOrderDto> updateLine(@PathVariable String purchaseOrderUid,
                                                        @PathVariable String lineUid,
                                                        @Valid @RequestBody UpdateLineRequest request) {
-        return ResponseEntity.ok(purchaseOrderService.updateLine(uid, lineUid, request));
+        return ResponseEntity.ok(purchaseOrderService.updateLine(purchaseOrderUid, lineUid, request));
     }
 
-    @DeleteMapping("/{uid}/lines/{lineUid}")
-    public ResponseEntity<PurchaseOrderDto> removeLine(@PathVariable String uid,
+    @DeleteMapping("/uid/{purchaseOrderUid}/lines/uid/{lineUid}")
+    public ResponseEntity<PurchaseOrderDto> removeLine(@PathVariable String purchaseOrderUid,
                                                        @PathVariable String lineUid) {
-        return ResponseEntity.ok(purchaseOrderService.removeLine(uid, lineUid));
+        return ResponseEntity.ok(purchaseOrderService.removeLine(purchaseOrderUid, lineUid));
     }
 
-    @PostMapping("/{uid}/order")
-    public ResponseEntity<PurchaseOrderDto> markOrdered(@PathVariable String uid) {
-        return ResponseEntity.ok(purchaseOrderService.markOrdered(uid));
+    @PostMapping("/uid/{purchaseOrderUid}/order")
+    public ResponseEntity<PurchaseOrderDto> markOrdered(@PathVariable String purchaseOrderUid) {
+        return ResponseEntity.ok(purchaseOrderService.markOrdered(purchaseOrderUid));
     }
 
-    @PostMapping("/{uid}/cancel")
-    public ResponseEntity<PurchaseOrderDto> cancel(@PathVariable String uid,
+    @PostMapping("/uid/{purchaseOrderUid}/cancel")
+    public ResponseEntity<PurchaseOrderDto> cancel(@PathVariable String purchaseOrderUid,
                                                    @Valid @RequestBody(required = false) CancelPurchaseOrderRequest request) {
-        return ResponseEntity.ok(purchaseOrderService.cancel(uid, request));
+        return ResponseEntity.ok(purchaseOrderService.cancel(purchaseOrderUid, request));
     }
 }

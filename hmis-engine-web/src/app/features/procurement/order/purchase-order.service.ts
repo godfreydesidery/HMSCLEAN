@@ -19,37 +19,37 @@ export class PurchaseOrderService {
     if (params.query) p = p.set('query', params.query);
     if (params.status) p = p.set('status', params.status);
     if (params.supplierUid) p = p.set('supplierUid', params.supplierUid);
-    if (params.pharmacyUid) p = p.set('pharmacyUid', params.pharmacyUid);
+    if (params.storeUid) p = p.set('storeUid', params.storeUid);
     if (params.page !== undefined) p = p.set('page', String(params.page));
     if (params.size !== undefined) p = p.set('size', String(params.size));
     if (params.sort) p = p.set('sort', params.sort);
     return this.http.get<PageResponse<PurchaseOrderSummary>>(this.base, { params: p });
   }
 
-  findByUid(uid: string): Observable<PurchaseOrder> { return this.http.get<PurchaseOrder>(`${this.base}/${uid}`); }
+  findByUid(uid: string): Observable<PurchaseOrder> { return this.http.get<PurchaseOrder>(`${this.base}/uid/${uid}`); }
   create(req: CreatePurchaseOrderRequest): Observable<PurchaseOrder> { return this.http.post<PurchaseOrder>(this.base, req); }
 
   addLine(uid: string, req: AddLineRequest): Observable<PurchaseOrder> {
-    return this.http.post<PurchaseOrder>(`${this.base}/${uid}/lines`, req);
+    return this.http.post<PurchaseOrder>(`${this.base}/uid/${uid}/lines`, req);
   }
   updateLine(uid: string, lineUid: string, req: UpdateLineRequest): Observable<PurchaseOrder> {
-    return this.http.put<PurchaseOrder>(`${this.base}/${uid}/lines/${lineUid}`, req);
+    return this.http.put<PurchaseOrder>(`${this.base}/uid/${uid}/lines/uid/${lineUid}`, req);
   }
   removeLine(uid: string, lineUid: string): Observable<PurchaseOrder> {
-    return this.http.delete<PurchaseOrder>(`${this.base}/${uid}/lines/${lineUid}`);
+    return this.http.delete<PurchaseOrder>(`${this.base}/uid/${uid}/lines/uid/${lineUid}`);
   }
 
   markOrdered(uid: string): Observable<PurchaseOrder> {
-    return this.http.post<PurchaseOrder>(`${this.base}/${uid}/order`, {});
+    return this.http.post<PurchaseOrder>(`${this.base}/uid/${uid}/order`, {});
   }
   cancel(uid: string, reason: string | null): Observable<PurchaseOrder> {
-    return this.http.post<PurchaseOrder>(`${this.base}/${uid}/cancel`, { reason });
+    return this.http.post<PurchaseOrder>(`${this.base}/uid/${uid}/cancel`, { reason });
   }
 
   recordReceipt(uid: string, req: RecordReceiptRequest): Observable<GoodsReceipt> {
-    return this.http.post<GoodsReceipt>(`${this.base}/${uid}/receipts`, req);
+    return this.http.post<GoodsReceipt>(`${this.base}/uid/${uid}/receipts`, req);
   }
   listReceipts(uid: string): Observable<GoodsReceipt[]> {
-    return this.http.get<GoodsReceipt[]>(`${this.base}/${uid}/receipts`);
+    return this.http.get<GoodsReceipt[]>(`${this.base}/uid/${uid}/receipts`);
   }
 }

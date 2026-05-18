@@ -11,14 +11,14 @@ export class ProgressNoteService {
   private readonly base = `${environment.apiUrl}/encounters`;
 
   list(admissionUid: string): Observable<ProgressNote[]> {
-    return this.http.get<ProgressNote[]>(`${this.base}/admissions/${admissionUid}/progress-notes`);
+    return this.http.get<ProgressNote[]>(`${this.base}/admissions/uid/${admissionUid}/progress-notes`);
   }
 
   add(admissionUid: string, req: CreateProgressNoteRequest): Observable<ProgressNote> {
-    return this.http.post<ProgressNote>(`${this.base}/admissions/${admissionUid}/progress-notes`, req);
+    return this.http.post<ProgressNote>(`${this.base}/admissions/uid/${admissionUid}/progress-notes`, req);
   }
 
   softDelete(uid: string, reason: string | null): Observable<ProgressNote> {
-    return this.http.request<ProgressNote>('DELETE', `${this.base}/progress-notes/${uid}`, { body: { reason } });
+    return this.http.request<ProgressNote>('DELETE', `${this.base}/progress-notes/uid/${uid}`, { body: { reason } });
   }
 }

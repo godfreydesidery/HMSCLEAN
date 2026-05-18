@@ -55,7 +55,7 @@ public class Patient extends AuditableEntity {
     @Setter
     @Enumerated(EnumType.STRING)
     @Column(name = "patient_type", nullable = false, length = 16)
-    private PatientType type = PatientType.NEW;
+    private PatientType type = PatientType.OUTPATIENT;
 
     @Setter
     @Enumerated(EnumType.STRING)

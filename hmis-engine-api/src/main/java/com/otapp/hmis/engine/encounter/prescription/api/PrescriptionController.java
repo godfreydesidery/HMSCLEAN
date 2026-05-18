@@ -21,26 +21,62 @@ public class PrescriptionController {
 
     private final PrescriptionService prescriptionService;
 
-    @GetMapping("/encounters/consultations/{consultationUid}/prescriptions")
+    @GetMapping("/encounters/consultations/uid/{consultationUid}/prescriptions")
     public ResponseEntity<List<PrescriptionDto>> list(@PathVariable String consultationUid) {
         return ResponseEntity.ok(prescriptionService.listForConsultation(consultationUid));
     }
 
-    @PostMapping("/encounters/consultations/{consultationUid}/prescriptions")
+    @PostMapping("/encounters/consultations/uid/{consultationUid}/prescriptions")
     public ResponseEntity<PrescriptionDto> prescribe(@PathVariable String consultationUid,
                                                      @Valid @RequestBody CreatePrescriptionRequest request) {
         return ResponseEntity.ok(prescriptionService.prescribe(consultationUid, request));
     }
 
-    @PostMapping("/encounters/prescriptions/{uid}/dispense")
-    @PreAuthorize("hasAuthority('PHARMACY_ACCESS')")
-    public ResponseEntity<PrescriptionDto> dispense(@PathVariable String uid) {
-        return ResponseEntity.ok(prescriptionService.dispense(uid));
+    @GetMapping("/encounters/patients/uid/{patientUid}/outsider-prescriptions")
+    public ResponseEntity<List<PrescriptionDto>> listOutsiderForPatient(@PathVariable String patientUid) {
+        return ResponseEntity.ok(prescriptionService.listOutsiderForPatient(patientUid));
     }
 
-    @PostMapping("/encounters/prescriptions/{uid}/cancel")
-    public ResponseEntity<PrescriptionDto> cancel(@PathVariable String uid,
+    @PostMapping("/encounters/patients/uid/{patientUid}/outsider-prescriptions")
+    public ResponseEntity<PrescriptionDto> prescribeForOutsider(@PathVariable String patientUid,
+                                                                @Valid @RequestBody CreatePrescriptionRequest request) {
+        return ResponseEntity.ok(prescriptionService.prescribeForOutsider(patientUid, request));
+    }
+
+    @PostMapping("/encounters/prescriptions/uid/{prescriptionUid}/accept")
+    @PreAuthorize("hasAuthority('PHARMACY_ACCESS')")
+    public ResponseEntity<PrescriptionDto> accept(@PathVariable String prescriptionUid) {
+        return ResponseEntity.ok(prescriptionService.accept(prescriptionUid));
+    }
+
+    @PostMapping("/encounters/prescriptions/uid/{prescriptionUid}/hold")
+    @PreAuthorize("hasAuthority('PHARMACY_ACCESS')")
+    public ResponseEntity<PrescriptionDto> hold(@PathVariable String prescriptionUid) {
+        return ResponseEntity.ok(prescriptionService.hold(prescriptionUid));
+    }
+
+    @PostMapping("/encounters/prescriptions/uid/{prescriptionUid}/verify")
+    @PreAuthorize("hasAuthority('PHARMACY_ACCESS')")
+    public ResponseEntity<PrescriptionDto> verify(@PathVariable String prescriptionUid) {
+        return ResponseEntity.ok(prescriptionService.verify(prescriptionUid));
+    }
+
+    @PostMapping("/encounters/prescriptions/uid/{prescriptionUid}/approve")
+    @PreAuthorize("hasAuthority('PHARMACY_ACCESS')")
+    public ResponseEntity<PrescriptionDto> approve(@PathVariable String prescriptionUid) {
+        return ResponseEntity.ok(prescriptionService.approve(prescriptionUid));
+    }
+
+    @PostMapping("/encounters/prescriptions/uid/{prescriptionUid}/reject")
+    @PreAuthorize("hasAuthority('PHARMACY_ACCESS')")
+    public ResponseEntity<PrescriptionDto> reject(@PathVariable String prescriptionUid,
                                                   @Valid @RequestBody(required = false) CancelPrescriptionRequest request) {
-        return ResponseEntity.ok(prescriptionService.cancel(uid, request));
+        return ResponseEntity.ok(prescriptionService.reject(prescriptionUid, request));
+    }
+
+    @PostMapping("/encounters/prescriptions/uid/{prescriptionUid}/cancel")
+    public ResponseEntity<PrescriptionDto> cancel(@PathVariable String prescriptionUid,
+                                                  @Valid @RequestBody(required = false) CancelPrescriptionRequest request) {
+        return ResponseEntity.ok(prescriptionService.cancel(prescriptionUid, request));
     }
 }

@@ -26,38 +26,48 @@ export class InvoiceService {
   }
 
   findByUid(uid: string): Observable<Invoice> {
-    return this.http.get<Invoice>(`${this.base}/invoices/${uid}`);
+    return this.http.get<Invoice>(`${this.base}/invoices/uid/${uid}`);
   }
 
   findForConsultation(consultationUid: string): Observable<Invoice | null> {
     return this.http
-      .get<Invoice>(`${this.base}/consultations/${consultationUid}/invoice`, { observe: 'response' })
+      .get<Invoice>(`${this.base}/consultations/uid/${consultationUid}/invoice`, { observe: 'response' })
       .pipe(map((res) => (res.status === 204 ? null : res.body)));
   }
 
   generateForConsultation(consultationUid: string): Observable<Invoice> {
-    return this.http.post<Invoice>(`${this.base}/consultations/${consultationUid}/invoice`, {});
+    return this.http.post<Invoice>(`${this.base}/consultations/uid/${consultationUid}/invoice`, {});
   }
 
   findForAdmission(admissionUid: string): Observable<Invoice | null> {
     return this.http
-      .get<Invoice>(`${this.base}/admissions/${admissionUid}/invoice`, { observe: 'response' })
+      .get<Invoice>(`${this.base}/admissions/uid/${admissionUid}/invoice`, { observe: 'response' })
       .pipe(map((res) => (res.status === 204 ? null : res.body)));
   }
 
   generateForAdmission(admissionUid: string): Observable<Invoice> {
-    return this.http.post<Invoice>(`${this.base}/admissions/${admissionUid}/invoice`, {});
+    return this.http.post<Invoice>(`${this.base}/admissions/uid/${admissionUid}/invoice`, {});
+  }
+
+  findCurrentOutsiderDraft(patientUid: string): Observable<Invoice | null> {
+    return this.http
+      .get<Invoice>(`${this.base}/patients/uid/${patientUid}/outsider-invoice`, { observe: 'response' })
+      .pipe(map((res) => (res.status === 204 ? null : res.body)));
+  }
+
+  generateForOutsider(patientUid: string): Observable<Invoice> {
+    return this.http.post<Invoice>(`${this.base}/patients/uid/${patientUid}/outsider-invoice`, {});
   }
 
   issue(uid: string): Observable<Invoice> {
-    return this.http.post<Invoice>(`${this.base}/invoices/${uid}/issue`, {});
+    return this.http.post<Invoice>(`${this.base}/invoices/uid/${uid}/issue`, {});
   }
 
   cancel(uid: string, reason: string | null): Observable<Invoice> {
-    return this.http.post<Invoice>(`${this.base}/invoices/${uid}/cancel`, { reason });
+    return this.http.post<Invoice>(`${this.base}/invoices/uid/${uid}/cancel`, { reason });
   }
 
   recordPayment(uid: string, req: RecordPaymentRequest): Observable<Invoice> {
-    return this.http.post<Invoice>(`${this.base}/invoices/${uid}/payments`, req);
+    return this.http.post<Invoice>(`${this.base}/invoices/uid/${uid}/payments`, req);
   }
 }

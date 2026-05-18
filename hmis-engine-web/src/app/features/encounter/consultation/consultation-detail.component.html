@@ -411,11 +411,29 @@
                           <div ngbDropdown placement="bottom-end" class="d-inline-block">
                             <button type="button" class="btn btn-sm btn-light border" ngbDropdownToggle aria-label="Actions"><i class="bi bi-three-dots"></i></button>
                             <div ngbDropdownMenu class="shadow-sm">
-                              @if (p.status === 'REQUESTED') {
-                                <button type="button" ngbDropdownItem (click)="dispensePrescription(p)"><i class="bi bi-box-arrow-up me-2 text-success"></i>Dispense</button>
+                              @if (p.status === 'PENDING') {
+                                <button type="button" ngbDropdownItem (click)="acceptPrescription(p)"><i class="bi bi-hand-thumbs-up me-2 text-primary"></i>Accept</button>
                                 <button type="button" ngbDropdownItem class="text-danger" (click)="cancelPrescription(p)"><i class="bi bi-x-circle me-2"></i>Cancel</button>
                               }
-                              @if (p.status !== 'REQUESTED') {
+                              @if (p.status === 'ACCEPTED') {
+                                <button type="button" ngbDropdownItem (click)="verifyPrescription(p)"><i class="bi bi-shield-check me-2 text-primary"></i>Verify</button>
+                                <button type="button" ngbDropdownItem (click)="holdPrescription(p)"><i class="bi bi-pause-circle me-2 text-warning"></i>Hold</button>
+                                <button type="button" ngbDropdownItem (click)="rejectPrescription(p)" class="text-danger"><i class="bi bi-x-octagon me-2"></i>Reject</button>
+                              }
+                              @if (p.status === 'HELD') {
+                                <button type="button" ngbDropdownItem (click)="verifyPrescription(p)"><i class="bi bi-play-circle me-2 text-primary"></i>Resume (verify)</button>
+                                <button type="button" ngbDropdownItem (click)="rejectPrescription(p)" class="text-danger"><i class="bi bi-x-octagon me-2"></i>Reject</button>
+                              }
+                              @if (p.status === 'VERIFIED') {
+                                <button type="button" ngbDropdownItem (click)="approvePrescription(p)"><i class="bi bi-check2-all me-2 text-success"></i>Approve</button>
+                                <button type="button" ngbDropdownItem (click)="holdPrescription(p)"><i class="bi bi-pause-circle me-2 text-warning"></i>Hold</button>
+                                <button type="button" ngbDropdownItem (click)="rejectPrescription(p)" class="text-danger"><i class="bi bi-x-octagon me-2"></i>Reject</button>
+                              }
+                              @if (p.status === 'APPROVED') {
+                                <button type="button" ngbDropdownItem (click)="dispensePrescription(p)"><i class="bi bi-box-arrow-up me-2 text-success"></i>Dispense (decrement stock)</button>
+                                <button type="button" ngbDropdownItem (click)="rejectPrescription(p)" class="text-danger"><i class="bi bi-x-octagon me-2"></i>Reject</button>
+                              }
+                              @if (p.status === 'SOLD' || p.status === 'REJECTED' || p.status === 'CANCELLED') {
                                 <button type="button" ngbDropdownItem disabled><i class="bi bi-lock me-2"></i>Closed</button>
                               }
                             </div>

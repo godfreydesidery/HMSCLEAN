@@ -10,7 +10,7 @@ export class ClinicalNoteService {
   private readonly http = inject(HttpClient);
 
   private base(consultationUid: string): string {
-    return `${environment.apiUrl}/encounters/consultations/${consultationUid}/clinical-note`;
+    return `${environment.apiUrl}/encounters/consultations/uid/${consultationUid}/clinical-note`;
   }
 
   /** Returns the note (200) or null when none has been recorded yet (204). */

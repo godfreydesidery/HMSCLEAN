@@ -1,8 +1,12 @@
 package com.otapp.hmis.engine.encounter.order.application;
 
 import com.otapp.hmis.engine.common.error.NotFoundException;
+import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
+import com.otapp.hmis.engine.patient.domain.Patient;
+import com.otapp.hmis.engine.patient.domain.PatientRepository;
+import com.otapp.hmis.engine.patient.domain.PatientType;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.CancelOrderRequest;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.ClinicalOrderDto;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.CompleteOrderRequest;
@@ -28,6 +32,7 @@ public class ClinicalOrderService {
 
     private final ClinicalOrderRepository orderRepository;
     private final ConsultationRepository consultationRepository;
+    private final PatientRepository patientRepository;
     private final LabTestTypeRepository labTestTypeRepository;
     private final RadiologyTypeRepository radiologyTypeRepository;
     private final ProcedureTypeRepository procedureTypeRepository;
@@ -45,6 +50,38 @@ public class ClinicalOrderService {
                 orderNumberGenerator.next(),
                 consultation.getUid(),
                 consultation.getPatientUid(),
+                request.kind(),
+                descriptor.uid(),
+                request.urgency(),
+                emptyToNull(request.instructions()));
+        orderRepository.save(order);
+
+        return toDto(order, descriptor);
+    }
+
+    /**
+     * Raise a clinical order directly against an OUTSIDER (walk-in) patient,
+     * bypassing consultation. The patient must be on the registry and have
+     * been flagged OUTSIDER — outpatients must use the consultation path.
+     */
+    @Transactional
+    public ClinicalOrderDto requestForOutsider(String patientUid, CreateOrderRequest request) {
+        Patient patient = patientRepository.findByUid(patientUid)
+                .orElseThrow(() -> new NotFoundException("Patient not found: " + patientUid));
+        if (!patient.isActive()) {
+            throw new BusinessRuleException("Cannot raise orders for an inactive patient");
+        }
+        if (patient.getType() != PatientType.OUTSIDER) {
+            throw new BusinessRuleException(
+                    "Direct orders are for OUTSIDER patients only; OUTPATIENT raises orders inside a consultation");
+        }
+
+        ServiceDescriptor descriptor = resolveService(request.kind(), request.serviceUid());
+
+        ClinicalOrder order = new ClinicalOrder(
+                orderNumberGenerator.next(),
+                null,
+                patient.getUid(),
                 request.kind(),
                 descriptor.uid(),
                 request.urgency(),
@@ -78,6 +115,14 @@ public class ClinicalOrderService {
     @Transactional(readOnly = true)
     public List<ClinicalOrderDto> listForConsultation(String consultationUid) {
         return orderRepository.findAllByConsultationUidOrderByRequestedAtDesc(consultationUid).stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    /** All outsider-direct orders for a patient (consultation_uid IS NULL). */
+    @Transactional(readOnly = true)
+    public List<ClinicalOrderDto> listOutsiderForPatient(String patientUid) {
+        return orderRepository.findAllByPatientUidAndConsultationUidIsNullOrderByRequestedAtDesc(patientUid).stream()
                 .map(this::toDto)
                 .toList();
     }

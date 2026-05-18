@@ -27,7 +27,7 @@ public class SupplierController {
     @PostMapping
     public ResponseEntity<SupplierDto> create(@Valid @RequestBody CreateSupplierRequest request) {
         SupplierDto created = supplierService.create(request);
-        URI loc = UriComponentsBuilder.fromPath("/procurement/suppliers/{uid}")
+        URI loc = UriComponentsBuilder.fromPath("/procurement/suppliers/uid/{supplierUid}")
                 .buildAndExpand(created.uid()).toUri();
         return ResponseEntity.created(loc).body(created);
     }
@@ -40,20 +40,20 @@ public class SupplierController {
         return ResponseEntity.ok(supplierService.search(query, active, pageable));
     }
 
-    @GetMapping("/{uid}")
-    public ResponseEntity<SupplierDto> findByUid(@PathVariable String uid) {
-        return ResponseEntity.ok(supplierService.findByUid(uid));
+    @GetMapping("/uid/{supplierUid}")
+    public ResponseEntity<SupplierDto> findByUid(@PathVariable String supplierUid) {
+        return ResponseEntity.ok(supplierService.findByUid(supplierUid));
     }
 
-    @PutMapping("/{uid}")
-    public ResponseEntity<SupplierDto> update(@PathVariable String uid,
+    @PutMapping("/uid/{supplierUid}")
+    public ResponseEntity<SupplierDto> update(@PathVariable String supplierUid,
                                               @Valid @RequestBody UpdateSupplierRequest request) {
-        return ResponseEntity.ok(supplierService.update(uid, request));
+        return ResponseEntity.ok(supplierService.update(supplierUid, request));
     }
 
-    @PutMapping("/{uid}/active")
-    public ResponseEntity<SupplierDto> setActive(@PathVariable String uid, @RequestBody ActiveRequest request) {
-        return ResponseEntity.ok(supplierService.setActive(uid, request.active()));
+    @PutMapping("/uid/{supplierUid}/active")
+    public ResponseEntity<SupplierDto> setActive(@PathVariable String supplierUid, @RequestBody ActiveRequest request) {
+        return ResponseEntity.ok(supplierService.setActive(supplierUid, request.active()));
     }
 
     public record ActiveRequest(boolean active) {}

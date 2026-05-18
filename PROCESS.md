@@ -683,7 +683,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Local Purchase Order (header + lines) | ✅ | Phase 8 + 23a — full legacy gate chain: DRAFT → VERIFIED → APPROVED → ORDERED → PARTIALLY_RECEIVED → RECEIVED, with REJECTED from any pre-submission state and CANCELLED from any non-RECEIVED state. |
 | Goods Received Note | ✅ | Phase 8 + 23a — full PENDING → VERIFIED → APPROVED workflow. Stock credit + PO line `recordReceipt` now fire on APPROVED (not on creation), so a count mismatch caught at verification doesn't pollute the ledger. REJECTED branch has no stock impact. |
 | Per-line batch info on GRN | ❌ | Single qty per line today; no batch breakdown. |
-| Supplier item price list | ❌ | Unit cost is typed per LPO line; no per-supplier catalog yet. |
+| Supplier item price list | ✅ | Phase 23b — `SupplierItemPrice` per (supplier, medicine, validity window). CRUD at `/procurement/suppliers/uid/{uid}/prices`; comparison shopping at `/procurement/medicines/uid/{uid}/prices/{active|best}`. LPO line still takes its own typed unit cost — the price list is a lookup, not auto-fill. |
 | Three-way match (PO vs. GRN vs. invoice) | ❌ | Supplier invoice entity missing. |
 
 ### 17.10 Payments / Billing
@@ -779,9 +779,10 @@ phase that respects the modulith boundaries:
    PO states, per-supplier item catalog. Phase 23a delivered the LPO
    gate chain (DRAFT → VERIFIED → APPROVED → ORDERED → ...) and the
    matching GRN workflow (PENDING → VERIFIED → APPROVED with stock
-   credit deferred to APPROVED). Supplier price list still to come
-   (Phase 23b); per-line batch info on GRN is already supported via the
-   existing batchNo + expiresAt fields.
+   credit deferred to APPROVED). Phase 23b added `SupplierItemPrice`
+   with supplier-anchored CRUD and medicine-anchored comparison
+   shopping. Three-way match (PO vs GRN vs supplier invoice) still
+   deferred — no supplier invoice entity yet.
 10. **Theatre + procedure scheduling** — theatre entity, scheduled date /
     time on procedure orders, operative-record fields.
 11. **Credit notes, refunds, collections** — billing extensions.

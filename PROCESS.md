@@ -725,14 +725,14 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 
 | Process | Status | Notes |
 |---|---|---|
-| Company profile | ❌ | Hard-coded "HMIS Engine" today. |
-| Clinics, wards (+ types), pharmacies, stores | ⚠️ | Clinics, wards, pharmacies done. Stores absent. Bed-availability model absent. |
+| Company profile | ✅ | Phase 28 — singleton `CompanyProfile` at `/masterdata/company-profile` (GET for any authenticated caller; PUT gated by `MASTERDATA_MANAGE`). |
+| Clinics, wards (+ types), pharmacies, stores | ⚠️ | Clinics, wards, pharmacies, stores all done. Bed-availability (per-bed entity with FREE/OCCUPIED status) still absent — could be a future polish phase. |
 | Theatres | ✅ | Phase 24 — `Theatre` masterdata with full CRUD at `/masterdata/theatres`. Two sample theatres seeded. |
 | Medicines, lab tests, radiology, procedures, diagnoses | ✅ | Masterdata phase. |
 | Medicine units (base + alternates with conversion factors) | ✅ | Phase 21 — `MedicineUnit` aggregate, CRUD at `/medicines/uid/{uid}/units`, EACH base auto-seeded; transfer chains accept per-line `unitUid` and convert at the boundary. |
-| Consumables | ❌ | |
+| Consumables | ✅ | Phase 28 — `Consumable` masterdata at `/masterdata/consumables`. Wiring into a ward-issue path is a follow-up. |
 | Insurance plans + per-service pricing | ✅ | `InsurancePlan` + `ServicePrice` matrix. |
-| Dosages / routes / frequencies dropdowns | ❌ | Prescription dose / frequency are free text today. |
+| Dosages / routes / frequencies dropdowns | ✅ | Phase 28 — three masterdata aggregates (`Dosage`, `AdministrationRoute`, `DosingFrequency`) at `/masterdata/{dosages|administration-routes|dosing-frequencies}`. Standard routes (ORAL/IV/IM/SC/TOPICAL/INHALED) and frequencies (OD/BD/TDS/QID/STAT/PRN with `timesPerDay`) seeded. Wiring picklists into `Prescription` is a follow-up. |
 | Users + roles + privileges | ✅ | Phases 9–11. |
 
 ---
@@ -801,7 +801,12 @@ phase that respects the modulith boundaries:
     stock-out (pharmacy + store), expiring batches. Clinician case load
     was already covered by Phase 26 clinician-performance.
 14. **Master data polish** — company profile, theatres, consumables,
-    dosage / route / frequency dropdowns, bed availability.
+    dosage / route / frequency dropdowns, bed availability. Phase 28
+    delivered the company profile (singleton), consumables, and the
+    three drug-administration lookups (dosage, route, frequency) with
+    sensible seed data. Theatres were already done in Phase 24. Bed
+    availability (per-bed entity with assignment) still pending — it's
+    a bigger schema change that can be its own phase.
 
 Items above are roughly ordered by dependency. A few independent ones
 (structured discharge plan, credit notes, theatre scheduling) can slot in

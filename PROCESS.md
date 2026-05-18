@@ -732,7 +732,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Medicine units (base + alternates with conversion factors) | ✅ | Phase 21 — `MedicineUnit` aggregate, CRUD at `/medicines/uid/{uid}/units`, EACH base auto-seeded; transfer chains accept per-line `unitUid` and convert at the boundary. |
 | Consumables | ✅ | Phase 28 — `Consumable` masterdata at `/masterdata/consumables`. Wiring into a ward-issue path is a follow-up. |
 | Insurance plans + per-service pricing | ✅ | `InsurancePlan` + `ServicePrice` matrix. |
-| Dosages / routes / frequencies dropdowns | ✅ | Phase 28 — three masterdata aggregates (`Dosage`, `AdministrationRoute`, `DosingFrequency`) at `/masterdata/{dosages|administration-routes|dosing-frequencies}`. Standard routes (ORAL/IV/IM/SC/TOPICAL/INHALED) and frequencies (OD/BD/TDS/QID/STAT/PRN with `timesPerDay`) seeded. Wiring picklists into `Prescription` is a follow-up. |
+| Dosages / routes / frequencies dropdowns | ✅ | Phase 28 — three masterdata aggregates (`Dosage`, `AdministrationRoute`, `DosingFrequency`) at `/masterdata/{dosages|administration-routes|dosing-frequencies}`. Standard routes (ORAL/IV/IM/SC/TOPICAL/INHALED) and frequencies (OD/BD/TDS/QID/STAT/PRN with `timesPerDay`) seeded. Phase 33 wired them into `Prescription` via `dosageUid` / `routeUid` / `frequencyUid` columns; service denormalises picklist names into the existing free-text columns so dispense + sale-order paths stay unchanged. |
 | Users + roles + privileges | ✅ | Phases 9–11. |
 
 ---

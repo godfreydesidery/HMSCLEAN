@@ -49,6 +49,15 @@ public class Prescription extends AuditableEntity {
     @Setter @Column(name = "quantity")      private Integer quantity;
     @Setter @Column(name = "instructions",  length = 500)                  private String instructions;
 
+    // ----- masterdata picklist references (Phase 33) -----------------------
+    // Optional. When set, the service denormalises the picklist's
+    // display name into {@link #dose} / {@link #route} / {@link #frequency}
+    // so existing read-paths keep working without joining masterdata.
+    @Setter @Column(name = "dosage_uid",    length = 26) private String dosageUid;
+    @Setter @Column(name = "route_uid",     length = 26) private String routeUid;
+    @Setter @Column(name = "route",         length = 80) private String route;
+    @Setter @Column(name = "frequency_uid", length = 26) private String frequencyUid;
+
     @Column(name = "requested_at", nullable = false) private Instant requestedAt;
     @Setter @Column(name = "accepted_at")  private Instant acceptedAt;
     @Setter @Column(name = "held_at")      private Instant heldAt;

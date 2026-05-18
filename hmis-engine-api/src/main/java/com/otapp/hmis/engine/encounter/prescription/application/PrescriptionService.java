@@ -13,6 +13,12 @@ import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos
 import com.otapp.hmis.engine.encounter.prescription.domain.Prescription;
 import com.otapp.hmis.engine.encounter.prescription.domain.PrescriptionRepository;
 import com.otapp.hmis.engine.encounter.prescription.infrastructure.PrescriptionNumberGenerator;
+import com.otapp.hmis.engine.masterdata.administrationroute.domain.AdministrationRoute;
+import com.otapp.hmis.engine.masterdata.administrationroute.domain.AdministrationRouteRepository;
+import com.otapp.hmis.engine.masterdata.dosage.domain.Dosage;
+import com.otapp.hmis.engine.masterdata.dosage.domain.DosageRepository;
+import com.otapp.hmis.engine.masterdata.dosingfrequency.domain.DosingFrequency;
+import com.otapp.hmis.engine.masterdata.dosingfrequency.domain.DosingFrequencyRepository;
 import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineRepository;
 import java.util.List;
@@ -28,25 +34,29 @@ public class PrescriptionService {
     private final ConsultationRepository consultationRepository;
     private final PatientRepository patientRepository;
     private final MedicineRepository medicineRepository;
+    private final DosageRepository dosageRepository;
+    private final AdministrationRouteRepository routeRepository;
+    private final DosingFrequencyRepository frequencyRepository;
     private final PrescriptionNumberGenerator numberGenerator;
 
     @Transactional
     public PrescriptionDto prescribe(String consultationUid, CreatePrescriptionRequest request) {
         Consultation consultation = consultationRepository.findByUid(consultationUid)
                 .orElseThrow(() -> new NotFoundException("Consultation not found: " + consultationUid));
-        Medicine medicine = medicineRepository.findByUid(request.medicineUid())
-                .orElseThrow(() -> new NotFoundException("Medicine not found: " + request.medicineUid()));
+        Medicine medicine = activeMedicine(request.medicineUid());
 
+        ResolvedPicklists picks = resolvePicklists(request);
         Prescription prescription = new Prescription(
                 numberGenerator.next(),
                 consultation.getUid(),
                 consultation.getPatientUid(),
                 medicine.getUid(),
-                request.dose().trim(),
-                request.frequency().trim(),
+                picks.dose(),
+                picks.frequency(),
                 request.durationDays(),
                 request.quantity(),
                 emptyToNull(request.instructions()));
+        applyPicklists(prescription, picks);
         prescriptionRepository.save(prescription);
         return toDto(prescription, medicine);
     }
@@ -66,19 +76,20 @@ public class PrescriptionService {
             throw new BusinessRuleException(
                     "Direct prescriptions are for OUTSIDER patients only; OUTPATIENT raises Rx inside a consultation");
         }
-        Medicine medicine = medicineRepository.findByUid(request.medicineUid())
-                .orElseThrow(() -> new NotFoundException("Medicine not found: " + request.medicineUid()));
+        Medicine medicine = activeMedicine(request.medicineUid());
 
+        ResolvedPicklists picks = resolvePicklists(request);
         Prescription prescription = new Prescription(
                 numberGenerator.next(),
                 null,
                 patient.getUid(),
                 medicine.getUid(),
-                request.dose().trim(),
-                request.frequency().trim(),
+                picks.dose(),
+                picks.frequency(),
                 request.durationDays(),
                 request.quantity(),
                 emptyToNull(request.instructions()));
+        applyPicklists(prescription, picks);
         prescriptionRepository.save(prescription);
         return toDto(prescription, medicine);
     }
@@ -144,12 +155,78 @@ public class PrescriptionService {
                 .orElseThrow(() -> new NotFoundException("Prescription not found: " + uid));
     }
 
+    private Medicine activeMedicine(String uid) {
+        Medicine m = medicineRepository.findByUid(uid)
+                .orElseThrow(() -> new NotFoundException("Medicine not found: " + uid));
+        if (!m.isActive()) {
+            throw new BusinessRuleException("Medicine is not active: " + m.getName());
+        }
+        return m;
+    }
+
+    /**
+     * Resolves the three picklist slots: if a uid is provided, look it up
+     * and use the masterdata name as the canonical display value (so old
+     * read paths that only look at the string columns still work). Free
+     * text is the fallback when a uid is not given. Either way at least
+     * one of {dose, dosageUid} and {frequency, frequencyUid} must be
+     * supplied — Prescription's columns are NOT NULL.
+     */
+    private ResolvedPicklists resolvePicklists(CreatePrescriptionRequest req) {
+        Dosage dosage = req.dosageUid() == null || req.dosageUid().isBlank()
+                ? null
+                : dosageRepository.findByUid(req.dosageUid())
+                        .orElseThrow(() -> new NotFoundException("Dosage not found: " + req.dosageUid()));
+        AdministrationRoute route = req.routeUid() == null || req.routeUid().isBlank()
+                ? null
+                : routeRepository.findByUid(req.routeUid())
+                        .orElseThrow(() -> new NotFoundException("Administration route not found: " + req.routeUid()));
+        DosingFrequency freq = req.frequencyUid() == null || req.frequencyUid().isBlank()
+                ? null
+                : frequencyRepository.findByUid(req.frequencyUid())
+                        .orElseThrow(() -> new NotFoundException("Dosing frequency not found: " + req.frequencyUid()));
+
+        String dose = dosage != null ? dosage.getName()
+                : (req.dose() == null || req.dose().isBlank()
+                        ? null : req.dose().trim());
+        String frequency = freq != null ? freq.getName()
+                : (req.frequency() == null || req.frequency().isBlank()
+                        ? null : req.frequency().trim());
+        String routeText = route != null ? route.getName()
+                : (req.route() == null || req.route().isBlank()
+                        ? null : req.route().trim());
+
+        if (dose == null) {
+            throw new BusinessRuleException("dose (free text) or dosageUid (picklist) is required");
+        }
+        if (frequency == null) {
+            throw new BusinessRuleException("frequency (free text) or frequencyUid (picklist) is required");
+        }
+        return new ResolvedPicklists(dose, frequency, routeText,
+                dosage == null ? null : dosage.getUid(),
+                route  == null ? null : route.getUid(),
+                freq   == null ? null : freq.getUid());
+    }
+
+    private static void applyPicklists(Prescription p, ResolvedPicklists picks) {
+        p.setDosageUid(picks.dosageUid());
+        p.setRoute(picks.route());
+        p.setRouteUid(picks.routeUid());
+        p.setFrequencyUid(picks.frequencyUid());
+    }
+
     private PrescriptionDto toDto(Prescription p) {
         Medicine m = medicineRepository.findByUid(p.getMedicineUid()).orElse(null);
         return toDto(p, m);
     }
 
-    private static PrescriptionDto toDto(Prescription p, Medicine m) {
+    private PrescriptionDto toDto(Prescription p, Medicine m) {
+        Dosage dosage = p.getDosageUid() == null ? null
+                : dosageRepository.findByUid(p.getDosageUid()).orElse(null);
+        AdministrationRoute route = p.getRouteUid() == null ? null
+                : routeRepository.findByUid(p.getRouteUid()).orElse(null);
+        DosingFrequency freq = p.getFrequencyUid() == null ? null
+                : frequencyRepository.findByUid(p.getFrequencyUid()).orElse(null);
         return new PrescriptionDto(
                 p.getUid(),
                 p.getPrescriptionNo(),
@@ -162,7 +239,15 @@ public class PrescriptionService {
                 m == null ? null : m.getForm(),
                 p.getStatus(),
                 p.getDose(),
+                p.getDosageUid(),
+                dosage == null ? null : dosage.getCode(),
+                p.getRoute(),
+                p.getRouteUid(),
+                route == null ? null : route.getCode(),
                 p.getFrequency(),
+                p.getFrequencyUid(),
+                freq == null ? null : freq.getCode(),
+                freq == null ? null : freq.getTimesPerDay(),
                 p.getDurationDays(),
                 p.getQuantity(),
                 p.getInstructions(),
@@ -184,4 +269,7 @@ public class PrescriptionService {
         String t = s.trim();
         return t.isEmpty() ? null : t;
     }
+
+    private record ResolvedPicklists(String dose, String frequency, String route,
+                                     String dosageUid, String routeUid, String frequencyUid) {}
 }

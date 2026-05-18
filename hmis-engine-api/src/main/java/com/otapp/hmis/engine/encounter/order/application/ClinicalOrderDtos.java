@@ -28,6 +28,10 @@ public final class ClinicalOrderDtos {
             String instructions,
             String result,
             String cancelReason,
+            String theatreUid,
+            String theatreName,
+            Instant scheduledAt,
+            String scheduledByUsername,
             Instant createdAt,
             Instant updatedAt) {}
 
@@ -42,4 +46,12 @@ public final class ClinicalOrderDtos {
 
     public record CancelOrderRequest(
             @Size(max = 255) String reason) {}
+
+    /**
+     * Books a theatre + time slot for a PROCEDURE order. Only valid for
+     * procedure orders that are not yet COMPLETED or CANCELLED.
+     */
+    public record ScheduleOrderRequest(
+            @NotBlank @Size(min = 26, max = 26) String theatreUid,
+            @NotNull Instant scheduledAt) {}
 }

@@ -4,6 +4,7 @@ import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.Cance
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.ClinicalOrderDto;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.CompleteOrderRequest;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.CreateOrderRequest;
+import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.ScheduleOrderRequest;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -59,5 +60,11 @@ public class ClinicalOrderController {
     public ResponseEntity<ClinicalOrderDto> cancel(@PathVariable String orderUid,
                                                    @Valid @RequestBody(required = false) CancelOrderRequest request) {
         return ResponseEntity.ok(orderService.cancel(orderUid, request));
+    }
+
+    @PostMapping("/encounters/orders/uid/{orderUid}/schedule")
+    public ResponseEntity<ClinicalOrderDto> schedule(@PathVariable String orderUid,
+                                                     @Valid @RequestBody ScheduleOrderRequest request) {
+        return ResponseEntity.ok(orderService.schedule(orderUid, request));
     }
 }

@@ -645,8 +645,8 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Process | Status | Notes |
 |---|---|---|
 | Order + procedure note (impression) | ✅ | Phase 5. |
-| Theatre scheduling | ❌ | No theatre entity yet. |
-| Operative record fields | ⚠️ | Captured in narrative; not structured. |
+| Theatre scheduling | ✅ | Phase 24 — `Theatre` masterdata + `ClinicalOrder.theatreUid` / `scheduledAt` / `scheduledByUsername` + `POST /encounters/orders/uid/{uid}/schedule`. Only valid for PROCEDURE-kind orders. |
+| Operative record fields | ✅ | Phase 24 — `OperativeRecord` 1:1 with the procedure order: findings, technique, instruments, complications, specimens, surgical team, anaesthesia, start/end times. Upsert + lock workflow at `/encounters/orders/uid/{uid}/operative-record`. |
 
 ### 17.7 Pharmacy
 
@@ -727,7 +727,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 |---|---|---|
 | Company profile | ❌ | Hard-coded "HMIS Engine" today. |
 | Clinics, wards (+ types), pharmacies, stores | ⚠️ | Clinics, wards, pharmacies done. Stores absent. Bed-availability model absent. |
-| Theatres | ❌ | |
+| Theatres | ✅ | Phase 24 — `Theatre` masterdata with full CRUD at `/masterdata/theatres`. Two sample theatres seeded. |
 | Medicines, lab tests, radiology, procedures, diagnoses | ✅ | Masterdata phase. |
 | Medicine units (base + alternates with conversion factors) | ✅ | Phase 21 — `MedicineUnit` aggregate, CRUD at `/medicines/uid/{uid}/units`, EACH base auto-seeded; transfer chains accept per-line `unitUid` and convert at the boundary. |
 | Consumables | ❌ | |
@@ -784,7 +784,10 @@ phase that respects the modulith boundaries:
    shopping. Three-way match (PO vs GRN vs supplier invoice) still
    deferred — no supplier invoice entity yet.
 10. **Theatre + procedure scheduling** — theatre entity, scheduled date /
-    time on procedure orders, operative-record fields.
+    time on procedure orders, operative-record fields. Phase 24 delivered
+    all three: `Theatre` masterdata, scheduling fields on `ClinicalOrder`,
+    and the structured `OperativeRecord` aggregate with surgeon /
+    anaesthetist / timing fields.
 11. **Credit notes, refunds, collections** — billing extensions.
 12. **HR module** — employees, payroll, clinician performance.
 13. **Reporting** — revenue, IPD register, stock-out, clinician case load.

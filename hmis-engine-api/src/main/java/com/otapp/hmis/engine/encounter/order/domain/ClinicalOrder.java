@@ -63,6 +63,12 @@ public class ClinicalOrder extends AuditableEntity {
     @Setter @Column(name = "result",       length = 4000) private String result;
     @Setter @Column(name = "cancel_reason", length = 255)  private String cancelReason;
 
+    // ----- procedure-only scheduling fields (PROCESS.md §7, Phase 24) ------
+    /** Theatre booked for this procedure. Always null for LAB_TEST / RADIOLOGY. */
+    @Setter @Column(name = "theatre_uid",   length = 26) private String theatreUid;
+    @Setter @Column(name = "scheduled_at")               private Instant scheduledAt;
+    @Setter @Column(name = "scheduled_by_username", length = 64) private String scheduledByUsername;
+
     public ClinicalOrder(String orderNo, String consultationUid, String patientUid,
                          ClinicalOrderKind kind, String serviceUid,
                          OrderUrgency urgency, String instructions) {
@@ -74,6 +80,22 @@ public class ClinicalOrder extends AuditableEntity {
         this.urgency = urgency == null ? OrderUrgency.NORMAL : urgency;
         this.instructions = instructions;
         this.requestedAt = Instant.now();
+    }
+
+    /**
+     * Books a theatre + time slot for a procedure order. Idempotent —
+     * re-scheduling a still-open procedure simply overwrites the booking.
+     */
+    public void schedule(String theatreUid, Instant scheduledAt, String scheduledByUsername) {
+        if (kind != ClinicalOrderKind.PROCEDURE) {
+            throw new BusinessRuleException("Only procedure orders can be scheduled (kind: " + kind + ")");
+        }
+        if (status == ClinicalOrderStatus.COMPLETED || status == ClinicalOrderStatus.CANCELLED) {
+            throw new BusinessRuleException("Cannot schedule a " + status + " order");
+        }
+        this.theatreUid = theatreUid;
+        this.scheduledAt = scheduledAt;
+        this.scheduledByUsername = scheduledByUsername;
     }
 
     public void markInProgress() {

@@ -11,6 +11,7 @@ import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.Cance
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.ClinicalOrderDto;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.CompleteOrderRequest;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.CreateOrderRequest;
+import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.ScheduleOrderRequest;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrder;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderKind;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderRepository;
@@ -21,8 +22,11 @@ import com.otapp.hmis.engine.masterdata.procedure.domain.ProcedureType;
 import com.otapp.hmis.engine.masterdata.procedure.domain.ProcedureTypeRepository;
 import com.otapp.hmis.engine.masterdata.radiology.domain.RadiologyType;
 import com.otapp.hmis.engine.masterdata.radiology.domain.RadiologyTypeRepository;
+import com.otapp.hmis.engine.masterdata.theatre.domain.Theatre;
+import com.otapp.hmis.engine.masterdata.theatre.domain.TheatreRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +40,7 @@ public class ClinicalOrderService {
     private final LabTestTypeRepository labTestTypeRepository;
     private final RadiologyTypeRepository radiologyTypeRepository;
     private final ProcedureTypeRepository procedureTypeRepository;
+    private final TheatreRepository theatreRepository;
     private final OrderNumberGenerator orderNumberGenerator;
 
     @Transactional
@@ -112,6 +117,22 @@ public class ClinicalOrderService {
         return toDto(order);
     }
 
+    /**
+     * Books a theatre + start time for a PROCEDURE order. Idempotent —
+     * re-scheduling a still-open procedure overwrites the booking.
+     */
+    @Transactional
+    public ClinicalOrderDto schedule(String uid, ScheduleOrderRequest request) {
+        ClinicalOrder order = loadOrThrow(uid);
+        Theatre theatre = theatreRepository.findByUid(request.theatreUid())
+                .orElseThrow(() -> new NotFoundException("Theatre not found: " + request.theatreUid()));
+        if (!theatre.isActive()) {
+            throw new BusinessRuleException("Theatre is not active: " + theatre.getName());
+        }
+        order.schedule(theatre.getUid(), request.scheduledAt(), currentUsername());
+        return toDto(order);
+    }
+
     @Transactional(readOnly = true)
     public List<ClinicalOrderDto> listForConsultation(String consultationUid) {
         return orderRepository.findAllByConsultationUidOrderByRequestedAtDesc(consultationUid).stream()
@@ -164,7 +185,10 @@ public class ClinicalOrderService {
         };
     }
 
-    private static ClinicalOrderDto toDto(ClinicalOrder o, ServiceDescriptor s) {
+    private ClinicalOrderDto toDto(ClinicalOrder o, ServiceDescriptor s) {
+        String theatreName = o.getTheatreUid() == null
+                ? null
+                : theatreRepository.findByUid(o.getTheatreUid()).map(Theatre::getName).orElse(null);
         return new ClinicalOrderDto(
                 o.getUid(),
                 o.getOrderNo(),
@@ -181,6 +205,10 @@ public class ClinicalOrderService {
                 o.getInstructions(),
                 o.getResult(),
                 o.getCancelReason(),
+                o.getTheatreUid(),
+                theatreName,
+                o.getScheduledAt(),
+                o.getScheduledByUsername(),
                 o.getCreatedAt(),
                 o.getUpdatedAt());
     }
@@ -189,6 +217,14 @@ public class ClinicalOrderService {
         if (s == null) return null;
         String t = s.trim();
         return t.isEmpty() ? null : t;
+    }
+
+    private static String currentUsername() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null) {
+            throw new BusinessRuleException("Authenticated user required");
+        }
+        return auth.getName();
     }
 
     private record ServiceDescriptor(String uid, String code, String name) {}

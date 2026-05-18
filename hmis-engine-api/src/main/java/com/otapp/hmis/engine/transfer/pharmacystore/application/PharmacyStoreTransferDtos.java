@@ -27,6 +27,8 @@ public final class PharmacyStoreTransferDtos {
 
     public record CreateROLineRequest(
             @NotBlank @Size(min = 26, max = 26) String medicineUid,
+            /** Optional. If null, {@code quantity} is treated as already in base units. */
+            @Size(min = 26, max = 26) String unitUid,
             @Min(1) int quantity,
             @Size(max = 500) String note) {}
 
@@ -37,8 +39,9 @@ public final class PharmacyStoreTransferDtos {
 
     /**
      * One line on a Transfer Order. {@code quantity} is what the store is
-     * committing to ship for the matching RO line — must be ≤ that line's
-     * still-outstanding requested quantity.
+     * committing to ship for the matching RO line. If the RO line was
+     * created with a {@code unitUid}, this quantity is in that same unit
+     * — the service converts to base before checking against outstanding.
      */
     public record CreateTOLineRequest(
             @NotBlank @Size(min = 26, max = 26) String roLineUid,
@@ -54,6 +57,8 @@ public final class PharmacyStoreTransferDtos {
      * One line on a Receive Note. {@code receivedQuantity} may be less than
      * the matching TO line's issued amount — the difference is recorded as
      * a transit shortfall on the RN line and does not reach pharmacy stock.
+     * Quantity is interpreted in the source TO line's unit (or base units
+     * if the line was created without one).
      */
     public record CreateRNLineRequest(
             @NotBlank @Size(min = 26, max = 26) String toLineUid,
@@ -69,6 +74,9 @@ public final class PharmacyStoreTransferDtos {
             String medicineCode,
             String medicineName,
             String medicineStrength,
+            String unitUid,
+            String unitCode,
+            int unitFactorToBase,
             int requestedQuantity,
             int fulfilledQuantity,
             int outstandingQuantity,
@@ -123,6 +131,9 @@ public final class PharmacyStoreTransferDtos {
             String medicineCode,
             String medicineName,
             String medicineStrength,
+            String unitUid,
+            String unitCode,
+            int unitFactorToBase,
             int requestedQuantity,
             int issuedQuantity,
             int receivedQuantity,
@@ -169,6 +180,9 @@ public final class PharmacyStoreTransferDtos {
             String medicineCode,
             String medicineName,
             String medicineStrength,
+            String unitUid,
+            String unitCode,
+            int unitFactorToBase,
             int issuedQuantity,
             int receivedQuantity,
             int shortfall,

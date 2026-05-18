@@ -3,8 +3,11 @@ package com.otapp.hmis.engine.transfer.pharmacystore.application;
 import com.otapp.hmis.engine.common.api.PageResponse;
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
+import com.otapp.hmis.engine.masterdata.medicine.application.UnitConversionService;
 import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineRepository;
+import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineUnit;
+import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineUnitRepository;
 import com.otapp.hmis.engine.masterdata.pharmacy.domain.Pharmacy;
 import com.otapp.hmis.engine.masterdata.pharmacy.domain.PharmacyRepository;
 import com.otapp.hmis.engine.masterdata.store.domain.Store;
@@ -76,6 +79,8 @@ public class PharmacyStoreTransferService {
     private final PharmacyRepository pharmacyRepository;
     private final StoreRepository storeRepository;
     private final MedicineRepository medicineRepository;
+    private final MedicineUnitRepository medicineUnitRepository;
+    private final UnitConversionService unitConversionService;
 
     private final StoreStockService storeStockService;
     private final StockService pharmacyStockService;
@@ -103,8 +108,10 @@ public class PharmacyStoreTransferService {
 
         for (CreateROLineRequest line : request.lines()) {
             Medicine medicine = activeMedicine(line.medicineUid());
+            MedicineUnit unit = unitConversionService.resolveUnit(medicine.getUid(), emptyToNull(line.unitUid()));
+            int baseQty = unitConversionService.toBaseQuantity(unit, line.quantity());
             roLineRepository.save(new PharmacyToStoreROLine(
-                    ro.getUid(), medicine.getUid(), line.quantity(), emptyToNull(line.note())));
+                    ro.getUid(), medicine.getUid(), unit.getUid(), baseQty, emptyToNull(line.note())));
         }
         return toRODto(ro);
     }
@@ -186,13 +193,16 @@ public class PharmacyStoreTransferService {
             if (!roLine.getRoUid().equals(ro.getUid())) {
                 throw new BusinessRuleException("RO line does not belong to this RO");
             }
-            if (line.quantity() > roLine.outstandingQuantity()) {
+            MedicineUnit unit = unitConversionService.resolveUnit(roLine.getMedicineUid(), roLine.getUnitUid());
+            int baseQty = unitConversionService.toBaseQuantity(unit, line.quantity());
+            if (baseQty > roLine.outstandingQuantity()) {
                 throw new BusinessRuleException(
-                        "TO line quantity " + line.quantity() + " exceeds RO outstanding "
-                                + roLine.outstandingQuantity() + " for medicine " + roLine.getMedicineUid());
+                        "TO line quantity " + line.quantity() + " " + unit.getCode()
+                                + " (= " + baseQty + " base) exceeds RO outstanding "
+                                + roLine.outstandingQuantity() + " base for medicine " + roLine.getMedicineUid());
             }
             toLineRepository.save(new StoreToPharmacyTOLine(
-                    to.getUid(), roLine.getUid(), roLine.getMedicineUid(), line.quantity()));
+                    to.getUid(), roLine.getUid(), roLine.getMedicineUid(), unit.getUid(), baseQty));
         }
 
         ro.markInProcess();
@@ -316,11 +326,16 @@ public class PharmacyStoreTransferService {
             if (!toLine.getToUid().equals(to.getUid())) {
                 throw new BusinessRuleException("TO line does not belong to this TO");
             }
-            int received = lineReq.receivedQuantity();
-            if (received > toLine.getIssuedQuantity()) {
+            MedicineUnit unit = unitConversionService.resolveUnit(toLine.getMedicineUid(), toLine.getUnitUid());
+            int receivedBase = lineReq.receivedQuantity() == 0
+                    ? 0
+                    : unitConversionService.toBaseQuantity(unit, lineReq.receivedQuantity());
+            if (receivedBase > toLine.getIssuedQuantity()) {
                 throw new BusinessRuleException(
-                        "Received qty " + received + " exceeds issued "
-                                + toLine.getIssuedQuantity() + " for medicine " + toLine.getMedicineUid());
+                        "Received qty " + lineReq.receivedQuantity() + " " + unit.getCode()
+                                + " (= " + receivedBase + " base) exceeds issued "
+                                + toLine.getIssuedQuantity() + " base for medicine "
+                                + toLine.getMedicineUid());
             }
             if (toLine.getReceivedQuantity() > 0) {
                 throw new BusinessRuleException(
@@ -331,12 +346,13 @@ public class PharmacyStoreTransferService {
                     rn.getUid(),
                     toLine.getUid(),
                     toLine.getMedicineUid(),
+                    unit.getUid(),
                     toLine.getIssuedQuantity(),
-                    received));
+                    receivedBase));
 
-            if (received > 0) {
-                allocateAcrossPicks(to, toLine, rnLine, received);
-                toLine.recordReceipt(received);
+            if (receivedBase > 0) {
+                allocateAcrossPicks(to, toLine, rnLine, receivedBase);
+                toLine.recordReceipt(receivedBase);
             }
         }
 
@@ -461,12 +477,16 @@ public class PharmacyStoreTransferService {
 
     private ROLineDto toROLineDto(PharmacyToStoreROLine line) {
         Medicine m = medicineRepository.findByUid(line.getMedicineUid()).orElse(null);
+        MedicineUnit unit = lookupUnit(line.getUnitUid());
         return new ROLineDto(
                 line.getUid(),
                 line.getMedicineUid(),
                 m == null ? null : m.getCode(),
                 m == null ? null : m.getName(),
                 m == null ? null : m.getStrength(),
+                line.getUnitUid(),
+                unit == null ? null : unit.getCode(),
+                unit == null ? 1 : unit.getFactorToBase(),
                 line.getRequestedQuantity(),
                 line.getFulfilledQuantity(),
                 line.outstandingQuantity(),
@@ -511,6 +531,7 @@ public class PharmacyStoreTransferService {
 
     private TOLineDto toTOLineDto(StoreToPharmacyTOLine line) {
         Medicine m = medicineRepository.findByUid(line.getMedicineUid()).orElse(null);
+        MedicineUnit unit = lookupUnit(line.getUnitUid());
         List<StoreToPharmacyTOBatchPick> picks = toPickRepository
                 .findAllByToLineUidOrderByCreatedAtAsc(line.getUid());
         List<TOBatchPickDto> pickDtos = new ArrayList<>(picks.size());
@@ -526,6 +547,9 @@ public class PharmacyStoreTransferService {
                 m == null ? null : m.getCode(),
                 m == null ? null : m.getName(),
                 m == null ? null : m.getStrength(),
+                line.getUnitUid(),
+                unit == null ? null : unit.getCode(),
+                unit == null ? 1 : unit.getFactorToBase(),
                 line.getRequestedQuantity(),
                 line.getIssuedQuantity(),
                 line.getReceivedQuantity(),
@@ -572,6 +596,7 @@ public class PharmacyStoreTransferService {
 
     private RNLineDto toRNLineDto(StoreToPharmacyRNLine line) {
         Medicine m = medicineRepository.findByUid(line.getMedicineUid()).orElse(null);
+        MedicineUnit unit = lookupUnit(line.getUnitUid());
         return new RNLineDto(
                 line.getUid(),
                 line.getToLineUid(),
@@ -579,10 +604,18 @@ public class PharmacyStoreTransferService {
                 m == null ? null : m.getCode(),
                 m == null ? null : m.getName(),
                 m == null ? null : m.getStrength(),
+                line.getUnitUid(),
+                unit == null ? null : unit.getCode(),
+                unit == null ? 1 : unit.getFactorToBase(),
                 line.getIssuedQuantity(),
                 line.getReceivedQuantity(),
                 line.shortfall(),
                 line.getCreatedAt());
+    }
+
+    private MedicineUnit lookupUnit(String unitUid) {
+        if (unitUid == null || unitUid.isBlank()) return null;
+        return medicineUnitRepository.findByUid(unitUid).orElse(null);
     }
 
     private RNSummary toRNSummary(StoreToPharmacyRN rn) {

@@ -27,6 +27,8 @@ public final class PharmacyPharmacyTransferDtos {
 
     public record CreateROLineRequest(
             @NotBlank @Size(min = 26, max = 26) String medicineUid,
+            /** Optional. If null, {@code quantity} is treated as already in base units. */
+            @Size(min = 26, max = 26) String unitUid,
             @Min(1) int quantity,
             @Size(max = 500) String note) {}
 
@@ -59,6 +61,9 @@ public final class PharmacyPharmacyTransferDtos {
             String medicineCode,
             String medicineName,
             String medicineStrength,
+            String unitUid,
+            String unitCode,
+            int unitFactorToBase,
             int requestedQuantity,
             int fulfilledQuantity,
             int outstandingQuantity,
@@ -113,6 +118,9 @@ public final class PharmacyPharmacyTransferDtos {
             String medicineCode,
             String medicineName,
             String medicineStrength,
+            String unitUid,
+            String unitCode,
+            int unitFactorToBase,
             int requestedQuantity,
             int issuedQuantity,
             int receivedQuantity,
@@ -159,6 +167,9 @@ public final class PharmacyPharmacyTransferDtos {
             String medicineCode,
             String medicineName,
             String medicineStrength,
+            String unitUid,
+            String unitCode,
+            int unitFactorToBase,
             int issuedQuantity,
             int receivedQuantity,
             int shortfall,

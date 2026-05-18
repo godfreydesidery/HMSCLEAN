@@ -729,6 +729,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Clinics, wards (+ types), pharmacies, stores | ⚠️ | Clinics, wards, pharmacies done. Stores absent. Bed-availability model absent. |
 | Theatres | ❌ | |
 | Medicines, lab tests, radiology, procedures, diagnoses | ✅ | Masterdata phase. |
+| Medicine units (base + alternates with conversion factors) | ✅ | Phase 21 — `MedicineUnit` aggregate, CRUD at `/medicines/uid/{uid}/units`, EACH base auto-seeded; transfer chains accept per-line `unitUid` and convert at the boundary. |
 | Consumables | ❌ | |
 | Insurance plans + per-service pricing | ✅ | `InsurancePlan` + `ServicePrice` matrix. |
 | Dosages / routes / frequencies dropdowns | ❌ | Prescription dose / frequency are free text today. |
@@ -759,7 +760,11 @@ phase that respects the modulith boundaries:
    Both run without conversion coefficients (single unit per medicine).
    Reverse-direction P↔S (pharmacy returns to store) deferred.
 7. **Conversion coefficients on items** — needed before RO/TO/RN to be
-   useful in practice.
+   useful in practice. Phase 21 delivered `MedicineUnit` (base + alternates
+   with `factorToBase`) and wired it into both transfer chains. Stock
+   balances stay in base units; conversion happens at the API boundary.
+   Manual receive / adjust, dispense, retail sale and GRN still take base
+   units directly (no unit awareness yet — can move in a follow-up phase).
 8. **Structured discharge plan + nursing chart** — observation chart
    series, nursing care plan, consumable chart, structured discharge plan
    with APPROVED state, deceased + referral structured notes.

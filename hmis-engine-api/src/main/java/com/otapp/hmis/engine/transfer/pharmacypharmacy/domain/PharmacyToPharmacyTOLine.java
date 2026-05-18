@@ -39,18 +39,22 @@ public class PharmacyToPharmacyTOLine extends AuditableEntity {
     @Column(name = "ro_line_uid",  nullable = false, length = 26) private String roLineUid;
     @Column(name = "medicine_uid", nullable = false, length = 26) private String medicineUid;
 
+    /** Inherited from the source RO line. Null = base unit. */
+    @Column(name = "unit_uid", length = 26) private String unitUid;
+
     @Column(name = "requested_quantity", nullable = false) private int requestedQuantity;
     @Setter @Column(name = "issued_quantity",  nullable = false) private int issuedQuantity = 0;
     @Setter @Column(name = "received_quantity", nullable = false) private int receivedQuantity = 0;
 
     public PharmacyToPharmacyTOLine(String toUid, String roLineUid, String medicineUid,
-                                    int requestedQuantity) {
+                                    String unitUid, int requestedQuantity) {
         if (requestedQuantity <= 0) {
             throw new BusinessRuleException("Requested quantity must be positive");
         }
         this.toUid = toUid;
         this.roLineUid = roLineUid;
         this.medicineUid = medicineUid;
+        this.unitUid = unitUid;
         this.requestedQuantity = requestedQuantity;
     }
 

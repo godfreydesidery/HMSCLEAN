@@ -684,7 +684,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Goods Received Note | ✅ | Phase 8 + 23a — full PENDING → VERIFIED → APPROVED workflow. Stock credit + PO line `recordReceipt` now fire on APPROVED (not on creation), so a count mismatch caught at verification doesn't pollute the ledger. REJECTED branch has no stock impact. |
 | Per-line batch info on GRN | ❌ | Single qty per line today; no batch breakdown. |
 | Supplier item price list | ✅ | Phase 23b — `SupplierItemPrice` per (supplier, medicine, validity window). CRUD at `/procurement/suppliers/uid/{uid}/prices`; comparison shopping at `/procurement/medicines/uid/{uid}/prices/{active|best}`. LPO line still takes its own typed unit cost — the price list is a lookup, not auto-fill. |
-| Three-way match (PO vs. GRN vs. invoice) | ❌ | Supplier invoice entity missing. |
+| Three-way match (PO vs. GRN vs. invoice) | ✅ | Phase 31 — `SupplierInvoice` aggregate at `/procurement/supplier-invoices` with DRAFT → SUBMITTED → APPROVED → PAID lifecycle. Match runs on APPROVED: per-line `invoiced ≤ received ≤ ordered` cumulative across all approved invoices for the PO. `PurchaseOrderLine.invoicedQuantity` tracks the running total. |
 
 ### 17.10 Payments / Billing
 

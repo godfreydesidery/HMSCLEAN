@@ -28,6 +28,8 @@ public class PurchaseOrderLine extends AuditableEntity {
 
     @Setter @Column(name = "ordered_quantity",  nullable = false) private int orderedQuantity;
     @Column(name = "received_quantity", nullable = false) private int receivedQuantity = 0;
+    /** Cumulative units invoiced by supplier across all approved invoices on this line. */
+    @Column(name = "invoiced_quantity", nullable = false) private int invoicedQuantity = 0;
 
     @Setter @Column(name = "unit_cost", nullable = false, precision = 14, scale = 2)
     private BigDecimal unitCost = BigDecimal.ZERO;
@@ -61,6 +63,30 @@ public class PurchaseOrderLine extends AuditableEntity {
                     "Receipt of " + quantity + " exceeds outstanding " + outstanding);
         }
         this.receivedQuantity += quantity;
+    }
+
+    /** Outstanding receipt against invoiced quantity = received - invoiced. */
+    public int uninvoicedReceivedQuantity() {
+        return Math.max(0, receivedQuantity - invoicedQuantity);
+    }
+
+    /**
+     * Records a supplier invoice line claim against this PO line.
+     * Three-way match rule: can never invoice more than received (you
+     * can't bill for goods we haven't acknowledged) and can never invoice
+     * more than ordered (you can't bill for goods we didn't agree to buy).
+     */
+    public void recordInvoice(int quantity) {
+        if (quantity <= 0) {
+            throw new BusinessRuleException("Invoice quantity must be positive");
+        }
+        int outstandingReceipt = uninvoicedReceivedQuantity();
+        if (quantity > outstandingReceipt) {
+            throw new BusinessRuleException(
+                    "Invoice of " + quantity + " exceeds uninvoiced-received " + outstandingReceipt
+                            + " (received: " + receivedQuantity + ", already invoiced: " + invoicedQuantity + ")");
+        }
+        this.invoicedQuantity += quantity;
     }
 
     public BigDecimal lineAmount() {

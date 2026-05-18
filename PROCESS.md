@@ -659,8 +659,8 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Full prescription status lifecycle (PENDING → ACCEPTED → HELD → VERIFIED → APPROVED → SOLD) | ❌ | Currently REQUESTED → DISPENSED only. |
 | Prescription pay-status | ❌ | |
 | Pharmacy sales order (retail / OTC) | ❌ | No separate PharmacySaleOrder entity. |
-| Pharmacy → Pharmacy transfer (RO / TO / RN) | ❌ | Big gap. |
-| Pharmacy ↔ Store transfer (RO / TO / RN) | ❌ | Big gap — depends on a Store domain. |
+| Pharmacy → Pharmacy transfer (RO / TO / RN) | ❌ | Phase 21 will mirror the P↔S chain. |
+| Pharmacy ↔ Store transfer (RO / TO / RN) | ⚠️ | Phase 20: forward direction only — pharmacy RO → store TO → pharmacy RN, with FEFO store-side issue and per-batch propagation to the pharmacy. Reverse-direction (pharmacy returns to store) deferred. |
 | Conversion coefficients on items | ❌ | Single unit per medicine today. |
 | Batch + expiry tracking per pharmacy | ❌ | Stock balance is a single integer per (pharmacy, medicine); no batch granularity. |
 | Wastage / transfer-in / transfer-out movement kinds | ⚠️ | Enum has them but no flows emit them yet. |
@@ -754,7 +754,9 @@ phase that respects the modulith boundaries:
    ledger. Procurement GRN now lands in store, not pharmacy. Pharmacies
    must request from store.
 6. **RO / TO / RN documents** — pharmacy ↔ store transfer chain first
-   (depends on §5), then pharmacy ↔ pharmacy.
+   (depends on §5), then pharmacy ↔ pharmacy. Phase 20 delivers the
+   forward P↔S chain (resupply) without conversion coefficients; reverse
+   direction and P↔P slot in alongside §7 or after.
 7. **Conversion coefficients on items** — needed before RO/TO/RN to be
    useful in practice.
 8. **Structured discharge plan + nursing chart** — observation chart

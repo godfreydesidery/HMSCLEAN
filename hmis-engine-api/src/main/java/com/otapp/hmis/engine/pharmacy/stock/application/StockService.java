@@ -67,11 +67,28 @@ public class StockService {
         }
         return doReceive(pharmacyUid, request.medicineUid(), request.batchNo(),
                 request.expiresAt(), request.quantity(),
-                null, emptyToNull(request.note()));
+                StockMovementKind.RECEIPT, null, emptyToNull(request.note()));
+    }
+
+    /**
+     * Cross-module entry point used by the pharmacy↔store transfer service
+     * when an RN is completed. Records a {@code TRANSFER_IN} movement
+     * referencing the source TO so the stock card explains the receipt.
+     */
+    @Transactional
+    public StockBatchDto receiveFromStore(String pharmacyUid, String medicineUid,
+                                          String batchNo, LocalDate expiresAt,
+                                          int quantity, String referenceUid, String note) {
+        if (quantity <= 0) {
+            throw new BusinessRuleException("Receipt quantity must be positive");
+        }
+        return doReceive(pharmacyUid, medicineUid, batchNo, expiresAt, quantity,
+                StockMovementKind.TRANSFER_IN, emptyToNull(referenceUid), emptyToNull(note));
     }
 
     private StockBatchDto doReceive(String pharmacyUid, String medicineUid, String batchNo,
-                                    LocalDate expiresAt, int quantity, String referenceUid, String note) {
+                                    LocalDate expiresAt, int quantity, StockMovementKind kind,
+                                    String referenceUid, String note) {
         Pharmacy pharmacy = activePharmacy(pharmacyUid);
         Medicine medicine = activeMedicine(medicineUid);
 
@@ -89,7 +106,7 @@ public class StockService {
         StockBalance balance = lockOrCreateBalance(pharmacy.getUid(), medicine.getUid());
         balance.applyDelta(quantity);
 
-        recordMovement(balance, batch, StockMovementKind.RECEIPT, quantity, referenceUid, note);
+        recordMovement(balance, batch, kind, quantity, referenceUid, note);
         return toBatchDto(batch, medicine);
     }
 

@@ -2,9 +2,13 @@ package com.otapp.hmis.engine.encounter.operative.application;
 
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
+import com.otapp.hmis.engine.encounter.operative.application.OperativeRecordDtos.AmendmentDto;
+import com.otapp.hmis.engine.encounter.operative.application.OperativeRecordDtos.CreateAmendmentRequest;
 import com.otapp.hmis.engine.encounter.operative.application.OperativeRecordDtos.OperativeRecordDto;
 import com.otapp.hmis.engine.encounter.operative.application.OperativeRecordDtos.UpsertOperativeRecordRequest;
 import com.otapp.hmis.engine.encounter.operative.domain.OperativeRecord;
+import com.otapp.hmis.engine.encounter.operative.domain.OperativeRecordAmendment;
+import com.otapp.hmis.engine.encounter.operative.domain.OperativeRecordAmendmentRepository;
 import com.otapp.hmis.engine.encounter.operative.domain.OperativeRecordRepository;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrder;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderKind;
@@ -19,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class OperativeRecordService {
 
     private final OperativeRecordRepository recordRepository;
+    private final OperativeRecordAmendmentRepository amendmentRepository;
     private final ClinicalOrderRepository orderRepository;
 
     /**
@@ -47,6 +52,60 @@ public class OperativeRecordService {
     @Transactional(readOnly = true)
     public OperativeRecordDto findByOrder(String orderUid) {
         return toDto(loadByOrder(orderUid));
+    }
+
+    // ----- amendments ------------------------------------------------------
+
+    /**
+     * Append an amendment to a locked operative record. Amendments are
+     * immutable once persisted; the running history forms an addendum
+     * trail alongside the original locked op-note.
+     */
+    @Transactional
+    public AmendmentDto amend(String orderUid, CreateAmendmentRequest request) {
+        OperativeRecord record = loadByOrder(orderUid);
+        if (!record.isLocked()) {
+            throw new BusinessRuleException(
+                    "Operative record is not locked yet — edit it in place via PUT instead of amending");
+        }
+        long existing = amendmentRepository.countByOperativeRecordUid(record.getUid());
+        OperativeRecordAmendment amendment = amendmentRepository.save(
+                new OperativeRecordAmendment(
+                        record.getUid(),
+                        (int) (existing + 1),
+                        request.reason().trim(),
+                        currentUsername(),
+                        emptyToNull(request.findings()),
+                        emptyToNull(request.technique()),
+                        emptyToNull(request.instruments()),
+                        emptyToNull(request.complications()),
+                        emptyToNull(request.specimens()),
+                        emptyToNull(request.assistants()),
+                        emptyToNull(request.anaesthesiaType()),
+                        emptyToNull(request.scrubNurse()),
+                        emptyToNull(request.circulatingNurse())));
+        return toAmendmentDto(amendment);
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<AmendmentDto> listAmendments(String orderUid) {
+        OperativeRecord record = loadByOrder(orderUid);
+        return amendmentRepository.findByOperativeRecordUidOrderByAmendmentNoAsc(record.getUid()).stream()
+                .map(OperativeRecordService::toAmendmentDto)
+                .toList();
+    }
+
+    private static AmendmentDto toAmendmentDto(OperativeRecordAmendment a) {
+        return new AmendmentDto(
+                a.getUid(),
+                a.getOperativeRecordUid(),
+                a.getAmendmentNo(),
+                a.getReason(),
+                a.getFindings(), a.getTechnique(), a.getInstruments(),
+                a.getComplications(), a.getSpecimens(),
+                a.getAssistants(), a.getAnaesthesiaType(),
+                a.getScrubNurse(), a.getCirculatingNurse(),
+                a.getAuthoredByUsername(), a.getAuthoredAt());
     }
 
     // ----- helpers ---------------------------------------------------------

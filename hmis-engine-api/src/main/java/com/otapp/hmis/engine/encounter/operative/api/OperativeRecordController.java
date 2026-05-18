@@ -1,10 +1,13 @@
 package com.otapp.hmis.engine.encounter.operative.api;
 
+import com.otapp.hmis.engine.encounter.operative.application.OperativeRecordDtos.AmendmentDto;
+import com.otapp.hmis.engine.encounter.operative.application.OperativeRecordDtos.CreateAmendmentRequest;
 import com.otapp.hmis.engine.encounter.operative.application.OperativeRecordDtos.OperativeRecordDto;
 import com.otapp.hmis.engine.encounter.operative.application.OperativeRecordDtos.UpsertOperativeRecordRequest;
 import com.otapp.hmis.engine.encounter.operative.application.OperativeRecordService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,5 +36,16 @@ public class OperativeRecordController {
     @PostMapping("/lock")
     public ResponseEntity<OperativeRecordDto> lock(@PathVariable String orderUid) {
         return ResponseEntity.ok(service.lock(orderUid));
+    }
+
+    @GetMapping("/amendments")
+    public ResponseEntity<List<AmendmentDto>> listAmendments(@PathVariable String orderUid) {
+        return ResponseEntity.ok(service.listAmendments(orderUid));
+    }
+
+    @PostMapping("/amendments")
+    public ResponseEntity<AmendmentDto> amend(@PathVariable String orderUid,
+                                              @Valid @RequestBody CreateAmendmentRequest request) {
+        return ResponseEntity.ok(service.amend(orderUid, request));
     }
 }

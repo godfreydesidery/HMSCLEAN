@@ -1,4 +1,4 @@
-package com.otapp.hmis.engine.transfer.pharmacystore.application;
+package com.otapp.hmis.engine.transfer.pharmacypharmacy.application;
 
 import com.otapp.hmis.engine.common.api.PageResponse;
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
@@ -7,46 +7,43 @@ import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineRepository;
 import com.otapp.hmis.engine.masterdata.pharmacy.domain.Pharmacy;
 import com.otapp.hmis.engine.masterdata.pharmacy.domain.PharmacyRepository;
-import com.otapp.hmis.engine.masterdata.store.domain.Store;
-import com.otapp.hmis.engine.masterdata.store.domain.StoreRepository;
+import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.BatchPickResult;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockService;
-import com.otapp.hmis.engine.store.stock.application.StoreStockDtos.BatchPickResult;
-import com.otapp.hmis.engine.store.stock.application.StoreStockService;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.CreateROLineRequest;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.CreateRORequest;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.CreateRNLineRequest;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.CreateRNRequest;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.CreateTOLineRequest;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.CreateTORequest;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.RNDto;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.RNLineDto;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.RNSummary;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.RODto;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.ROLineDto;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.ROSummary;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.TOBatchPickDto;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.TODto;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.TOLineDto;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.TOSummary;
-import com.otapp.hmis.engine.transfer.pharmacystore.domain.PharmacyToStoreRO;
-import com.otapp.hmis.engine.transfer.pharmacystore.domain.PharmacyToStoreROLine;
-import com.otapp.hmis.engine.transfer.pharmacystore.domain.PharmacyToStoreROLineRepository;
-import com.otapp.hmis.engine.transfer.pharmacystore.domain.PharmacyToStoreRORepository;
 import com.otapp.hmis.engine.transfer.common.domain.ReceiveNoteStatus;
-import com.otapp.hmis.engine.transfer.pharmacystore.domain.StoreToPharmacyRN;
-import com.otapp.hmis.engine.transfer.pharmacystore.domain.StoreToPharmacyRNLine;
-import com.otapp.hmis.engine.transfer.pharmacystore.domain.StoreToPharmacyRNLineRepository;
-import com.otapp.hmis.engine.transfer.pharmacystore.domain.StoreToPharmacyRNRepository;
-import com.otapp.hmis.engine.transfer.pharmacystore.domain.StoreToPharmacyTO;
-import com.otapp.hmis.engine.transfer.pharmacystore.domain.StoreToPharmacyTOBatchPick;
-import com.otapp.hmis.engine.transfer.pharmacystore.domain.StoreToPharmacyTOBatchPickRepository;
-import com.otapp.hmis.engine.transfer.pharmacystore.domain.StoreToPharmacyTOLine;
-import com.otapp.hmis.engine.transfer.pharmacystore.domain.StoreToPharmacyTOLineRepository;
-import com.otapp.hmis.engine.transfer.pharmacystore.domain.StoreToPharmacyTORepository;
 import com.otapp.hmis.engine.transfer.common.domain.TransferDocStatus;
-import com.otapp.hmis.engine.transfer.pharmacystore.infrastructure.PharmacyToStoreRONumberGenerator;
-import com.otapp.hmis.engine.transfer.pharmacystore.infrastructure.StoreToPharmacyRNNumberGenerator;
-import com.otapp.hmis.engine.transfer.pharmacystore.infrastructure.StoreToPharmacyTONumberGenerator;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.CreateROLineRequest;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.CreateRORequest;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.CreateRNLineRequest;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.CreateRNRequest;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.CreateTOLineRequest;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.CreateTORequest;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.RNDto;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.RNLineDto;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.RNSummary;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.RODto;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.ROLineDto;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.ROSummary;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.TOBatchPickDto;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.TODto;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.TOLineDto;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.TOSummary;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.domain.PharmacyToPharmacyRN;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.domain.PharmacyToPharmacyRNLine;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.domain.PharmacyToPharmacyRNLineRepository;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.domain.PharmacyToPharmacyRNRepository;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.domain.PharmacyToPharmacyRO;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.domain.PharmacyToPharmacyROLine;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.domain.PharmacyToPharmacyROLineRepository;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.domain.PharmacyToPharmacyRORepository;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.domain.PharmacyToPharmacyTO;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.domain.PharmacyToPharmacyTOBatchPick;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.domain.PharmacyToPharmacyTOBatchPickRepository;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.domain.PharmacyToPharmacyTOLine;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.domain.PharmacyToPharmacyTOLineRepository;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.domain.PharmacyToPharmacyTORepository;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.infrastructure.PharmacyToPharmacyRNNumberGenerator;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.infrastructure.PharmacyToPharmacyRONumberGenerator;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.infrastructure.PharmacyToPharmacyTONumberGenerator;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -55,34 +52,33 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Orchestrates the three-document pharmacy ↔ store transfer chain
- * (PROCESS.md §8.5). Lifecycle: a pharmacy raises an RO; once APPROVED +
- * SUBMITTED the store creates a TO against it; issuing the TO decrements
- * store stock FEFO; the receiving pharmacy then files an RN that
- * increments pharmacy stock per source batch and closes the chain.
+ * Orchestrates the three-document pharmacy ↔ pharmacy transfer chain
+ * (PROCESS.md §8.4). Lifecycle mirrors the P↔S chain but with both
+ * endpoints being pharmacies: a requesting pharmacy raises an RO; once
+ * APPROVED + SUBMITTED, the delivering pharmacy creates a TO against it;
+ * issuing the TO decrements the delivering pharmacy's stock FEFO; the
+ * requesting pharmacy then files an RN that increments its stock per
+ * source batch and closes the chain.
  */
 @Service
 @RequiredArgsConstructor
-public class PharmacyStoreTransferService {
+public class PharmacyPharmacyTransferService {
 
-    private final PharmacyToStoreRORepository roRepository;
-    private final PharmacyToStoreROLineRepository roLineRepository;
-    private final StoreToPharmacyTORepository toRepository;
-    private final StoreToPharmacyTOLineRepository toLineRepository;
-    private final StoreToPharmacyTOBatchPickRepository toPickRepository;
-    private final StoreToPharmacyRNRepository rnRepository;
-    private final StoreToPharmacyRNLineRepository rnLineRepository;
+    private final PharmacyToPharmacyRORepository roRepository;
+    private final PharmacyToPharmacyROLineRepository roLineRepository;
+    private final PharmacyToPharmacyTORepository toRepository;
+    private final PharmacyToPharmacyTOLineRepository toLineRepository;
+    private final PharmacyToPharmacyTOBatchPickRepository toPickRepository;
+    private final PharmacyToPharmacyRNRepository rnRepository;
+    private final PharmacyToPharmacyRNLineRepository rnLineRepository;
 
     private final PharmacyRepository pharmacyRepository;
-    private final StoreRepository storeRepository;
     private final MedicineRepository medicineRepository;
-
-    private final StoreStockService storeStockService;
     private final StockService pharmacyStockService;
 
-    private final PharmacyToStoreRONumberGenerator roNumberGenerator;
-    private final StoreToPharmacyTONumberGenerator toNumberGenerator;
-    private final StoreToPharmacyRNNumberGenerator rnNumberGenerator;
+    private final PharmacyToPharmacyRONumberGenerator roNumberGenerator;
+    private final PharmacyToPharmacyTONumberGenerator toNumberGenerator;
+    private final PharmacyToPharmacyRNNumberGenerator rnNumberGenerator;
 
     // ========================================================================
     // RO operations
@@ -90,20 +86,23 @@ public class PharmacyStoreTransferService {
 
     @Transactional
     public RODto createRO(CreateRORequest request) {
-        Pharmacy pharmacy = activePharmacy(request.pharmacyUid());
-        Store store = activeStore(request.storeUid());
+        Pharmacy requester = activePharmacy(request.requestingPharmacyUid());
+        Pharmacy deliverer = activePharmacy(request.deliveringPharmacyUid());
+        if (requester.getUid().equals(deliverer.getUid())) {
+            throw new BusinessRuleException("Requesting and delivering pharmacy must differ");
+        }
 
-        PharmacyToStoreRO ro = roRepository.save(new PharmacyToStoreRO(
+        PharmacyToPharmacyRO ro = roRepository.save(new PharmacyToPharmacyRO(
                 roNumberGenerator.next(),
-                pharmacy.getUid(),
-                store.getUid(),
+                requester.getUid(),
+                deliverer.getUid(),
                 null,
                 request.validUntil(),
                 emptyToNull(request.note())));
 
         for (CreateROLineRequest line : request.lines()) {
             Medicine medicine = activeMedicine(line.medicineUid());
-            roLineRepository.save(new PharmacyToStoreROLine(
+            roLineRepository.save(new PharmacyToPharmacyROLine(
                     ro.getUid(), medicine.getUid(), line.quantity(), emptyToNull(line.note())));
         }
         return toRODto(ro);
@@ -111,35 +110,35 @@ public class PharmacyStoreTransferService {
 
     @Transactional
     public RODto verifyRO(String roUid) {
-        PharmacyToStoreRO ro = loadRO(roUid);
+        PharmacyToPharmacyRO ro = loadRO(roUid);
         ro.verify();
         return toRODto(ro);
     }
 
     @Transactional
     public RODto approveRO(String roUid) {
-        PharmacyToStoreRO ro = loadRO(roUid);
+        PharmacyToPharmacyRO ro = loadRO(roUid);
         ro.approve();
         return toRODto(ro);
     }
 
     @Transactional
     public RODto submitRO(String roUid) {
-        PharmacyToStoreRO ro = loadRO(roUid);
+        PharmacyToPharmacyRO ro = loadRO(roUid);
         ro.submit();
         return toRODto(ro);
     }
 
     @Transactional
     public RODto rejectRO(String roUid, String reason) {
-        PharmacyToStoreRO ro = loadRO(roUid);
+        PharmacyToPharmacyRO ro = loadRO(roUid);
         ro.reject(emptyToNull(reason));
         return toRODto(ro);
     }
 
     @Transactional
     public RODto returnRO(String roUid, String reason) {
-        PharmacyToStoreRO ro = loadRO(roUid);
+        PharmacyToPharmacyRO ro = loadRO(roUid);
         ro.returnToRequester(emptyToNull(reason));
         return toRODto(ro);
     }
@@ -151,10 +150,12 @@ public class PharmacyStoreTransferService {
 
     @Transactional(readOnly = true)
     public PageResponse<ROSummary> searchROs(String query, TransferDocStatus status,
-                                             String pharmacyUid, String storeUid, Pageable pageable) {
+                                             String requestingPharmacyUid,
+                                             String deliveringPharmacyUid, Pageable pageable) {
         return PageResponse.from(
                 roRepository.search(emptyToNull(query), status,
-                                emptyToNull(pharmacyUid), emptyToNull(storeUid), pageable)
+                                emptyToNull(requestingPharmacyUid),
+                                emptyToNull(deliveringPharmacyUid), pageable)
                         .map(this::toROSummary));
     }
 
@@ -164,7 +165,7 @@ public class PharmacyStoreTransferService {
 
     @Transactional
     public TODto createTO(CreateTORequest request) {
-        PharmacyToStoreRO ro = loadRO(request.roUid());
+        PharmacyToPharmacyRO ro = loadRO(request.roUid());
         if (ro.getStatus() != TransferDocStatus.SUBMITTED
                 && ro.getStatus() != TransferDocStatus.IN_PROCESS) {
             throw new BusinessRuleException(
@@ -172,16 +173,16 @@ public class PharmacyStoreTransferService {
                             + ro.getStatus() + ")");
         }
 
-        StoreToPharmacyTO to = toRepository.save(new StoreToPharmacyTO(
+        PharmacyToPharmacyTO to = toRepository.save(new PharmacyToPharmacyTO(
                 toNumberGenerator.next(),
                 ro.getUid(),
-                ro.getPharmacyUid(),
-                ro.getStoreUid(),
+                ro.getRequestingPharmacyUid(),
+                ro.getDeliveringPharmacyUid(),
                 null,
                 emptyToNull(request.note())));
 
         for (CreateTOLineRequest line : request.lines()) {
-            PharmacyToStoreROLine roLine = roLineRepository.findByUid(line.roLineUid())
+            PharmacyToPharmacyROLine roLine = roLineRepository.findByUid(line.roLineUid())
                     .orElseThrow(() -> new NotFoundException("RO line not found: " + line.roLineUid()));
             if (!roLine.getRoUid().equals(ro.getUid())) {
                 throw new BusinessRuleException("RO line does not belong to this RO");
@@ -191,7 +192,7 @@ public class PharmacyStoreTransferService {
                         "TO line quantity " + line.quantity() + " exceeds RO outstanding "
                                 + roLine.outstandingQuantity() + " for medicine " + roLine.getMedicineUid());
             }
-            toLineRepository.save(new StoreToPharmacyTOLine(
+            toLineRepository.save(new PharmacyToPharmacyTOLine(
                     to.getUid(), roLine.getUid(), roLine.getMedicineUid(), line.quantity()));
         }
 
@@ -201,49 +202,50 @@ public class PharmacyStoreTransferService {
 
     @Transactional
     public TODto verifyTO(String toUid) {
-        StoreToPharmacyTO to = loadTO(toUid);
+        PharmacyToPharmacyTO to = loadTO(toUid);
         to.verify();
         return toTODto(to);
     }
 
     @Transactional
     public TODto approveTO(String toUid) {
-        StoreToPharmacyTO to = loadTO(toUid);
+        PharmacyToPharmacyTO to = loadTO(toUid);
         to.approve();
         return toTODto(to);
     }
 
     @Transactional
     public TODto rejectTO(String toUid, String reason) {
-        StoreToPharmacyTO to = loadTO(toUid);
+        PharmacyToPharmacyTO to = loadTO(toUid);
         to.reject(emptyToNull(reason));
         return toTODto(to);
     }
 
     /**
-     * Decrements store stock FEFO per TO line, persists the resulting batch
-     * picks against the line, rolls fulfilment forward on the parent RO,
-     * and advances both documents to GOODS_ISSUED.
+     * Decrements the delivering pharmacy's stock FEFO per TO line,
+     * persists the resulting batch picks against the line, rolls
+     * fulfilment forward on the parent RO, and advances both documents
+     * to GOODS_ISSUED.
      */
     @Transactional
     public TODto issueTO(String toUid) {
-        StoreToPharmacyTO to = loadTO(toUid);
-        PharmacyToStoreRO ro = loadRO(to.getRoUid());
+        PharmacyToPharmacyTO to = loadTO(toUid);
+        PharmacyToPharmacyRO ro = loadRO(to.getRoUid());
 
-        List<StoreToPharmacyTOLine> lines = toLineRepository.findAllByToUidOrderByCreatedAtAsc(to.getUid());
+        List<PharmacyToPharmacyTOLine> lines = toLineRepository.findAllByToUidOrderByCreatedAtAsc(to.getUid());
         if (lines.isEmpty()) {
             throw new BusinessRuleException("Cannot issue a TO with no lines");
         }
-        for (StoreToPharmacyTOLine line : lines) {
+        for (PharmacyToPharmacyTOLine line : lines) {
             int outstanding = line.getRequestedQuantity() - line.getIssuedQuantity();
             if (outstanding <= 0) continue;
 
-            List<BatchPickResult> picks = storeStockService.issueToPharmacy(
-                    to.getStoreUid(), line.getMedicineUid(), outstanding,
+            List<BatchPickResult> picks = pharmacyStockService.issueToPharmacy(
+                    to.getDeliveringPharmacyUid(), line.getMedicineUid(), outstanding,
                     to.getUid(), "Issue for TO " + to.getToNo());
 
             for (BatchPickResult pick : picks) {
-                toPickRepository.save(new StoreToPharmacyTOBatchPick(
+                toPickRepository.save(new PharmacyToPharmacyTOBatchPick(
                         line.getUid(),
                         pick.batchUid(),
                         pick.batchNo(),
@@ -252,7 +254,7 @@ public class PharmacyStoreTransferService {
             }
             line.recordIssue(outstanding);
 
-            PharmacyToStoreROLine roLine = roLineRepository.findByUid(line.getRoLineUid())
+            PharmacyToPharmacyROLine roLine = roLineRepository.findByUid(line.getRoLineUid())
                     .orElseThrow(() -> new NotFoundException("RO line not found: " + line.getRoLineUid()));
             roLine.recordFulfilment(outstanding);
         }
@@ -269,11 +271,13 @@ public class PharmacyStoreTransferService {
 
     @Transactional(readOnly = true)
     public PageResponse<TOSummary> searchTOs(String query, TransferDocStatus status,
-                                             String pharmacyUid, String storeUid,
+                                             String requestingPharmacyUid,
+                                             String deliveringPharmacyUid,
                                              String roUid, Pageable pageable) {
         return PageResponse.from(
                 toRepository.search(emptyToNull(query), status,
-                                emptyToNull(pharmacyUid), emptyToNull(storeUid),
+                                emptyToNull(requestingPharmacyUid),
+                                emptyToNull(deliveringPharmacyUid),
                                 emptyToNull(roUid), pageable)
                         .map(this::toTOSummary));
     }
@@ -282,17 +286,10 @@ public class PharmacyStoreTransferService {
     // RN operations
     // ========================================================================
 
-    /**
-     * Pharmacy confirms receipt. Walks the TO's picks for each line: each
-     * pick contributes its full quantity to pharmacy stock if the line's
-     * receivedQuantity covers it; remaining shortfall on the line is left
-     * uncredited (transit loss). Marks RN COMPLETED and rolls TO + RO to
-     * COMPLETED.
-     */
     @Transactional
     public RNDto createRN(CreateRNRequest request) {
-        StoreToPharmacyTO to = loadTO(request.toUid());
-        PharmacyToStoreRO ro = loadRO(to.getRoUid());
+        PharmacyToPharmacyTO to = loadTO(request.toUid());
+        PharmacyToPharmacyRO ro = loadRO(to.getRoUid());
 
         if (to.getStatus() != TransferDocStatus.GOODS_ISSUED) {
             throw new BusinessRuleException(
@@ -302,16 +299,16 @@ public class PharmacyStoreTransferService {
             throw new BusinessRuleException("TO has already been received");
         }
 
-        StoreToPharmacyRN rn = rnRepository.save(new StoreToPharmacyRN(
+        PharmacyToPharmacyRN rn = rnRepository.save(new PharmacyToPharmacyRN(
                 rnNumberGenerator.next(),
                 to.getUid(),
-                to.getPharmacyUid(),
-                to.getStoreUid(),
+                to.getRequestingPharmacyUid(),
+                to.getDeliveringPharmacyUid(),
                 request.receivingDate(),
                 emptyToNull(request.note())));
 
         for (CreateRNLineRequest lineReq : request.lines()) {
-            StoreToPharmacyTOLine toLine = toLineRepository.findByUid(lineReq.toLineUid())
+            PharmacyToPharmacyTOLine toLine = toLineRepository.findByUid(lineReq.toLineUid())
                     .orElseThrow(() -> new NotFoundException("TO line not found: " + lineReq.toLineUid()));
             if (!toLine.getToUid().equals(to.getUid())) {
                 throw new BusinessRuleException("TO line does not belong to this TO");
@@ -327,7 +324,7 @@ public class PharmacyStoreTransferService {
                         "TO line " + toLine.getUid() + " has already been received");
             }
 
-            StoreToPharmacyRNLine rnLine = rnLineRepository.save(new StoreToPharmacyRNLine(
+            PharmacyToPharmacyRNLine rnLine = rnLineRepository.save(new PharmacyToPharmacyRNLine(
                     rn.getUid(),
                     toLine.getUid(),
                     toLine.getMedicineUid(),
@@ -346,23 +343,16 @@ public class PharmacyStoreTransferService {
         return toRNDto(rn);
     }
 
-    /**
-     * Walks the TO line's picks in insertion order, crediting each pick's
-     * full quantity to pharmacy stock until {@code received} is exhausted.
-     * If a pick is only partially covered, only the covered portion lands
-     * in pharmacy stock; the uncovered portion stays uncredited (treated
-     * as transit loss).
-     */
-    private void allocateAcrossPicks(StoreToPharmacyTO to, StoreToPharmacyTOLine toLine,
-                                     StoreToPharmacyRNLine rnLine, int received) {
-        List<StoreToPharmacyTOBatchPick> picks = toPickRepository
+    private void allocateAcrossPicks(PharmacyToPharmacyTO to, PharmacyToPharmacyTOLine toLine,
+                                     PharmacyToPharmacyRNLine rnLine, int received) {
+        List<PharmacyToPharmacyTOBatchPick> picks = toPickRepository
                 .findAllByToLineUidOrderByCreatedAtAsc(toLine.getUid());
         int remaining = received;
-        for (StoreToPharmacyTOBatchPick pick : picks) {
+        for (PharmacyToPharmacyTOBatchPick pick : picks) {
             if (remaining <= 0) break;
             int credit = Math.min(remaining, pick.getQuantity());
-            pharmacyStockService.receiveFromStore(
-                    to.getPharmacyUid(),
+            pharmacyStockService.receiveFromPharmacy(
+                    to.getRequestingPharmacyUid(),
                     toLine.getMedicineUid(),
                     pick.getBatchNo(),
                     pick.getExpiresAt(),
@@ -385,11 +375,13 @@ public class PharmacyStoreTransferService {
 
     @Transactional(readOnly = true)
     public PageResponse<RNSummary> searchRNs(String query, ReceiveNoteStatus status,
-                                             String pharmacyUid, String storeUid,
+                                             String requestingPharmacyUid,
+                                             String deliveringPharmacyUid,
                                              String toUid, Pageable pageable) {
         return PageResponse.from(
                 rnRepository.search(emptyToNull(query), status,
-                                emptyToNull(pharmacyUid), emptyToNull(storeUid),
+                                emptyToNull(requestingPharmacyUid),
+                                emptyToNull(deliveringPharmacyUid),
                                 emptyToNull(toUid), pageable)
                         .map(this::toRNSummary));
     }
@@ -398,17 +390,17 @@ public class PharmacyStoreTransferService {
     // Loaders + mapping
     // ========================================================================
 
-    private PharmacyToStoreRO loadRO(String uid) {
+    private PharmacyToPharmacyRO loadRO(String uid) {
         return roRepository.findByUid(uid)
                 .orElseThrow(() -> new NotFoundException("RO not found: " + uid));
     }
 
-    private StoreToPharmacyTO loadTO(String uid) {
+    private PharmacyToPharmacyTO loadTO(String uid) {
         return toRepository.findByUid(uid)
                 .orElseThrow(() -> new NotFoundException("TO not found: " + uid));
     }
 
-    private StoreToPharmacyRN loadRN(String uid) {
+    private PharmacyToPharmacyRN loadRN(String uid) {
         return rnRepository.findByUid(uid)
                 .orElseThrow(() -> new NotFoundException("RN not found: " + uid));
     }
@@ -422,15 +414,6 @@ public class PharmacyStoreTransferService {
         return p;
     }
 
-    private Store activeStore(String uid) {
-        Store s = storeRepository.findByUid(uid)
-                .orElseThrow(() -> new NotFoundException("Store not found: " + uid));
-        if (!s.isActive()) {
-            throw new BusinessRuleException("Store is not active: " + s.getName());
-        }
-        return s;
-    }
-
     private Medicine activeMedicine(String uid) {
         Medicine m = medicineRepository.findByUid(uid)
                 .orElseThrow(() -> new NotFoundException("Medicine not found: " + uid));
@@ -440,15 +423,15 @@ public class PharmacyStoreTransferService {
         return m;
     }
 
-    private RODto toRODto(PharmacyToStoreRO ro) {
-        Pharmacy pharmacy = pharmacyRepository.findByUid(ro.getPharmacyUid()).orElse(null);
-        Store store = storeRepository.findByUid(ro.getStoreUid()).orElse(null);
-        List<PharmacyToStoreROLine> lines = roLineRepository.findAllByRoUidOrderByCreatedAtAsc(ro.getUid());
+    private RODto toRODto(PharmacyToPharmacyRO ro) {
+        Pharmacy requester = pharmacyRepository.findByUid(ro.getRequestingPharmacyUid()).orElse(null);
+        Pharmacy deliverer = pharmacyRepository.findByUid(ro.getDeliveringPharmacyUid()).orElse(null);
+        List<PharmacyToPharmacyROLine> lines = roLineRepository.findAllByRoUidOrderByCreatedAtAsc(ro.getUid());
         return new RODto(
                 ro.getUid(),
                 ro.getRoNo(),
-                ro.getPharmacyUid(), pharmacy == null ? null : pharmacy.getName(),
-                ro.getStoreUid(), store == null ? null : store.getName(),
+                ro.getRequestingPharmacyUid(), requester == null ? null : requester.getName(),
+                ro.getDeliveringPharmacyUid(), deliverer == null ? null : deliverer.getName(),
                 ro.getOrderDate(), ro.getValidUntil(),
                 ro.getStatus(),
                 ro.getVerifiedAt(), ro.getApprovedAt(), ro.getSubmittedAt(),
@@ -459,7 +442,7 @@ public class PharmacyStoreTransferService {
                 lines.stream().map(this::toROLineDto).toList());
     }
 
-    private ROLineDto toROLineDto(PharmacyToStoreROLine line) {
+    private ROLineDto toROLineDto(PharmacyToPharmacyROLine line) {
         Medicine m = medicineRepository.findByUid(line.getMedicineUid()).orElse(null);
         return new ROLineDto(
                 line.getUid(),
@@ -474,32 +457,32 @@ public class PharmacyStoreTransferService {
                 line.getCreatedAt());
     }
 
-    private ROSummary toROSummary(PharmacyToStoreRO ro) {
-        Pharmacy pharmacy = pharmacyRepository.findByUid(ro.getPharmacyUid()).orElse(null);
-        Store store = storeRepository.findByUid(ro.getStoreUid()).orElse(null);
+    private ROSummary toROSummary(PharmacyToPharmacyRO ro) {
+        Pharmacy requester = pharmacyRepository.findByUid(ro.getRequestingPharmacyUid()).orElse(null);
+        Pharmacy deliverer = pharmacyRepository.findByUid(ro.getDeliveringPharmacyUid()).orElse(null);
         int lineCount = roLineRepository.findAllByRoUidOrderByCreatedAtAsc(ro.getUid()).size();
         return new ROSummary(
                 ro.getUid(),
                 ro.getRoNo(),
-                pharmacy == null ? null : pharmacy.getName(),
-                store == null ? null : store.getName(),
+                requester == null ? null : requester.getName(),
+                deliverer == null ? null : deliverer.getName(),
                 ro.getOrderDate(),
                 ro.getStatus(),
                 lineCount,
                 ro.getCreatedAt());
     }
 
-    private TODto toTODto(StoreToPharmacyTO to) {
-        Pharmacy pharmacy = pharmacyRepository.findByUid(to.getPharmacyUid()).orElse(null);
-        Store store = storeRepository.findByUid(to.getStoreUid()).orElse(null);
-        PharmacyToStoreRO ro = roRepository.findByUid(to.getRoUid()).orElse(null);
-        List<StoreToPharmacyTOLine> lines = toLineRepository.findAllByToUidOrderByCreatedAtAsc(to.getUid());
+    private TODto toTODto(PharmacyToPharmacyTO to) {
+        Pharmacy requester = pharmacyRepository.findByUid(to.getRequestingPharmacyUid()).orElse(null);
+        Pharmacy deliverer = pharmacyRepository.findByUid(to.getDeliveringPharmacyUid()).orElse(null);
+        PharmacyToPharmacyRO ro = roRepository.findByUid(to.getRoUid()).orElse(null);
+        List<PharmacyToPharmacyTOLine> lines = toLineRepository.findAllByToUidOrderByCreatedAtAsc(to.getUid());
         return new TODto(
                 to.getUid(),
                 to.getToNo(),
                 to.getRoUid(), ro == null ? null : ro.getRoNo(),
-                to.getPharmacyUid(), pharmacy == null ? null : pharmacy.getName(),
-                to.getStoreUid(), store == null ? null : store.getName(),
+                to.getRequestingPharmacyUid(), requester == null ? null : requester.getName(),
+                to.getDeliveringPharmacyUid(), deliverer == null ? null : deliverer.getName(),
                 to.getOrderDate(),
                 to.getStatus(),
                 to.getVerifiedAt(), to.getApprovedAt(), to.getIssuedAt(),
@@ -509,12 +492,12 @@ public class PharmacyStoreTransferService {
                 lines.stream().map(this::toTOLineDto).toList());
     }
 
-    private TOLineDto toTOLineDto(StoreToPharmacyTOLine line) {
+    private TOLineDto toTOLineDto(PharmacyToPharmacyTOLine line) {
         Medicine m = medicineRepository.findByUid(line.getMedicineUid()).orElse(null);
-        List<StoreToPharmacyTOBatchPick> picks = toPickRepository
+        List<PharmacyToPharmacyTOBatchPick> picks = toPickRepository
                 .findAllByToLineUidOrderByCreatedAtAsc(line.getUid());
         List<TOBatchPickDto> pickDtos = new ArrayList<>(picks.size());
-        for (StoreToPharmacyTOBatchPick p : picks) {
+        for (PharmacyToPharmacyTOBatchPick p : picks) {
             pickDtos.add(new TOBatchPickDto(
                     p.getSourceBatchUid(), p.getBatchNo(), p.getExpiresAt(),
                     p.getQuantity(), p.getRnLineUid()));
@@ -533,34 +516,34 @@ public class PharmacyStoreTransferService {
                 line.getCreatedAt());
     }
 
-    private TOSummary toTOSummary(StoreToPharmacyTO to) {
-        Pharmacy pharmacy = pharmacyRepository.findByUid(to.getPharmacyUid()).orElse(null);
-        Store store = storeRepository.findByUid(to.getStoreUid()).orElse(null);
-        PharmacyToStoreRO ro = roRepository.findByUid(to.getRoUid()).orElse(null);
+    private TOSummary toTOSummary(PharmacyToPharmacyTO to) {
+        Pharmacy requester = pharmacyRepository.findByUid(to.getRequestingPharmacyUid()).orElse(null);
+        Pharmacy deliverer = pharmacyRepository.findByUid(to.getDeliveringPharmacyUid()).orElse(null);
+        PharmacyToPharmacyRO ro = roRepository.findByUid(to.getRoUid()).orElse(null);
         int lineCount = toLineRepository.findAllByToUidOrderByCreatedAtAsc(to.getUid()).size();
         return new TOSummary(
                 to.getUid(),
                 to.getToNo(),
                 ro == null ? null : ro.getRoNo(),
-                pharmacy == null ? null : pharmacy.getName(),
-                store == null ? null : store.getName(),
+                requester == null ? null : requester.getName(),
+                deliverer == null ? null : deliverer.getName(),
                 to.getOrderDate(),
                 to.getStatus(),
                 lineCount,
                 to.getCreatedAt());
     }
 
-    private RNDto toRNDto(StoreToPharmacyRN rn) {
-        Pharmacy pharmacy = pharmacyRepository.findByUid(rn.getPharmacyUid()).orElse(null);
-        Store store = storeRepository.findByUid(rn.getStoreUid()).orElse(null);
-        StoreToPharmacyTO to = toRepository.findByUid(rn.getToUid()).orElse(null);
-        List<StoreToPharmacyRNLine> lines = rnLineRepository.findAllByRnUidOrderByCreatedAtAsc(rn.getUid());
+    private RNDto toRNDto(PharmacyToPharmacyRN rn) {
+        Pharmacy requester = pharmacyRepository.findByUid(rn.getRequestingPharmacyUid()).orElse(null);
+        Pharmacy deliverer = pharmacyRepository.findByUid(rn.getDeliveringPharmacyUid()).orElse(null);
+        PharmacyToPharmacyTO to = toRepository.findByUid(rn.getToUid()).orElse(null);
+        List<PharmacyToPharmacyRNLine> lines = rnLineRepository.findAllByRnUidOrderByCreatedAtAsc(rn.getUid());
         return new RNDto(
                 rn.getUid(),
                 rn.getRnNo(),
                 rn.getToUid(), to == null ? null : to.getToNo(),
-                rn.getPharmacyUid(), pharmacy == null ? null : pharmacy.getName(),
-                rn.getStoreUid(), store == null ? null : store.getName(),
+                rn.getRequestingPharmacyUid(), requester == null ? null : requester.getName(),
+                rn.getDeliveringPharmacyUid(), deliverer == null ? null : deliverer.getName(),
                 rn.getReceivingDate(),
                 rn.getStatus(),
                 rn.getCompletedAt(),
@@ -570,7 +553,7 @@ public class PharmacyStoreTransferService {
                 lines.stream().map(this::toRNLineDto).toList());
     }
 
-    private RNLineDto toRNLineDto(StoreToPharmacyRNLine line) {
+    private RNLineDto toRNLineDto(PharmacyToPharmacyRNLine line) {
         Medicine m = medicineRepository.findByUid(line.getMedicineUid()).orElse(null);
         return new RNLineDto(
                 line.getUid(),
@@ -585,17 +568,17 @@ public class PharmacyStoreTransferService {
                 line.getCreatedAt());
     }
 
-    private RNSummary toRNSummary(StoreToPharmacyRN rn) {
-        Pharmacy pharmacy = pharmacyRepository.findByUid(rn.getPharmacyUid()).orElse(null);
-        Store store = storeRepository.findByUid(rn.getStoreUid()).orElse(null);
-        StoreToPharmacyTO to = toRepository.findByUid(rn.getToUid()).orElse(null);
+    private RNSummary toRNSummary(PharmacyToPharmacyRN rn) {
+        Pharmacy requester = pharmacyRepository.findByUid(rn.getRequestingPharmacyUid()).orElse(null);
+        Pharmacy deliverer = pharmacyRepository.findByUid(rn.getDeliveringPharmacyUid()).orElse(null);
+        PharmacyToPharmacyTO to = toRepository.findByUid(rn.getToUid()).orElse(null);
         int lineCount = rnLineRepository.findAllByRnUidOrderByCreatedAtAsc(rn.getUid()).size();
         return new RNSummary(
                 rn.getUid(),
                 rn.getRnNo(),
                 to == null ? null : to.getToNo(),
-                pharmacy == null ? null : pharmacy.getName(),
-                store == null ? null : store.getName(),
+                requester == null ? null : requester.getName(),
+                deliverer == null ? null : deliverer.getName(),
                 rn.getReceivingDate(),
                 rn.getStatus(),
                 lineCount,

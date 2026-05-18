@@ -1,12 +1,12 @@
-package com.otapp.hmis.engine.transfer.pharmacystore.api;
+package com.otapp.hmis.engine.transfer.pharmacypharmacy.api;
 
 import com.otapp.hmis.engine.common.api.PageResponse;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.CreateRORequest;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.RODto;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.ROSummary;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.ReasonRequest;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferService;
 import com.otapp.hmis.engine.transfer.common.domain.TransferDocStatus;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.CreateRORequest;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.RODto;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.ROSummary;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.ReasonRequest;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -17,19 +17,19 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
-@Tag(name = "Pharmacy↔Store transfers — RO (Request Order)")
+@Tag(name = "Pharmacy↔Pharmacy transfers — RO (Request Order)")
 @RestController
-@RequestMapping("/transfers/pharmacy-store/ro")
+@RequestMapping("/transfers/pharmacy-pharmacy/ro")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyAuthority('PHARMACY_ACCESS','STORE_ACCESS')")
-public class PharmacyToStoreROController {
+@PreAuthorize("hasAuthority('PHARMACY_ACCESS')")
+public class PharmacyToPharmacyROController {
 
-    private final PharmacyStoreTransferService transferService;
+    private final PharmacyPharmacyTransferService transferService;
 
     @PostMapping
     public ResponseEntity<RODto> create(@Valid @RequestBody CreateRORequest request) {
         RODto created = transferService.createRO(request);
-        URI loc = UriComponentsBuilder.fromPath("/transfers/pharmacy-store/ro/uid/{roUid}")
+        URI loc = UriComponentsBuilder.fromPath("/transfers/pharmacy-pharmacy/ro/uid/{roUid}")
                 .buildAndExpand(created.uid()).toUri();
         return ResponseEntity.created(loc).body(created);
     }
@@ -38,10 +38,11 @@ public class PharmacyToStoreROController {
     public ResponseEntity<PageResponse<ROSummary>> search(
             @RequestParam(required = false) String query,
             @RequestParam(required = false) TransferDocStatus status,
-            @RequestParam(required = false) String pharmacyUid,
-            @RequestParam(required = false) String storeUid,
+            @RequestParam(required = false) String requestingPharmacyUid,
+            @RequestParam(required = false) String deliveringPharmacyUid,
             Pageable pageable) {
-        return ResponseEntity.ok(transferService.searchROs(query, status, pharmacyUid, storeUid, pageable));
+        return ResponseEntity.ok(transferService.searchROs(
+                query, status, requestingPharmacyUid, deliveringPharmacyUid, pageable));
     }
 
     @GetMapping("/uid/{roUid}")

@@ -1,4 +1,4 @@
-package com.otapp.hmis.engine.transfer.pharmacystore.domain;
+package com.otapp.hmis.engine.transfer.pharmacypharmacy.domain;
 
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.persistence.AuditableEntity;
@@ -21,23 +21,24 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Receive Note (RN): the pharmacy's confirmation that the goods on a TO
- * arrived. Creating an RN drives the pharmacy-side stock increment per
- * batch picked, and completes both the TO and the parent RO.
+ * Receive Note (RN) — pharmacy ↔ pharmacy variant. The requesting
+ * pharmacy's confirmation that the goods on a TO arrived. Creating an RN
+ * drives the receiving-pharmacy stock increment per batch picked and
+ * completes both the TO and the parent RO.
  */
 @Entity
-@Table(name = "store_to_pharmacy_rn",
-       uniqueConstraints = @UniqueConstraint(name = "uk_store_to_pharmacy_rn_no", columnNames = "rn_no"),
+@Table(name = "pharmacy_to_pharmacy_rn",
+       uniqueConstraints = @UniqueConstraint(name = "uk_p2p_rn_no", columnNames = "rn_no"),
        indexes = {
-               @Index(name = "idx_s2p_rn_pharmacy",      columnList = "pharmacy_uid"),
-               @Index(name = "idx_s2p_rn_store",         columnList = "store_uid"),
-               @Index(name = "idx_s2p_rn_to",            columnList = "to_uid"),
-               @Index(name = "idx_s2p_rn_status",        columnList = "status"),
-               @Index(name = "idx_s2p_rn_receiving_date",columnList = "receiving_date")
+               @Index(name = "idx_p2p_rn_requester",      columnList = "requesting_pharmacy_uid"),
+               @Index(name = "idx_p2p_rn_deliverer",      columnList = "delivering_pharmacy_uid"),
+               @Index(name = "idx_p2p_rn_to",             columnList = "to_uid"),
+               @Index(name = "idx_p2p_rn_status",         columnList = "status"),
+               @Index(name = "idx_p2p_rn_receiving_date", columnList = "receiving_date")
        })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class StoreToPharmacyRN extends AuditableEntity {
+public class PharmacyToPharmacyRN extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -46,9 +47,13 @@ public class StoreToPharmacyRN extends AuditableEntity {
     @Column(name = "rn_no", nullable = false, length = 32)
     private String rnNo;
 
-    @Column(name = "to_uid",       nullable = false, length = 26) private String toUid;
-    @Column(name = "pharmacy_uid", nullable = false, length = 26) private String pharmacyUid;
-    @Column(name = "store_uid",    nullable = false, length = 26) private String storeUid;
+    @Column(name = "to_uid", nullable = false, length = 26) private String toUid;
+
+    @Column(name = "requesting_pharmacy_uid", nullable = false, length = 26)
+    private String requestingPharmacyUid;
+
+    @Column(name = "delivering_pharmacy_uid", nullable = false, length = 26)
+    private String deliveringPharmacyUid;
 
     @Column(name = "receiving_date", nullable = false) private LocalDate receivingDate;
 
@@ -60,12 +65,12 @@ public class StoreToPharmacyRN extends AuditableEntity {
     @Setter @Column(name = "cancelled_at") private Instant cancelledAt;
     @Setter @Column(name = "note",  length = 500) private String note;
 
-    public StoreToPharmacyRN(String rnNo, String toUid, String pharmacyUid,
-                             String storeUid, LocalDate receivingDate, String note) {
+    public PharmacyToPharmacyRN(String rnNo, String toUid, String requestingPharmacyUid,
+                                String deliveringPharmacyUid, LocalDate receivingDate, String note) {
         this.rnNo = rnNo;
         this.toUid = toUid;
-        this.pharmacyUid = pharmacyUid;
-        this.storeUid = storeUid;
+        this.requestingPharmacyUid = requestingPharmacyUid;
+        this.deliveringPharmacyUid = deliveringPharmacyUid;
         this.receivingDate = receivingDate == null ? LocalDate.now() : receivingDate;
         this.note = note;
     }

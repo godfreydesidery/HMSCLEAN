@@ -73,4 +73,17 @@ public final class StockDtos {
             @NotBlank @Size(min = 26, max = 26) String batchUid,
             @NotNull Integer delta,
             @Size(max = 500) String note) {}
+
+    /**
+     * One batch consumed during an FEFO issue out of a pharmacy. The
+     * pharmacy↔pharmacy transfer service uses these to persist per-batch
+     * pick rows on the TO line and to propagate batch metadata to the
+     * receiving pharmacy.
+     */
+    public record BatchPickResult(
+            String batchUid,
+            String batchNo,
+            LocalDate expiresAt,
+            int quantity,
+            String movementUid) {}
 }

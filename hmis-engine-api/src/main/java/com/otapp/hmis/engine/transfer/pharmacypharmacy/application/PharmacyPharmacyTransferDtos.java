@@ -1,4 +1,4 @@
-package com.otapp.hmis.engine.transfer.pharmacystore.application;
+package com.otapp.hmis.engine.transfer.pharmacypharmacy.application;
 
 import com.otapp.hmis.engine.transfer.common.domain.ReceiveNoteStatus;
 import com.otapp.hmis.engine.transfer.common.domain.TransferDocStatus;
@@ -12,15 +12,15 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
-public final class PharmacyStoreTransferDtos {
+public final class PharmacyPharmacyTransferDtos {
 
-    private PharmacyStoreTransferDtos() {}
+    private PharmacyPharmacyTransferDtos() {}
 
     // ----- requests --------------------------------------------------------
 
     public record CreateRORequest(
-            @NotBlank @Size(min = 26, max = 26) String pharmacyUid,
-            @NotBlank @Size(min = 26, max = 26) String storeUid,
+            @NotBlank @Size(min = 26, max = 26) String requestingPharmacyUid,
+            @NotBlank @Size(min = 26, max = 26) String deliveringPharmacyUid,
             LocalDate validUntil,
             @Size(max = 500) String note,
             @NotEmpty @Valid List<CreateROLineRequest> lines) {}
@@ -35,11 +35,6 @@ public final class PharmacyStoreTransferDtos {
             @Size(max = 500) String note,
             @NotEmpty @Valid List<CreateTOLineRequest> lines) {}
 
-    /**
-     * One line on a Transfer Order. {@code quantity} is what the store is
-     * committing to ship for the matching RO line — must be ≤ that line's
-     * still-outstanding requested quantity.
-     */
     public record CreateTOLineRequest(
             @NotBlank @Size(min = 26, max = 26) String roLineUid,
             @Min(1) int quantity) {}
@@ -50,11 +45,6 @@ public final class PharmacyStoreTransferDtos {
             @Size(max = 500) String note,
             @NotEmpty @Valid List<CreateRNLineRequest> lines) {}
 
-    /**
-     * One line on a Receive Note. {@code receivedQuantity} may be less than
-     * the matching TO line's issued amount — the difference is recorded as
-     * a transit shortfall on the RN line and does not reach pharmacy stock.
-     */
     public record CreateRNLineRequest(
             @NotBlank @Size(min = 26, max = 26) String toLineUid,
             @NotNull @Min(0) Integer receivedQuantity) {}
@@ -78,10 +68,10 @@ public final class PharmacyStoreTransferDtos {
     public record RODto(
             String uid,
             String roNo,
-            String pharmacyUid,
-            String pharmacyName,
-            String storeUid,
-            String storeName,
+            String requestingPharmacyUid,
+            String requestingPharmacyName,
+            String deliveringPharmacyUid,
+            String deliveringPharmacyName,
             LocalDate orderDate,
             LocalDate validUntil,
             TransferDocStatus status,
@@ -102,8 +92,8 @@ public final class PharmacyStoreTransferDtos {
     public record ROSummary(
             String uid,
             String roNo,
-            String pharmacyName,
-            String storeName,
+            String requestingPharmacyName,
+            String deliveringPharmacyName,
             LocalDate orderDate,
             TransferDocStatus status,
             int lineCount,
@@ -134,10 +124,10 @@ public final class PharmacyStoreTransferDtos {
             String toNo,
             String roUid,
             String roNo,
-            String pharmacyUid,
-            String pharmacyName,
-            String storeUid,
-            String storeName,
+            String requestingPharmacyUid,
+            String requestingPharmacyName,
+            String deliveringPharmacyUid,
+            String deliveringPharmacyName,
             LocalDate orderDate,
             TransferDocStatus status,
             Instant verifiedAt,
@@ -155,8 +145,8 @@ public final class PharmacyStoreTransferDtos {
             String uid,
             String toNo,
             String roNo,
-            String pharmacyName,
-            String storeName,
+            String requestingPharmacyName,
+            String deliveringPharmacyName,
             LocalDate orderDate,
             TransferDocStatus status,
             int lineCount,
@@ -179,10 +169,10 @@ public final class PharmacyStoreTransferDtos {
             String rnNo,
             String toUid,
             String toNo,
-            String pharmacyUid,
-            String pharmacyName,
-            String storeUid,
-            String storeName,
+            String requestingPharmacyUid,
+            String requestingPharmacyName,
+            String deliveringPharmacyUid,
+            String deliveringPharmacyName,
             LocalDate receivingDate,
             ReceiveNoteStatus status,
             Instant completedAt,
@@ -196,8 +186,8 @@ public final class PharmacyStoreTransferDtos {
             String uid,
             String rnNo,
             String toNo,
-            String pharmacyName,
-            String storeName,
+            String requestingPharmacyName,
+            String deliveringPharmacyName,
             LocalDate receivingDate,
             ReceiveNoteStatus status,
             int lineCount,

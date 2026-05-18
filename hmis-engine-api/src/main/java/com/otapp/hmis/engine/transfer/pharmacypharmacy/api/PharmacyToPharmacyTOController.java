@@ -1,12 +1,12 @@
-package com.otapp.hmis.engine.transfer.pharmacystore.api;
+package com.otapp.hmis.engine.transfer.pharmacypharmacy.api;
 
 import com.otapp.hmis.engine.common.api.PageResponse;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.CreateTORequest;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.ReasonRequest;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.TODto;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.TOSummary;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferService;
 import com.otapp.hmis.engine.transfer.common.domain.TransferDocStatus;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.CreateTORequest;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.ReasonRequest;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.TODto;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.TOSummary;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -17,19 +17,19 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
-@Tag(name = "Pharmacy↔Store transfers — TO (Transfer Order)")
+@Tag(name = "Pharmacy↔Pharmacy transfers — TO (Transfer Order)")
 @RestController
-@RequestMapping("/transfers/pharmacy-store/to")
+@RequestMapping("/transfers/pharmacy-pharmacy/to")
 @RequiredArgsConstructor
-@PreAuthorize("hasAuthority('STORE_ACCESS')")
-public class StoreToPharmacyTOController {
+@PreAuthorize("hasAuthority('PHARMACY_ACCESS')")
+public class PharmacyToPharmacyTOController {
 
-    private final PharmacyStoreTransferService transferService;
+    private final PharmacyPharmacyTransferService transferService;
 
     @PostMapping
     public ResponseEntity<TODto> create(@Valid @RequestBody CreateTORequest request) {
         TODto created = transferService.createTO(request);
-        URI loc = UriComponentsBuilder.fromPath("/transfers/pharmacy-store/to/uid/{toUid}")
+        URI loc = UriComponentsBuilder.fromPath("/transfers/pharmacy-pharmacy/to/uid/{toUid}")
                 .buildAndExpand(created.uid()).toUri();
         return ResponseEntity.created(loc).body(created);
     }
@@ -38,12 +38,12 @@ public class StoreToPharmacyTOController {
     public ResponseEntity<PageResponse<TOSummary>> search(
             @RequestParam(required = false) String query,
             @RequestParam(required = false) TransferDocStatus status,
-            @RequestParam(required = false) String pharmacyUid,
-            @RequestParam(required = false) String storeUid,
+            @RequestParam(required = false) String requestingPharmacyUid,
+            @RequestParam(required = false) String deliveringPharmacyUid,
             @RequestParam(required = false) String roUid,
             Pageable pageable) {
-        return ResponseEntity.ok(
-                transferService.searchTOs(query, status, pharmacyUid, storeUid, roUid, pageable));
+        return ResponseEntity.ok(transferService.searchTOs(
+                query, status, requestingPharmacyUid, deliveringPharmacyUid, roUid, pageable));
     }
 
     @GetMapping("/uid/{toUid}")

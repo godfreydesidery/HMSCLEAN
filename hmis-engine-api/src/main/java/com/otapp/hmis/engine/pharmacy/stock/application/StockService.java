@@ -16,6 +16,7 @@ import com.otapp.hmis.engine.pharmacy.sale.domain.PharmacySaleOrderLine;
 import com.otapp.hmis.engine.pharmacy.sale.domain.PharmacySaleOrderLineRepository;
 import com.otapp.hmis.engine.pharmacy.sale.domain.PharmacySaleOrderRepository;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.AdjustStockRequest;
+import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.BatchPickResult;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.ReceiveStockRequest;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.StockBalanceDto;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.StockBatchDto;
@@ -108,6 +109,83 @@ public class StockService {
 
         recordMovement(balance, batch, kind, quantity, referenceUid, note);
         return toBatchDto(batch, medicine);
+    }
+
+    // ----- issue to another pharmacy (cross-module entry) ------------------
+
+    /**
+     * FEFO-walk a source pharmacy's batches for {@code medicineUid},
+     * decrementing each in turn until {@code requested} units have been
+     * pulled. Returns one {@link BatchPickResult} per batch consumed so
+     * the caller (the pharmacy↔pharmacy transfer service) can persist
+     * matching pick rows and propagate batch metadata to the receiving
+     * pharmacy.
+     *
+     * <p>Records {@code TRANSFER_OUT} movements on the source pharmacy.
+     * The destination pharmacy's stock is NOT touched here — that happens
+     * later when the receiver signs the RN via
+     * {@link #receiveFromPharmacy}.
+     */
+    @Transactional
+    public List<BatchPickResult> issueToPharmacy(String sourcePharmacyUid, String medicineUid,
+                                                 int requested, String referenceUid, String note) {
+        if (requested <= 0) {
+            throw new BusinessRuleException("Issue quantity must be positive");
+        }
+        Pharmacy pharmacy = activePharmacy(sourcePharmacyUid);
+        Medicine medicine = activeMedicine(medicineUid);
+
+        List<StockBatch> batches = batchRepository.lockFefoForDispense(pharmacy.getUid(), medicine.getUid());
+        int onHand = batches.stream().mapToInt(StockBatch::getQuantity).sum();
+        if (onHand < requested) {
+            throw new BusinessRuleException(
+                    "Insufficient stock at source pharmacy: on hand " + onHand
+                            + ", requested " + requested);
+        }
+
+        StockBalance balance = balanceRepository
+                .lockByPharmacyUidAndMedicineUid(pharmacy.getUid(), medicine.getUid())
+                .orElseThrow(() -> new BusinessRuleException("No balance row for medicine"));
+
+        List<BatchPickResult> picks = new ArrayList<>();
+        int remaining = requested;
+        for (StockBatch batch : batches) {
+            if (remaining <= 0) break;
+            int take = Math.min(remaining, batch.getQuantity());
+            if (take > 0) {
+                batch.applyDelta(-take);
+                balance.applyDelta(-take);
+                StockMovement movement = recordMovement(balance, batch,
+                        StockMovementKind.TRANSFER_OUT, -take,
+                        emptyToNull(referenceUid), emptyToNull(note));
+                picks.add(new BatchPickResult(
+                        batch.getUid(), batch.getBatchNo(), batch.getExpiresAt(),
+                        take, movement.getUid()));
+                remaining -= take;
+            }
+        }
+        if (remaining > 0) {
+            throw new BusinessRuleException("Could not fulfil " + requested + ": " + remaining + " short");
+        }
+        return picks;
+    }
+
+    /**
+     * Cross-module entry point used by the pharmacy↔pharmacy transfer
+     * service when an RN is completed. Records a {@code TRANSFER_IN}
+     * movement referencing the source TO so the stock card explains the
+     * receipt — same machinery as {@link #receiveFromStore} but used by
+     * the other transfer chain for clearer movement provenance.
+     */
+    @Transactional
+    public StockBatchDto receiveFromPharmacy(String pharmacyUid, String medicineUid,
+                                             String batchNo, LocalDate expiresAt,
+                                             int quantity, String referenceUid, String note) {
+        if (quantity <= 0) {
+            throw new BusinessRuleException("Receipt quantity must be positive");
+        }
+        return doReceive(pharmacyUid, medicineUid, batchNo, expiresAt, quantity,
+                StockMovementKind.TRANSFER_IN, emptyToNull(referenceUid), emptyToNull(note));
     }
 
     // ----- adjust -----------------------------------------------------------

@@ -1,4 +1,4 @@
-package com.otapp.hmis.engine.transfer.pharmacystore.domain;
+package com.otapp.hmis.engine.transfer.pharmacypharmacy.domain;
 
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.persistence.AuditableEntity;
@@ -21,34 +21,38 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Request Order (RO): a pharmacy asks a central store for stock. Once
- * APPROVED + SUBMITTED, the store can fulfil it with a
- * {@link StoreToPharmacyTO}. The RO header carries the workflow gates; line
- * detail lives on {@link PharmacyToStoreROLine}.
+ * Request Order (RO) — pharmacy ↔ pharmacy variant. The requesting
+ * pharmacy asks the delivering pharmacy for stock; once APPROVED +
+ * SUBMITTED, the delivering pharmacy can fulfil with a
+ * {@link PharmacyToPharmacyTO}. Same lifecycle as the P↔S RO
+ * (PROCESS.md §8.4, §15).
  */
 @Entity
-@Table(name = "pharmacy_to_store_ro",
-       uniqueConstraints = @UniqueConstraint(name = "uk_pharmacy_to_store_ro_no", columnNames = "ro_no"),
+@Table(name = "pharmacy_to_pharmacy_ro",
+       uniqueConstraints = @UniqueConstraint(name = "uk_p2p_ro_no", columnNames = "ro_no"),
        indexes = {
-               @Index(name = "idx_p2s_ro_pharmacy", columnList = "pharmacy_uid"),
-               @Index(name = "idx_p2s_ro_store",    columnList = "store_uid"),
-               @Index(name = "idx_p2s_ro_status",   columnList = "status"),
-               @Index(name = "idx_p2s_ro_order_date", columnList = "order_date")
+               @Index(name = "idx_p2p_ro_requester", columnList = "requesting_pharmacy_uid"),
+               @Index(name = "idx_p2p_ro_deliverer", columnList = "delivering_pharmacy_uid"),
+               @Index(name = "idx_p2p_ro_status",    columnList = "status"),
+               @Index(name = "idx_p2p_ro_order_date",columnList = "order_date")
        })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class PharmacyToStoreRO extends AuditableEntity {
+public class PharmacyToPharmacyRO extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** Human-readable RO number, e.g. P2S-RO-2026-000123. */
+    /** Human-readable RO number, e.g. P2P-RO-2026-000123. */
     @Column(name = "ro_no", nullable = false, length = 32)
     private String roNo;
 
-    @Column(name = "pharmacy_uid", nullable = false, length = 26) private String pharmacyUid;
-    @Column(name = "store_uid",    nullable = false, length = 26) private String storeUid;
+    @Column(name = "requesting_pharmacy_uid", nullable = false, length = 26)
+    private String requestingPharmacyUid;
+
+    @Column(name = "delivering_pharmacy_uid", nullable = false, length = 26)
+    private String deliveringPharmacyUid;
 
     @Column(name = "order_date", nullable = false) private LocalDate orderDate;
     @Setter @Column(name = "valid_until")          private LocalDate validUntil;
@@ -68,11 +72,14 @@ public class PharmacyToStoreRO extends AuditableEntity {
     @Setter @Column(name = "reject_reason", length = 255) private String rejectReason;
     @Setter @Column(name = "note",          length = 500) private String note;
 
-    public PharmacyToStoreRO(String roNo, String pharmacyUid, String storeUid,
-                             LocalDate orderDate, LocalDate validUntil, String note) {
+    public PharmacyToPharmacyRO(String roNo, String requestingPharmacyUid, String deliveringPharmacyUid,
+                                LocalDate orderDate, LocalDate validUntil, String note) {
+        if (requestingPharmacyUid.equals(deliveringPharmacyUid)) {
+            throw new BusinessRuleException("Requesting and delivering pharmacy must differ");
+        }
         this.roNo = roNo;
-        this.pharmacyUid = pharmacyUid;
-        this.storeUid = storeUid;
+        this.requestingPharmacyUid = requestingPharmacyUid;
+        this.deliveringPharmacyUid = deliveringPharmacyUid;
         this.orderDate = orderDate == null ? LocalDate.now() : orderDate;
         this.validUntil = validUntil;
         this.note = note;
@@ -98,7 +105,6 @@ public class PharmacyToStoreRO extends AuditableEntity {
         submittedAt = Instant.now();
     }
 
-    /** Store has picked up the RO and started preparing a TO against it. */
     public void markInProcess() {
         if (status == TransferDocStatus.IN_PROCESS) return;
         requireStatus("start processing", TransferDocStatus.SUBMITTED);
@@ -106,7 +112,6 @@ public class PharmacyToStoreRO extends AuditableEntity {
         inProcessAt = Instant.now();
     }
 
-    /** Store has shipped (TO reached GOODS_ISSUED). */
     public void markGoodsIssued() {
         if (status == TransferDocStatus.GOODS_ISSUED) return;
         requireStatus("mark goods issued",
@@ -115,7 +120,6 @@ public class PharmacyToStoreRO extends AuditableEntity {
         issuedAt = Instant.now();
     }
 
-    /** Receiving pharmacy has signed the RN. */
     public void markCompleted() {
         if (status == TransferDocStatus.COMPLETED) return;
         requireStatus("mark complete", TransferDocStatus.GOODS_ISSUED);
@@ -145,10 +149,6 @@ public class PharmacyToStoreRO extends AuditableEntity {
         return status == TransferDocStatus.COMPLETED
                 || status == TransferDocStatus.REJECTED
                 || status == TransferDocStatus.RETURNED;
-    }
-
-    public boolean isEditable() {
-        return status == TransferDocStatus.PENDING;
     }
 
     private void requireStatus(String op, TransferDocStatus... allowed) {

@@ -1,11 +1,11 @@
-package com.otapp.hmis.engine.transfer.pharmacystore.api;
+package com.otapp.hmis.engine.transfer.pharmacypharmacy.api;
 
 import com.otapp.hmis.engine.common.api.PageResponse;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.CreateRNRequest;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.RNDto;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferDtos.RNSummary;
-import com.otapp.hmis.engine.transfer.pharmacystore.application.PharmacyStoreTransferService;
 import com.otapp.hmis.engine.transfer.common.domain.ReceiveNoteStatus;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.CreateRNRequest;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.RNDto;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferDtos.RNSummary;
+import com.otapp.hmis.engine.transfer.pharmacypharmacy.application.PharmacyPharmacyTransferService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -16,19 +16,19 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
-@Tag(name = "Pharmacy↔Store transfers — RN (Receive Note)")
+@Tag(name = "Pharmacy↔Pharmacy transfers — RN (Receive Note)")
 @RestController
-@RequestMapping("/transfers/pharmacy-store/rn")
+@RequestMapping("/transfers/pharmacy-pharmacy/rn")
 @RequiredArgsConstructor
 @PreAuthorize("hasAuthority('PHARMACY_ACCESS')")
-public class StoreToPharmacyRNController {
+public class PharmacyToPharmacyRNController {
 
-    private final PharmacyStoreTransferService transferService;
+    private final PharmacyPharmacyTransferService transferService;
 
     @PostMapping
     public ResponseEntity<RNDto> create(@Valid @RequestBody CreateRNRequest request) {
         RNDto created = transferService.createRN(request);
-        URI loc = UriComponentsBuilder.fromPath("/transfers/pharmacy-store/rn/uid/{rnUid}")
+        URI loc = UriComponentsBuilder.fromPath("/transfers/pharmacy-pharmacy/rn/uid/{rnUid}")
                 .buildAndExpand(created.uid()).toUri();
         return ResponseEntity.created(loc).body(created);
     }
@@ -37,12 +37,12 @@ public class StoreToPharmacyRNController {
     public ResponseEntity<PageResponse<RNSummary>> search(
             @RequestParam(required = false) String query,
             @RequestParam(required = false) ReceiveNoteStatus status,
-            @RequestParam(required = false) String pharmacyUid,
-            @RequestParam(required = false) String storeUid,
+            @RequestParam(required = false) String requestingPharmacyUid,
+            @RequestParam(required = false) String deliveringPharmacyUid,
             @RequestParam(required = false) String toUid,
             Pageable pageable) {
-        return ResponseEntity.ok(
-                transferService.searchRNs(query, status, pharmacyUid, storeUid, toUid, pageable));
+        return ResponseEntity.ok(transferService.searchRNs(
+                query, status, requestingPharmacyUid, deliveringPharmacyUid, toUid, pageable));
     }
 
     @GetMapping("/uid/{rnUid}")

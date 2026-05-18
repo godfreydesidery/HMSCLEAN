@@ -1,4 +1,4 @@
-package com.otapp.hmis.engine.transfer.pharmacystore.domain;
+package com.otapp.hmis.engine.transfer.pharmacypharmacy.domain;
 
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.persistence.AuditableEntity;
@@ -21,25 +21,25 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Transfer Order (TO): the store's commitment to ship a set of medicines /
- * batches to a pharmacy. Created against an APPROVED+SUBMITTED RO. Store
- * stock is decremented when the TO reaches GOODS_ISSUED — at which point
- * the per-line {@link StoreToPharmacyTOBatchPick} rows are the authoritative
- * record of what left which store batch.
+ * Transfer Order (TO) — pharmacy ↔ pharmacy variant. The delivering
+ * pharmacy's commitment to ship a set of medicines / batches to the
+ * requesting pharmacy. Created against an APPROVED+SUBMITTED RO.
+ * Delivering-pharmacy stock is decremented (FEFO, TRANSFER_OUT) when
+ * the TO reaches GOODS_ISSUED.
  */
 @Entity
-@Table(name = "store_to_pharmacy_to",
-       uniqueConstraints = @UniqueConstraint(name = "uk_store_to_pharmacy_to_no", columnNames = "to_no"),
+@Table(name = "pharmacy_to_pharmacy_to",
+       uniqueConstraints = @UniqueConstraint(name = "uk_p2p_to_no", columnNames = "to_no"),
        indexes = {
-               @Index(name = "idx_s2p_to_pharmacy", columnList = "pharmacy_uid"),
-               @Index(name = "idx_s2p_to_store",    columnList = "store_uid"),
-               @Index(name = "idx_s2p_to_ro",       columnList = "ro_uid"),
-               @Index(name = "idx_s2p_to_status",   columnList = "status"),
-               @Index(name = "idx_s2p_to_order_date", columnList = "order_date")
+               @Index(name = "idx_p2p_to_requester", columnList = "requesting_pharmacy_uid"),
+               @Index(name = "idx_p2p_to_deliverer", columnList = "delivering_pharmacy_uid"),
+               @Index(name = "idx_p2p_to_ro",        columnList = "ro_uid"),
+               @Index(name = "idx_p2p_to_status",    columnList = "status"),
+               @Index(name = "idx_p2p_to_order_date",columnList = "order_date")
        })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class StoreToPharmacyTO extends AuditableEntity {
+public class PharmacyToPharmacyTO extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -48,11 +48,13 @@ public class StoreToPharmacyTO extends AuditableEntity {
     @Column(name = "to_no", nullable = false, length = 32)
     private String toNo;
 
-    /** Always required — every TO is currently sourced from an RO. */
     @Column(name = "ro_uid", nullable = false, length = 26) private String roUid;
 
-    @Column(name = "pharmacy_uid", nullable = false, length = 26) private String pharmacyUid;
-    @Column(name = "store_uid",    nullable = false, length = 26) private String storeUid;
+    @Column(name = "requesting_pharmacy_uid", nullable = false, length = 26)
+    private String requestingPharmacyUid;
+
+    @Column(name = "delivering_pharmacy_uid", nullable = false, length = 26)
+    private String deliveringPharmacyUid;
 
     @Column(name = "order_date", nullable = false) private LocalDate orderDate;
 
@@ -68,17 +70,15 @@ public class StoreToPharmacyTO extends AuditableEntity {
     @Setter @Column(name = "rejected_reason", length = 255) private String rejectedReason;
     @Setter @Column(name = "note",          length = 500) private String note;
 
-    public StoreToPharmacyTO(String toNo, String roUid, String pharmacyUid,
-                             String storeUid, LocalDate orderDate, String note) {
+    public PharmacyToPharmacyTO(String toNo, String roUid, String requestingPharmacyUid,
+                                String deliveringPharmacyUid, LocalDate orderDate, String note) {
         this.toNo = toNo;
         this.roUid = roUid;
-        this.pharmacyUid = pharmacyUid;
-        this.storeUid = storeUid;
+        this.requestingPharmacyUid = requestingPharmacyUid;
+        this.deliveringPharmacyUid = deliveringPharmacyUid;
         this.orderDate = orderDate == null ? LocalDate.now() : orderDate;
         this.note = note;
     }
-
-    // ----- state transitions ------------------------------------------------
 
     public void verify() {
         requireStatus("verify", TransferDocStatus.PENDING);
@@ -92,17 +92,12 @@ public class StoreToPharmacyTO extends AuditableEntity {
         approvedAt = Instant.now();
     }
 
-    /**
-     * Goods physically leave the store. The caller is responsible for the
-     * store-side stock decrement before transitioning the document.
-     */
     public void markGoodsIssued() {
         requireStatus("issue goods", TransferDocStatus.APPROVED);
         status = TransferDocStatus.GOODS_ISSUED;
         issuedAt = Instant.now();
     }
 
-    /** Pharmacy has confirmed receipt — RN done. */
     public void markCompleted() {
         if (status == TransferDocStatus.COMPLETED) return;
         requireStatus("mark complete", TransferDocStatus.GOODS_ISSUED);
@@ -124,10 +119,6 @@ public class StoreToPharmacyTO extends AuditableEntity {
 
     public boolean isTerminal() {
         return status == TransferDocStatus.COMPLETED || status == TransferDocStatus.REJECTED;
-    }
-
-    public boolean isEditable() {
-        return status == TransferDocStatus.PENDING;
     }
 
     private void requireStatus(String op, TransferDocStatus... allowed) {

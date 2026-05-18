@@ -1,5 +1,6 @@
 package com.otapp.hmis.engine.transfer.pharmacystore.domain;
 
+import com.otapp.hmis.engine.transfer.common.domain.ReceiveNoteStatus;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

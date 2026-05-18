@@ -42,7 +42,10 @@ public class Admission extends AuditableEntity {
 
     @Column(name = "patient_uid", nullable = false, length = 26) private String patientUid;
 
-    @Setter @Column(name = "ward_uid",    nullable = false, length = 26) private String wardUid;
+    @Setter @Column(name = "ward_uid", nullable = false, length = 26) private String wardUid;
+    /** Optional reference to a real {@code Bed} entity. Null = unassigned / free-text fallback. */
+    @Setter @Column(name = "bed_uid",   length = 26) private String bedUid;
+    /** Denormalised bed label — set from the Bed on assignment, or free text if bedUid is null. */
     @Setter @Column(name = "bed_label", length = 32) private String bedLabel;
 
     /** Admitting clinician (User in the iam module). */

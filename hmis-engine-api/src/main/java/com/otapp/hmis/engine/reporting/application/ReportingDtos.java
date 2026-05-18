@@ -46,8 +46,10 @@ public final class ReportingDtos {
             String wardUid,
             String wardName,
             int capacity,
+            long beds,
             long occupied,
-            int available) {}
+            long free,
+            long outOfService) {}
 
     // ----- Stock reports --------------------------------------------------
 

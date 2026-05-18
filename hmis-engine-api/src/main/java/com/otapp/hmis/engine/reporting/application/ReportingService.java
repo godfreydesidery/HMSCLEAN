@@ -10,6 +10,8 @@ import com.otapp.hmis.engine.common.error.NotFoundException;
 import com.otapp.hmis.engine.encounter.admission.domain.Admission;
 import com.otapp.hmis.engine.encounter.admission.domain.AdmissionRepository;
 import com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus;
+import com.otapp.hmis.engine.masterdata.bed.domain.BedRepository;
+import com.otapp.hmis.engine.masterdata.bed.domain.BedStatus;
 import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineRepository;
 import com.otapp.hmis.engine.masterdata.pharmacy.domain.Pharmacy;
@@ -39,6 +41,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +66,7 @@ public class ReportingService {
 
     private final AdmissionRepository admissionRepository;
     private final WardRepository wardRepository;
+    private final BedRepository bedRepository;
     private final PatientRepository patientRepository;
 
     private final StockBalanceRepository pharmacyStockBalanceRepository;
@@ -146,18 +150,50 @@ public class ReportingService {
     // Bed occupancy
     // ==================================================================
 
+    /**
+     * Per-ward bed roll-up. Uses real {@link com.otapp.hmis.engine.masterdata.bed.domain.Bed}
+     * status counts; falls back to active-admission counts for wards
+     * that don't have beds defined yet (so the report still works
+     * during migration).
+     */
     @Transactional(readOnly = true)
     public List<BedOccupancyEntry> bedOccupancy() {
-        Map<String, Long> occupiedByWard = new HashMap<>();
-        for (Object[] row : admissionRepository.countCurrentlyAdmittedByWard()) {
-            occupiedByWard.put((String) row[0], (Long) row[1]);
+        // [wardUid -> [status -> count]] from the bed table.
+        Map<String, Map<BedStatus, Long>> bedCountsByWard = new HashMap<>();
+        for (Object[] row : bedRepository.countByWardAndStatus()) {
+            String wardUid = (String) row[0];
+            BedStatus status = (BedStatus) row[1];
+            Long count = (Long) row[2];
+            bedCountsByWard.computeIfAbsent(wardUid, k -> new EnumMap<>(BedStatus.class)).put(status, count);
         }
+        // Fallback: count of active admissions per ward, for wards with no beds defined.
+        Map<String, Long> activeByWard = new HashMap<>();
+        for (Object[] row : admissionRepository.countCurrentlyAdmittedByWard()) {
+            activeByWard.put((String) row[0], (Long) row[1]);
+        }
+
         List<Ward> wards = wardRepository.findAll();
         List<BedOccupancyEntry> out = new ArrayList<>(wards.size());
         for (Ward w : wards) {
-            long occupied = occupiedByWard.getOrDefault(w.getUid(), 0L);
-            int available = Math.max(0, w.getCapacity() - (int) occupied);
-            out.add(new BedOccupancyEntry(w.getUid(), w.getName(), w.getCapacity(), occupied, available));
+            Map<BedStatus, Long> beds = bedCountsByWard.getOrDefault(w.getUid(), Map.of());
+            long total = beds.values().stream().mapToLong(Long::longValue).sum();
+            long occupied;
+            long free;
+            long outOfService;
+            if (total > 0) {
+                occupied     = beds.getOrDefault(BedStatus.OCCUPIED, 0L);
+                free         = beds.getOrDefault(BedStatus.FREE, 0L)
+                             + beds.getOrDefault(BedStatus.RESERVED, 0L);
+                outOfService = beds.getOrDefault(BedStatus.OUT_OF_SERVICE, 0L);
+            } else {
+                // No Bed rows for this ward yet — use active admissions vs. ward capacity.
+                occupied     = activeByWard.getOrDefault(w.getUid(), 0L);
+                free         = Math.max(0, w.getCapacity() - occupied);
+                outOfService = 0L;
+            }
+            out.add(new BedOccupancyEntry(
+                    w.getUid(), w.getName(), w.getCapacity(),
+                    total, occupied, free, outOfService));
         }
         return out;
     }

@@ -17,6 +17,8 @@ import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
 import com.otapp.hmis.engine.iam.domain.User;
 import com.otapp.hmis.engine.iam.domain.UserRepository;
+import com.otapp.hmis.engine.masterdata.bed.domain.Bed;
+import com.otapp.hmis.engine.masterdata.bed.domain.BedRepository;
 import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlan;
 import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlanRepository;
 import com.otapp.hmis.engine.masterdata.ward.domain.Ward;
@@ -37,6 +39,7 @@ public class AdmissionService {
     private final AdmissionRepository admissionRepository;
     private final PatientRepository patientRepository;
     private final WardRepository wardRepository;
+    private final BedRepository bedRepository;
     private final InsurancePlanRepository insurancePlanRepository;
     private final UserRepository userRepository;
     private final ConsultationRepository consultationRepository;
@@ -93,6 +96,16 @@ public class AdmissionService {
                 consultationUid,
                 emptyToNull(request.admissionReason()));
         admissionRepository.save(admission);
+
+        // Optional bed assignment — if a typed Bed is given, claim it
+        // and overwrite the free-text label with the canonical Bed.label.
+        String bedUid = emptyToNull(request.bedUid());
+        if (bedUid != null) {
+            Bed bed = loadBedInWard(bedUid, ward.getUid());
+            bed.claim(admission.getUid());
+            admission.setBedUid(bed.getUid());
+            admission.setBedLabel(bed.getLabel());
+        }
         return toDto(admission);
     }
 
@@ -104,7 +117,19 @@ public class AdmissionService {
         if (!ward.isActive()) {
             throw new BusinessRuleException("Ward is not active: " + ward.getName());
         }
+        // Release the prior bed (if any) before flipping wards. The
+        // transferWard guard on the entity still enforces status=ADMITTED.
+        releaseCurrentBed(admission);
         admission.transferWard(ward.getUid(), emptyToNull(request.bedLabel()));
+        admission.setBedUid(null);
+
+        String bedUid = emptyToNull(request.bedUid());
+        if (bedUid != null) {
+            Bed bed = loadBedInWard(bedUid, ward.getUid());
+            bed.claim(admission.getUid());
+            admission.setBedUid(bed.getUid());
+            admission.setBedLabel(bed.getLabel());
+        }
         return toDto(admission);
     }
 
@@ -112,6 +137,7 @@ public class AdmissionService {
     public AdmissionDto discharge(String uid, DischargeRequest request) {
         Admission admission = loadOrThrow(uid);
         admission.discharge(emptyToNull(request == null ? null : request.summary()));
+        releaseCurrentBed(admission);
         return toDto(admission);
     }
 
@@ -119,6 +145,7 @@ public class AdmissionService {
     public AdmissionDto markDeceased(String uid, DischargeRequest request) {
         Admission admission = loadOrThrow(uid);
         admission.markDeceased(emptyToNull(request == null ? null : request.summary()));
+        releaseCurrentBed(admission);
         return toDto(admission);
     }
 
@@ -126,6 +153,7 @@ public class AdmissionService {
     public AdmissionDto transferOut(String uid, DischargeRequest request) {
         Admission admission = loadOrThrow(uid);
         admission.transferOut(emptyToNull(request == null ? null : request.summary()));
+        releaseCurrentBed(admission);
         return toDto(admission);
     }
 
@@ -133,7 +161,23 @@ public class AdmissionService {
     public AdmissionDto cancel(String uid, CancelAdmissionRequest request) {
         Admission admission = loadOrThrow(uid);
         admission.cancel(emptyToNull(request == null ? null : request.reason()));
+        releaseCurrentBed(admission);
         return toDto(admission);
+    }
+
+    private Bed loadBedInWard(String bedUid, String wardUid) {
+        Bed bed = bedRepository.findByUid(bedUid)
+                .orElseThrow(() -> new NotFoundException("Bed not found: " + bedUid));
+        if (!bed.getWardUid().equals(wardUid)) {
+            throw new BusinessRuleException(
+                    "Bed " + bed.getLabel() + " is not in the target ward");
+        }
+        return bed;
+    }
+
+    private void releaseCurrentBed(Admission admission) {
+        if (admission.getBedUid() == null) return;
+        bedRepository.findByUid(admission.getBedUid()).ifPresent(Bed::release);
     }
 
     @Transactional(readOnly = true)
@@ -187,6 +231,7 @@ public class AdmissionService {
                 patient == null ? null : patient.fullName(),
                 a.getWardUid(),
                 ward == null ? null : ward.getName(),
+                a.getBedUid(),
                 a.getBedLabel(),
                 a.getAdmittingClinicianUsername(),
                 clinician == null ? null : clinician.getFirstName() + " " + clinician.getLastName(),

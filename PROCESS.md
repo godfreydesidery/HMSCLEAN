@@ -726,7 +726,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Process | Status | Notes |
 |---|---|---|
 | Company profile | ✅ | Phase 28 — singleton `CompanyProfile` at `/masterdata/company-profile` (GET for any authenticated caller; PUT gated by `MASTERDATA_MANAGE`). |
-| Clinics, wards (+ types), pharmacies, stores | ⚠️ | Clinics, wards, pharmacies, stores all done. Bed-availability (per-bed entity with FREE/OCCUPIED status) still absent — could be a future polish phase. |
+| Clinics, wards (+ types), pharmacies, stores | ✅ | Clinics, wards, pharmacies, stores all done. Phase 29 added the per-bed `Bed` aggregate (FREE / OCCUPIED / RESERVED / OUT_OF_SERVICE) — AdmissionService claims/releases beds on admit / transfer / discharge, and the bed-occupancy report uses real bed counts. |
 | Theatres | ✅ | Phase 24 — `Theatre` masterdata with full CRUD at `/masterdata/theatres`. Two sample theatres seeded. |
 | Medicines, lab tests, radiology, procedures, diagnoses | ✅ | Masterdata phase. |
 | Medicine units (base + alternates with conversion factors) | ✅ | Phase 21 — `MedicineUnit` aggregate, CRUD at `/medicines/uid/{uid}/units`, EACH base auto-seeded; transfer chains accept per-line `unitUid` and convert at the boundary. |

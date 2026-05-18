@@ -1,5 +1,6 @@
 package com.otapp.hmis.engine.encounter.admission.domain;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -15,6 +16,16 @@ public interface AdmissionRepository extends JpaRepository<Admission, Long> {
     List<Admission> findTop10ByPatientUidOrderByAdmittedAtDesc(String patientUid);
 
     boolean existsByPatientUidAndStatus(String patientUid, AdmissionStatus status);
+
+    @Query("""
+            SELECT COUNT(a) FROM Admission a
+            WHERE a.admittingClinicianUsername = :clinician
+              AND a.admittedAt >= :from
+              AND a.admittedAt <  :to
+            """)
+    long countByAdmittingClinicianInRange(@Param("clinician") String clinicianUsername,
+                                          @Param("from") Instant from,
+                                          @Param("to") Instant to);
 
     @Query("""
             SELECT a FROM Admission a

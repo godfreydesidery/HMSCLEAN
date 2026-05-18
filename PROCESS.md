@@ -705,9 +705,9 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 
 | Process | Status | Notes |
 |---|---|---|
-| Employee register | ❌ | Users only — no separate Employee entity (HR profile beyond auth). |
-| Payroll | ❌ | |
-| Clinician performance | ❌ | |
+| Employee register | ✅ | Phase 26 — `Employee` aggregate in `hr.employee.*` with optional 1:1 link to `iam.User`. CRUD at `/hr/employees`, gated by `HR_ACCESS`. Designation + department are strings for V1 (upgrade to masterdata later if needed). |
+| Payroll | ❌ | Deferred — large business surface area. |
+| Clinician performance | ✅ | Phase 26 — `GET /hr/employees/uid/{uid}/clinician-performance?from=&to=` rolls up consultations + admissions + lab/radiology/procedure orders for the linked username in a date range. |
 | Asset register | ❌ | |
 
 ### 17.12 Management / Reports
@@ -792,7 +792,9 @@ phase that respects the modulith boundaries:
     delivered credit notes + refunds with the invoice settlement
     semantics (totalCredited + rollback on refund). End-of-day cash
     collection reconciliation still pending.
-12. **HR module** — employees, payroll, clinician performance.
+12. **HR module** — employees, payroll, clinician performance. Phase 26
+    delivered the `Employee` aggregate and the live clinician-performance
+    roll-up. Payroll + asset register deferred.
 13. **Reporting** — revenue, IPD register, stock-out, clinician case load.
 14. **Master data polish** — company profile, theatres, consumables,
     dosage / route / frequency dropdowns, bed availability.

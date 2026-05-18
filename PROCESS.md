@@ -680,8 +680,8 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Process | Status | Notes |
 |---|---|---|
 | Supplier registry | ✅ | Phase 8. |
-| Local Purchase Order (header + lines) | ✅ | Phase 8 — DRAFT → ORDERED → PARTIALLY_RECEIVED → RECEIVED / CANCELLED. Legacy: PENDING → VERIFIED → APPROVED → SUBMITTED → RECEIVED. Need to add the VERIFIED / APPROVED gates. |
-| Goods Received Note | ✅ | Phase 8 — but no separate VERIFIED state. |
+| Local Purchase Order (header + lines) | ✅ | Phase 8 + 23a — full legacy gate chain: DRAFT → VERIFIED → APPROVED → ORDERED → PARTIALLY_RECEIVED → RECEIVED, with REJECTED from any pre-submission state and CANCELLED from any non-RECEIVED state. |
+| Goods Received Note | ✅ | Phase 8 + 23a — full PENDING → VERIFIED → APPROVED workflow. Stock credit + PO line `recordReceipt` now fire on APPROVED (not on creation), so a count mismatch caught at verification doesn't pollute the ledger. REJECTED branch has no stock impact. |
 | Per-line batch info on GRN | ❌ | Single qty per line today; no batch breakdown. |
 | Supplier item price list | ❌ | Unit cost is typed per LPO line; no per-supplier catalog yet. |
 | Three-way match (PO vs. GRN vs. invoice) | ❌ | Supplier invoice entity missing. |
@@ -776,7 +776,12 @@ phase that respects the modulith boundaries:
    (`DressingChartEntry`). Consumable chart still pending — needs a
    ward→pharmacy issue path first.
 9. **Procurement gates + supplier price list** — add VERIFIED / APPROVED
-   PO states, per-supplier item catalog.
+   PO states, per-supplier item catalog. Phase 23a delivered the LPO
+   gate chain (DRAFT → VERIFIED → APPROVED → ORDERED → ...) and the
+   matching GRN workflow (PENDING → VERIFIED → APPROVED with stock
+   credit deferred to APPROVED). Supplier price list still to come
+   (Phase 23b); per-line batch info on GRN is already supported via the
+   existing batchNo + expiresAt fields.
 10. **Theatre + procedure scheduling** — theatre entity, scheduled date /
     time on procedure orders, operative-record fields.
 11. **Credit notes, refunds, collections** — billing extensions.

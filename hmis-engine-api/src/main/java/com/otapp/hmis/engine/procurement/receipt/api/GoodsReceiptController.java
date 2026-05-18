@@ -2,6 +2,7 @@ package com.otapp.hmis.engine.procurement.receipt.api;
 
 import com.otapp.hmis.engine.procurement.receipt.application.GoodsReceiptDtos.GoodsReceiptDto;
 import com.otapp.hmis.engine.procurement.receipt.application.GoodsReceiptDtos.RecordReceiptRequest;
+import com.otapp.hmis.engine.procurement.receipt.application.GoodsReceiptDtos.RejectReceiptRequest;
 import com.otapp.hmis.engine.procurement.receipt.application.GoodsReceiptService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -28,5 +29,26 @@ public class GoodsReceiptController {
     @GetMapping("/procurement/purchase-orders/uid/{orderUid}/receipts")
     public ResponseEntity<List<GoodsReceiptDto>> listForOrder(@PathVariable String orderUid) {
         return ResponseEntity.ok(receiptService.listForOrder(orderUid));
+    }
+
+    @GetMapping("/procurement/goods-receipts/uid/{receiptUid}")
+    public ResponseEntity<GoodsReceiptDto> findByUid(@PathVariable String receiptUid) {
+        return ResponseEntity.ok(receiptService.findByUid(receiptUid));
+    }
+
+    @PostMapping("/procurement/goods-receipts/uid/{receiptUid}/verify")
+    public ResponseEntity<GoodsReceiptDto> verify(@PathVariable String receiptUid) {
+        return ResponseEntity.ok(receiptService.verify(receiptUid));
+    }
+
+    @PostMapping("/procurement/goods-receipts/uid/{receiptUid}/approve")
+    public ResponseEntity<GoodsReceiptDto> approve(@PathVariable String receiptUid) {
+        return ResponseEntity.ok(receiptService.approve(receiptUid));
+    }
+
+    @PostMapping("/procurement/goods-receipts/uid/{receiptUid}/reject")
+    public ResponseEntity<GoodsReceiptDto> reject(@PathVariable String receiptUid,
+                                                  @Valid @RequestBody(required = false) RejectReceiptRequest request) {
+        return ResponseEntity.ok(receiptService.reject(receiptUid, request));
     }
 }

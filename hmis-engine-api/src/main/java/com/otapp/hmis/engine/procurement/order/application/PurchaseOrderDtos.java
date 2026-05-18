@@ -42,8 +42,12 @@ public final class PurchaseOrderDtos {
             LocalDate expectedDeliveryDate,
             String notes,
 
+            Instant verifiedAt,
+            Instant approvedAt,
             Instant orderedAt,
             Instant receivedAt,
+            Instant rejectedAt,
+            String rejectReason,
             Instant cancelledAt,
             String cancelReason,
 
@@ -84,4 +88,6 @@ public final class PurchaseOrderDtos {
             @Size(max = 3) String currency) {}
 
     public record CancelPurchaseOrderRequest(@Size(max = 255) String reason) {}
+
+    public record RejectPurchaseOrderRequest(@Size(max = 255) String reason) {}
 }

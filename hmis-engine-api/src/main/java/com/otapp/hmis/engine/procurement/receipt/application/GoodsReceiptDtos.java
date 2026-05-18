@@ -1,5 +1,6 @@
 package com.otapp.hmis.engine.procurement.receipt.application;
 
+import com.otapp.hmis.engine.procurement.receipt.domain.GoodsReceiptStatus;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -33,7 +34,15 @@ public final class GoodsReceiptDtos {
             String receivedByUsername,
             String deliveryNote,
             String notes,
+            GoodsReceiptStatus status,
             Instant receivedAt,
+            Instant verifiedAt,
+            String verifiedByUsername,
+            Instant approvedAt,
+            String approvedByUsername,
+            Instant rejectedAt,
+            String rejectedByUsername,
+            String rejectReason,
             Instant createdAt,
             List<GoodsReceiptLineDto> lines) {}
 
@@ -47,4 +56,6 @@ public final class GoodsReceiptDtos {
             @Size(max = 120) String deliveryNote,
             @Size(max = 500) String notes,
             @NotEmpty @Valid List<ReceiveLineRequest> lines) {}
+
+    public record RejectReceiptRequest(@Size(max = 255) String reason) {}
 }

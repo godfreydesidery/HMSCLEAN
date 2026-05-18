@@ -13,6 +13,7 @@ import com.otapp.hmis.engine.procurement.order.application.PurchaseOrderDtos.Cre
 import com.otapp.hmis.engine.procurement.order.application.PurchaseOrderDtos.PurchaseOrderDto;
 import com.otapp.hmis.engine.procurement.order.application.PurchaseOrderDtos.PurchaseOrderLineDto;
 import com.otapp.hmis.engine.procurement.order.application.PurchaseOrderDtos.PurchaseOrderSummary;
+import com.otapp.hmis.engine.procurement.order.application.PurchaseOrderDtos.RejectPurchaseOrderRequest;
 import com.otapp.hmis.engine.procurement.order.application.PurchaseOrderDtos.UpdateLineRequest;
 import com.otapp.hmis.engine.procurement.order.domain.PurchaseOrder;
 import com.otapp.hmis.engine.procurement.order.domain.PurchaseOrderLine;
@@ -107,12 +108,33 @@ public class PurchaseOrderService {
     }
 
     @Transactional
-    public PurchaseOrderDto markOrdered(String orderUid) {
+    public PurchaseOrderDto verifyOrder(String orderUid) {
         PurchaseOrder order = loadOrThrow(orderUid);
         if (lineRepository.findAllByOrderUidOrderByCreatedAtAsc(orderUid).isEmpty()) {
-            throw new BusinessRuleException("Cannot order a purchase order with no lines");
+            throw new BusinessRuleException("Cannot verify a purchase order with no lines");
         }
+        order.verify();
+        return toDto(order);
+    }
+
+    @Transactional
+    public PurchaseOrderDto approveOrder(String orderUid) {
+        PurchaseOrder order = loadOrThrow(orderUid);
+        order.approve();
+        return toDto(order);
+    }
+
+    @Transactional
+    public PurchaseOrderDto markOrdered(String orderUid) {
+        PurchaseOrder order = loadOrThrow(orderUid);
         order.markOrdered();
+        return toDto(order);
+    }
+
+    @Transactional
+    public PurchaseOrderDto rejectOrder(String orderUid, RejectPurchaseOrderRequest request) {
+        PurchaseOrder order = loadOrThrow(orderUid);
+        order.reject(emptyToNull(request == null ? null : request.reason()));
         return toDto(order);
     }
 
@@ -193,8 +215,12 @@ public class PurchaseOrderService {
                 po.getStatus(),
                 po.getExpectedDeliveryDate(),
                 po.getNotes(),
+                po.getVerifiedAt(),
+                po.getApprovedAt(),
                 po.getOrderedAt(),
                 po.getReceivedAt(),
+                po.getRejectedAt(),
+                po.getRejectReason(),
                 po.getCancelledAt(),
                 po.getCancelReason(),
                 currency,

@@ -619,8 +619,8 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Nursing care plan | ❌ | |
 | Patient consumable chart | ❌ | Requires inventory link from ward issue to pharmacy/store. |
 | Patient dressing chart | ❌ | |
-| Discharge plan (structured) | ⚠️ | Phase 6 closes admission with a free-text summary. Needs the structured fields: history, investigation, management, op note, ICU note, recommendations + PENDING → APPROVED state. |
-| Deceased note / referral plan | ⚠️ | Status transitions present; structured note documents missing. |
+| Discharge plan (structured) | ✅ | Phase 22a — `DischargePlan` aggregate with structured fields (history, investigation, management, op note, ICU note, recommendations) + PENDING → APPROVED → drives admission closure on approval. Free-text `Admission.dischargeSummary` becomes a back-pointer to the plan. |
+| Deceased note / referral plan | ✅ | Phase 22a — same `DischargePlan` aggregate with `kind = DECEASED` (requires timeOfDeath + causeOfDeath) or `REFERRAL` (requires referralFacility + referralReason). Approval routes the admission to DECEASED / TRANSFERRED. |
 
 ### 17.4 Laboratory
 
@@ -767,7 +767,11 @@ phase that respects the modulith boundaries:
    units directly (no unit awareness yet — can move in a follow-up phase).
 8. **Structured discharge plan + nursing chart** — observation chart
    series, nursing care plan, consumable chart, structured discharge plan
-   with APPROVED state, deceased + referral structured notes.
+   with APPROVED state, deceased + referral structured notes. Phase 22a
+   delivered the unified `DischargePlan` aggregate (DISCHARGE / DECEASED
+   / REFERRAL kinds) with the PENDING → APPROVED gate that drives the
+   admission closure. Observation-chart series, nursing care plan,
+   consumable chart, and dressing chart still to come (Phase 22b+).
 9. **Procurement gates + supplier price list** — add VERIFIED / APPROVED
    PO states, per-supplier item catalog.
 10. **Theatre + procedure scheduling** — theatre entity, scheduled date /

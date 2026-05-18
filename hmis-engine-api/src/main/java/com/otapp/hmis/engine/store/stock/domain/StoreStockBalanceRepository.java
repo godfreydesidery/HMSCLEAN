@@ -18,4 +18,7 @@ public interface StoreStockBalanceRepository extends JpaRepository<StoreStockBal
                                                              @Param("medicineUid") String medicineUid);
 
     List<StoreStockBalance> findAllByStoreUid(String storeUid);
+
+    /** Balances at or below {@code threshold} across all stores — used by the stock-out report. */
+    List<StoreStockBalance> findByQuantityLessThanEqual(int threshold);
 }

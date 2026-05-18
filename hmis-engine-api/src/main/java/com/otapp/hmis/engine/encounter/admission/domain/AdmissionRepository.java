@@ -42,4 +42,27 @@ public interface AdmissionRepository extends JpaRepository<Admission, Long> {
                            @Param("wardUid")    String wardUid,
                            @Param("patientUid") String patientUid,
                            Pageable pageable);
+
+    /** [wardUid, count] pairs for currently-ADMITTED admissions — drives the bed-occupancy report. */
+    @Query("""
+            SELECT a.wardUid, COUNT(a)
+            FROM Admission a
+            WHERE a.status = com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.ADMITTED
+            GROUP BY a.wardUid
+            """)
+    List<Object[]> countCurrentlyAdmittedByWard();
+
+    /** Admissions in a date range, optionally filtered by ward + status — the IPD register report. */
+    @Query("""
+            SELECT a FROM Admission a
+            WHERE a.admittedAt >= :from
+              AND a.admittedAt <  :to
+              AND (:wardUid IS NULL OR a.wardUid = :wardUid)
+              AND (:status  IS NULL OR a.status  = :status)
+            ORDER BY a.admittedAt DESC
+            """)
+    List<Admission> ipdRegister(@Param("from") Instant from,
+                                @Param("to") Instant to,
+                                @Param("wardUid") String wardUid,
+                                @Param("status") AdmissionStatus status);
 }

@@ -40,4 +40,14 @@ public interface StoreStockBatchRepository extends JpaRepository<StoreStockBatch
             ORDER BY b.medicineUid ASC, b.expiresAt ASC NULLS LAST, b.receivedAt ASC
             """)
     List<StoreStockBatch> findAllByStore(@Param("storeUid") String storeUid);
+
+    /** Non-empty batches expiring on or before {@code threshold} — drives the expiry report. */
+    @Query("""
+            SELECT b FROM StoreStockBatch b
+            WHERE b.expiresAt IS NOT NULL
+              AND b.expiresAt <= :threshold
+              AND b.quantity > 0
+            ORDER BY b.expiresAt ASC
+            """)
+    List<StoreStockBatch> findExpiringBy(@Param("threshold") java.time.LocalDate threshold);
 }

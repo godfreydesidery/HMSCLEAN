@@ -31,4 +31,7 @@ public interface StockBalanceRepository extends JpaRepository<StockBalance, Long
                               @Param("lowStock") boolean lowStock,
                               @Param("lowStockThreshold") int lowStockThreshold,
                               Pageable pageable);
+
+    /** Balances at or below {@code threshold} across all pharmacies — used by the stock-out report. */
+    List<StockBalance> findByQuantityLessThanEqual(int threshold);
 }

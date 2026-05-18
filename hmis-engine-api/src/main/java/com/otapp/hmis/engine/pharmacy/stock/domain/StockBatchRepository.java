@@ -40,4 +40,14 @@ public interface StockBatchRepository extends JpaRepository<StockBatch, Long> {
             ORDER BY b.medicineUid ASC, b.expiresAt ASC NULLS LAST, b.receivedAt ASC
             """)
     List<StockBatch> findAllByPharmacy(@Param("pharmacyUid") String pharmacyUid);
+
+    /** Non-empty batches expiring on or before {@code threshold} — drives the expiry report. */
+    @Query("""
+            SELECT b FROM StockBatch b
+            WHERE b.expiresAt IS NOT NULL
+              AND b.expiresAt <= :threshold
+              AND b.quantity > 0
+            ORDER BY b.expiresAt ASC
+            """)
+    List<StockBatch> findExpiringBy(@Param("threshold") java.time.LocalDate threshold);
 }

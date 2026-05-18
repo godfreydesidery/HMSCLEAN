@@ -715,11 +715,11 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Process | Status | Notes |
 |---|---|---|
 | Operational dashboard | ✅ | Phase 12 — live KPIs + recent activity. Limited to counts; no revenue / inventory yet. |
-| Revenue by source | ❌ | |
-| Patient register / IPD register | ⚠️ | Patient list exists; IPD register-style date-range / ward filter view missing. |
-| Bed occupancy | ❌ | |
-| Pharmacy stock-out / expired report | ❌ | |
-| Clinician case load | ❌ | |
+| Revenue by source | ✅ | Phase 27 — `GET /reporting/revenue?from=&to=` returns total billed / collected / credited / refunded + per-`InvoiceLineKind` breakdown. |
+| Patient register / IPD register | ✅ | Phase 27 — `GET /reporting/ipd-register?from=&to=&wardUid=&status=` returns the admissions list with ward + patient + clinician columns. |
+| Bed occupancy | ✅ | Phase 27 — `GET /reporting/bed-occupancy` returns per-ward capacity + currently-occupied + available. |
+| Pharmacy stock-out / expired report | ✅ | Phase 27 — `GET /reporting/stock-out?threshold=N` (default 0 = true stock-outs across pharmacies + stores) and `GET /reporting/expiring-batches?daysAhead=N` (default 30). |
+| Clinician case load | ✅ | Phase 26 clinician-performance endpoint covers this. |
 
 ### 17.13 Admin / master data
 
@@ -796,6 +796,10 @@ phase that respects the modulith boundaries:
     delivered the `Employee` aggregate and the live clinician-performance
     roll-up. Payroll + asset register deferred.
 13. **Reporting** — revenue, IPD register, stock-out, clinician case load.
+    Phase 27 delivered live read-only reports for all five: revenue
+    summary (with per-kind breakdown), IPD register, bed occupancy,
+    stock-out (pharmacy + store), expiring batches. Clinician case load
+    was already covered by Phase 26 clinician-performance.
 14. **Master data polish** — company profile, theatres, consumables,
     dosage / route / frequency dropdowns, bed availability.
 

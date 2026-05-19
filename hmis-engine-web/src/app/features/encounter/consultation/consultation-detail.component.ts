@@ -15,6 +15,7 @@ import {
 } from '../diagnosis/consultation-diagnosis.types';
 import { ClinicalNoteService } from '../note/clinical-note.service';
 import { ClinicalNote } from '../note/clinical-note.types';
+import { AttachmentsModalComponent } from '../attachment/attachments-modal.component';
 import { AddOrderComponent } from '../order/add-order.component';
 import { ClinicalOrderService } from '../order/clinical-order.service';
 import {
@@ -280,6 +281,13 @@ export class ConsultationDetailComponent {
       next: () => this.refreshOrders(),
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not cancel order.')
     });
+  }
+
+  openAttachments(o: ClinicalOrder): void {
+    const ref = this.modal.open(AttachmentsModalComponent, { size: 'lg', backdrop: 'static' });
+    const inst = ref.componentInstance as AttachmentsModalComponent;
+    inst.orderUid = o.uid;
+    inst.orderLabel = `${o.kind} · ${o.orderNo}`;
   }
 
   private refreshOrders(): void {

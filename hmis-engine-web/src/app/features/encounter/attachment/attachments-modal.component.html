@@ -1,0 +1,61 @@
+<div class="modal-header">
+  <h5 class="modal-title">Attachments@if (orderLabel) { <span class="hmis-muted ms-2 small">{{ orderLabel }}</span> }</h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss('x')"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  }
+
+  @if (loading()) {
+    <div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div>
+  } @else if (attachments().length === 0) {
+    <div class="hmis-empty"><i class="bi bi-paperclip"></i><div class="fw-semibold mb-1">No attachments yet</div><div class="small">Upload a result PDF, scan, or photo below.</div></div>
+  } @else {
+    <ul class="list-group mb-3">
+      @for (a of attachments(); track a.uid) {
+        <li class="list-group-item d-flex align-items-center gap-3">
+          <i class="bi {{ iconFor(a.contentType) }} fs-4 hmis-muted"></i>
+          <div class="flex-grow-1 min-w-0">
+            <div class="fw-semibold text-truncate">{{ a.filename }}</div>
+            <div class="hmis-muted small">
+              {{ humanSize(a.sizeBytes) }} · {{ a.contentType }} · uploaded {{ a.uploadedAt | date:'short' }} by {{ a.uploadedByUsername }}
+            </div>
+            @if (a.description) { <div class="small mt-1">{{ a.description }}</div> }
+          </div>
+          <button type="button" class="btn btn-sm btn-light border" (click)="download(a)" [disabled]="downloadingUid() === a.uid" aria-label="Download">
+            @if (downloadingUid() === a.uid) { <span class="spinner-border spinner-border-sm"></span> }
+            @else { <i class="bi bi-download"></i> }
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-danger" (click)="remove(a)" aria-label="Delete">
+            <i class="bi bi-trash"></i>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="upload()" class="card border-secondary-subtle">
+    <div class="card-body">
+      <h6 class="mb-3">Upload new file</h6>
+      <div class="mb-2">
+        <label for="attachmentFile" class="form-label">File</label>
+        <input id="attachmentFile" name="attachmentFile" type="file" class="form-control" (change)="onFileSelected($event)">
+        <div class="form-text">Max 25 MiB per file.</div>
+      </div>
+      <div class="mb-3">
+        <label for="attachmentDescription" class="form-label">Description (optional)</label>
+        <input id="attachmentDescription" name="description" type="text" class="form-control" formControlName="description" maxlength="500">
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm" [disabled]="!selectedFile() || uploading()">
+        @if (uploading()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+        <i class="bi bi-cloud-upload me-1"></i> Upload
+      </button>
+    </div>
+  </form>
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.close()">Close</button>
+</div>

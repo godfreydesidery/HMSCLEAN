@@ -355,6 +355,8 @@
                               @if (o.status === 'CANCELLED') {
                                 <button type="button" ngbDropdownItem disabled><i class="bi bi-lock me-2"></i>Cancelled</button>
                               }
+                              <div class="dropdown-divider"></div>
+                              <button type="button" ngbDropdownItem (click)="openAttachments(o)"><i class="bi bi-paperclip me-2"></i>Attachments…</button>
                             </div>
                           </div>
                         </td>

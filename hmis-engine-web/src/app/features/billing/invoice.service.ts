@@ -59,6 +59,18 @@ export class InvoiceService {
     return this.http.post<Invoice>(`${this.base}/patients/uid/${patientUid}/outsider-invoice`, {});
   }
 
+  /** Read the patient's registration-fee invoice (Phase 36). 204 → null. */
+  findRegistrationFee(patientUid: string): Observable<Invoice | null> {
+    return this.http
+      .get<Invoice>(`${this.base}/patients/uid/${patientUid}/registration-fee`, { observe: 'response' })
+      .pipe(map((res) => (res.status === 204 ? null : res.body)));
+  }
+
+  /** Idempotent re-seed of the registration-fee invoice — recovery if the after-commit listener missed. */
+  ensureRegistrationFee(patientUid: string): Observable<Invoice> {
+    return this.http.post<Invoice>(`${this.base}/patients/uid/${patientUid}/registration-fee`, {});
+  }
+
   issue(uid: string): Observable<Invoice> {
     return this.http.post<Invoice>(`${this.base}/invoices/uid/${uid}/issue`, {});
   }

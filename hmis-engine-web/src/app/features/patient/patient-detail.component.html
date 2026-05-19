@@ -133,6 +133,41 @@
       </div>
     </div>
 
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header bg-white d-flex flex-wrap align-items-center gap-2 py-3">
+          <div>
+            <h2 class="h6 mb-0"><i class="bi bi-receipt-cutoff me-2 hmis-muted"></i>Registration fee</h2>
+            <div class="hmis-muted small">Seeded at registration; CASH patients must settle before booking a consultation.</div>
+          </div>
+          <div class="ms-auto d-flex align-items-center gap-2">
+            @if (registrationInvoice(); as inv) {
+              <a class="btn btn-sm btn-light border" [routerLink]="['/billing', inv.uid]"><i class="bi bi-arrow-up-right me-1"></i>Open invoice</a>
+            } @else {
+              <button type="button" class="btn btn-sm btn-primary" (click)="refreshRegistrationFee()" [disabled]="registrationBusy()">
+                @if (registrationBusy()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                <i class="bi bi-arrow-clockwise me-1"></i>Ensure fee
+              </button>
+            }
+          </div>
+        </div>
+        @if (registrationInvoice(); as inv) {
+          <div class="card-body small">
+            <div class="d-flex flex-wrap gap-4">
+              <span><span class="hmis-muted">Invoice</span> <span class="hmis-code ms-1">{{ inv.invoiceNo }}</span></span>
+              <span><span class="hmis-muted">Status</span>
+                <span class="ms-1" [class]="invoiceStatusBadgeClass(inv.status)">{{ invoiceStatusLabel(inv.status) }}</span>
+              </span>
+              <span><span class="hmis-muted">Subtotal</span> <span class="fw-semibold ms-1">{{ inv.subtotal | number:'1.2-2' }} {{ inv.currency }}</span></span>
+              <span><span class="hmis-muted">Balance</span>
+                <span class="fw-semibold ms-1" [class.text-success]="inv.balance === 0">{{ inv.balance | number:'1.2-2' }}</span>
+              </span>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
     @if (p.type === 'OUTSIDER') {
       <div class="col-12">
         <div class="card">

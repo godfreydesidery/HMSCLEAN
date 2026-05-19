@@ -10,7 +10,12 @@ export const INVOICE_STATUSES: { value: InvoiceStatus; label: string; badgeClass
   { value: 'CANCELLED',      label: 'Cancelled',      badgeClass: 'text-bg-light text-secondary border' }
 ];
 
-export type InvoiceLineKind = 'CONSULTATION' | 'LAB_TEST' | 'PROCEDURE' | 'RADIOLOGY' | 'MEDICINE' | 'WARD';
+export type InvoiceLineKind =
+  | 'CONSULTATION' | 'LAB_TEST' | 'PROCEDURE' | 'RADIOLOGY' | 'MEDICINE' | 'WARD'
+  | 'REGISTRATION' | 'CONSUMABLE';
+
+/** Discriminator on Invoice — what the invoice was raised for. Phase 36. */
+export type InvoiceScope = 'CONSULTATION' | 'ADMISSION' | 'OUTSIDER' | 'REGISTRATION';
 
 export type PaymentMethod = 'CASH' | 'MOBILE_MONEY' | 'BANK_TRANSFER' | 'CARD' | 'INSURANCE_CLAIM' | 'OTHER';
 
@@ -49,6 +54,7 @@ export interface Payment {
 export interface Invoice {
   uid: string;
   invoiceNo: string;
+  scope: InvoiceScope;
   consultationUid: string | null;
   admissionUid: string | null;
   patientUid: string;
@@ -75,6 +81,7 @@ export interface Invoice {
 export interface InvoiceSummary {
   uid: string;
   invoiceNo: string;
+  scope: InvoiceScope;
   consultationUid: string | null;
   admissionUid: string | null;
   patientUid: string;

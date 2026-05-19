@@ -36,6 +36,8 @@ export class PatientDetailComponent {
   readonly patient = signal<Patient | null>(null);
   readonly recentConsultations = signal<ConsultationSummary[]>([]);
   readonly outsiderInvoice = signal<Invoice | null>(null);
+  readonly registrationInvoice = signal<Invoice | null>(null);
+  readonly registrationBusy = signal(false);
   readonly invoiceBusy = signal(false);
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
@@ -73,15 +75,29 @@ export class PatientDetailComponent {
     }
     forkJoin({
       patient: this.patientService.findByUid(uid),
-      recent: this.consultationService.recentForPatient(uid)
+      recent: this.consultationService.recentForPatient(uid),
+      registration: this.invoiceService.findRegistrationFee(uid)
     }).pipe(finalize(() => this.loading.set(false))).subscribe({
-      next: ({ patient, recent }) => {
+      next: ({ patient, recent, registration }) => {
         this.patient.set(patient);
         this.recentConsultations.set(recent);
+        this.registrationInvoice.set(registration);
         if (patient.type === 'OUTSIDER') this.refreshOutsiderInvoice();
       },
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load patient.')
     });
+  }
+
+  refreshRegistrationFee(): void {
+    const p = this.patient();
+    if (!p || this.registrationBusy()) return;
+    this.registrationBusy.set(true);
+    this.invoiceService.ensureRegistrationFee(p.uid)
+      .pipe(finalize(() => this.registrationBusy.set(false)))
+      .subscribe({
+        next: (inv) => { this.registrationInvoice.set(inv); this.actionMessage.set('Registration fee invoice ready.'); },
+        error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load registration fee.')
+      });
   }
 
   private refreshOutsiderInvoice(): void {

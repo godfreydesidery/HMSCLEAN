@@ -6,6 +6,31 @@ Each gap is independently pickable. **Hard parity gaps** are surfaces where the 
 
 ---
 
+## ⏯ Resume checkpoint — 2026-05-19 (end of session)
+
+**Branch:** `develop`, head `7024193`. Working tree clean. Pushed.
+
+**Done this session (A1 → A2 → A3, all 3 hard parity gaps):**
+
+| Card | Commit | Summary |
+|---|---|---|
+| A1 | `aad91d9` | Pharmacy WASTAGE write-off — extended `StockEditComponent` with a third `write-off` mode (reason `<select>` + positive qty), `writeOff()` on `StockService`, "Write off" button beside "Adjust" in stock-list rows |
+| A3 | `fecc52a` | `MedicineUnit` dropdowns on receive / adjust / write-off / GRN — `MedicineService.listUnits()`, unit `<select>` defaulting to base, `unitUid` omitted when base chosen |
+| A2 | `7024193` | Employee CRUD — new `features/hr/employee/` module (service + list + form + edit + detail + terminate modal + routes), nav link, HR default redirect now `/hr/employees`. W5-era inline `EmployeeReadService` removed; payroll now imports the full service. |
+
+**Next up (start here tomorrow):**
+
+1. **C1 — Browser smoke check** *(recommended next — surfaces bugs in everything just shipped before piling on more polish)*. Start `ng serve`, walk through W1–W9 + A1/A2/A3 against a running backend. The full checklist is in §C1 below.
+2. **B1–B5 polish** (any order, all S effort). Each is independent. Pick opportunistically.
+3. **C2 Karma/Jasmine specs** (L effort) — last, after surfaces have stabilised through C1.
+
+**Open caveats carried forward:**
+- A3 dropdowns hit `MedicineUnitController` which is gated on `MASTERDATA_MANAGE`. Same pre-existing constraint as the medicine search dropdown — pharmacists with only `PHARMACY_ACCESS` will 403. Fix is a backend `MASTERDATA_READ` privilege split, out of scope for this doc.
+
+**No `ng serve` was run** this session. Only `ng build` (~5–6s, green at every commit).
+
+---
+
 ## Legend
 
 - **Status**: `TODO` (not started) · `IN_PROGRESS` · `DONE`
@@ -188,12 +213,12 @@ Each gap is independently pickable. **Hard parity gaps** are surfaces where the 
 
 ## D. Ordering recommendation
 
-If working through the gaps sequentially, this order minimises rework:
+Hard parity gaps (A1, A2, A3) are all done. Remaining order:
 
-1. **A1 Pharmacy write-off** — uncovered hard gap, contained scope, sets up A3's unit dropdown pattern
-2. **A3 MedicineUnit dropdowns** — small additions to existing forms; pattern reused from A1
-3. **A2 Employee CRUD** — largest hard gap; can absorb the unit-dropdown pattern lessons elsewhere
-4. **C1 Browser smoke check** — do this after A1–A3 so it covers them too
+1. ~~**A1 Pharmacy write-off**~~ — DONE `aad91d9`
+2. ~~**A3 MedicineUnit dropdowns**~~ — DONE `fecc52a`
+3. ~~**A2 Employee CRUD**~~ — DONE `7024193`
+4. **C1 Browser smoke check** ← *resume here* — covers W1–W9 and the new A1/A2/A3 surfaces
 5. **B1–B5 polish** — pick opportunistically; none block each other
 6. **C2 Component specs** — last; the surfaces should be settled before locking them down with tests
 

@@ -1,0 +1,149 @@
+@if (loading()) {
+  <div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading period…</div></div>
+} @else if (!period()) {
+  <div class="alert alert-danger">{{ errorMessage() ?? 'Period not found.' }}</div>
+} @else {
+  @if (period(); as p) {
+    <div class="hmis-page-header">
+      <div>
+        <h1 class="hmis-page-title">
+          {{ p.label }}
+          <span class="ms-2" [class]="statusBadgeClass(p.status)">{{ statusLabel(p.status) }}</span>
+        </h1>
+        <p class="hmis-muted mb-0 small">
+          <span class="hmis-code me-2">{{ p.code }}</span>
+          · {{ p.startDate }} → {{ p.endDate }}
+          · {{ p.currency }}
+          @if (p.note) { · {{ p.note }} }
+        </p>
+      </div>
+      <div class="ms-auto d-flex gap-2 flex-wrap">
+        <button type="button" class="btn btn-light border" (click)="back()"><i class="bi bi-arrow-left me-1"></i> Back</button>
+        @if (canApprove()) {
+          <button type="button" class="btn btn-primary" (click)="approve()" [disabled]="busy()"><i class="bi bi-check2-square me-1"></i> Approve</button>
+        }
+        @if (canPay()) {
+          <button type="button" class="btn btn-success" (click)="pay()" [disabled]="busy()"><i class="bi bi-cash-coin me-1"></i> Mark paid</button>
+        }
+        @if (canCancel()) {
+          <button type="button" class="btn btn-outline-danger" (click)="cancel()" [disabled]="busy()"><i class="bi bi-x-circle me-1"></i> Cancel</button>
+        }
+      </div>
+    </div>
+
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+    }
+
+    <div class="row g-3">
+      <div class="col-lg-8">
+        <div class="card">
+          <div class="card-header bg-white d-flex align-items-center">
+            <h2 class="h6 mb-0">Items ({{ p.itemCount }})</h2>
+            <div class="ms-auto fw-semibold">Total net: {{ p.totalNet | number:'1.2-2' }} {{ p.currency }}</div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 hmis-table">
+              <thead><tr><th>Employee</th><th class="text-end">Gross</th><th class="text-end">Deductions</th><th class="text-end">Net</th><th>Payment</th><th class="text-end"></th></tr></thead>
+              <tbody>
+                @if (items().length === 0) {
+                  <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-people"></i><div class="fw-semibold mb-1">No items yet</div><div class="small">Add per-employee gross and deductions below; net is computed.</div></div></td></tr>
+                } @else {
+                  @for (item of items(); track item.uid) {
+                    <tr>
+                      <td>
+                        <div class="fw-semibold">{{ item.employeeName || item.employeeUid }}</div>
+                        @if (item.employeeNo) { <div class="hmis-muted small hmis-code">{{ item.employeeNo }}</div> }
+                      </td>
+                      <td class="text-end">{{ item.grossPay | number:'1.2-2' }}</td>
+                      <td class="text-end hmis-muted">{{ item.totalDeductions | number:'1.2-2' }}</td>
+                      <td class="text-end fw-semibold">{{ item.netPay | number:'1.2-2' }}</td>
+                      <td class="hmis-muted small">
+                        @if (item.paymentMethod) { {{ item.paymentMethod }}@if (item.paymentReference) { · <span class="hmis-code">{{ item.paymentReference }}</span> } }
+                        @else { — }
+                      </td>
+                      <td class="text-end">
+                        @if (isDraft()) {
+                          <button type="button" class="btn btn-sm btn-light border" (click)="removeItem(item)" [disabled]="busy()" aria-label="Remove">
+                            <i class="bi bi-trash"></i>
+                          </button>
+                        }
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        @if (isDraft()) {
+          <form [formGroup]="itemForm" (ngSubmit)="upsertItem()" class="card">
+            <div class="card-header bg-white"><h2 class="h6 mb-0">Add / update item</h2></div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label for="employeeUid" class="form-label">Employee <span class="text-danger">*</span></label>
+                <select id="employeeUid" name="employeeUid" class="form-select" formControlName="employeeUid" [class.is-invalid]="itemForm.controls.employeeUid.invalid && itemForm.controls.employeeUid.touched">
+                  <option value="" disabled>— pick employee —</option>
+                  @for (e of employees(); track e.uid) {
+                    <option [value]="e.uid">{{ employeeLabel(e) }}</option>
+                  }
+                </select>
+                @if (itemForm.controls.employeeUid.invalid && itemForm.controls.employeeUid.touched) {
+                  <div class="invalid-feedback">Pick an employee.</div>
+                }
+              </div>
+              <div class="row g-2 mb-3">
+                <div class="col-6">
+                  <label for="grossPay" class="form-label">Gross</label>
+                  <input id="grossPay" name="grossPay" type="text" inputmode="decimal" class="form-control" formControlName="grossPay" [class.is-invalid]="itemForm.controls.grossPay.invalid && itemForm.controls.grossPay.touched">
+                </div>
+                <div class="col-6">
+                  <label for="totalDeductions" class="form-label">Deductions</label>
+                  <input id="totalDeductions" name="totalDeductions" type="text" inputmode="decimal" class="form-control" formControlName="totalDeductions" [class.is-invalid]="itemForm.controls.totalDeductions.invalid && itemForm.controls.totalDeductions.touched">
+                </div>
+              </div>
+              <div class="mb-2">
+                <label for="paymentMethod" class="form-label">Payment method</label>
+                <input id="paymentMethod" name="paymentMethod" type="text" class="form-control" formControlName="paymentMethod" maxlength="32" placeholder="e.g. BANK_TRANSFER">
+              </div>
+              <div class="mb-3">
+                <label for="paymentReference" class="form-label">Payment reference</label>
+                <input id="paymentReference" name="paymentReference" type="text" class="form-control" formControlName="paymentReference" maxlength="80">
+              </div>
+              <div class="mb-3">
+                <label for="itemNote" class="form-label">Note</label>
+                <input id="itemNote" name="note" type="text" class="form-control" formControlName="note" maxlength="500">
+              </div>
+              <button type="submit" class="btn btn-primary w-100" [disabled]="busy()">
+                @if (busy()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                <i class="bi bi-plus-lg me-1"></i> Save item
+              </button>
+              <div class="form-text mt-2">Re-saving for the same employee updates the row. Net is computed.</div>
+            </div>
+          </form>
+        }
+
+        @if (p.approvedAt) {
+          <div class="card mt-3">
+            <div class="card-body small">
+              <div class="hmis-muted">Approved {{ p.approvedAt | date:'medium' }} by {{ p.approvedByUsername }}</div>
+              @if (p.paidAt) { <div class="hmis-muted">Paid {{ p.paidAt | date:'medium' }}</div> }
+            </div>
+          </div>
+        }
+
+        @if (p.cancelledAt) {
+          <div class="card mt-3 border-danger">
+            <div class="card-body small">
+              <div class="hmis-muted">Cancelled {{ p.cancelledAt | date:'medium' }}</div>
+              @if (p.cancelReason) { <div>{{ p.cancelReason }}</div> }
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+}

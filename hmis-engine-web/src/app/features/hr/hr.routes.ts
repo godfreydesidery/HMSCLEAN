@@ -5,5 +5,9 @@ export const HR_ROUTES: Routes = [
   {
     path: 'assets',
     loadChildren: () => import('./asset/asset.routes').then((m) => m.ASSET_ROUTES)
+  },
+  {
+    path: 'payroll',
+    loadChildren: () => import('./payroll/payroll.routes').then((m) => m.PAYROLL_ROUTES)
   }
 ];

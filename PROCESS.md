@@ -629,7 +629,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Order acceptance + result entry | ✅ | Phase 5 via OrderResult. |
 | Status flow (PENDING / ACCEPTED / COMPLETED / CANCELLED) | ✅ | Aligned with legacy. |
 | Result attachments (files / images) | ✅ | Phase 39 — `OrderAttachment` aggregate + filesystem-backed `AttachmentStorage` (root configurable via `hmis.attachments.dir`). Multipart upload at `POST /encounters/orders/uid/{uid}/attachments`, list / download / delete under `/encounters/attachments/uid/{uid}/...`. 25 MiB per-file cap; filename sanitised; per-order subdirectory keyed by attachment uid. |
-| Batch processing for high-volume tests | ❌ | |
+| Batch processing for high-volume tests | ✅ | Phase 45 — `LabBatch` aggregate groups N same-`labTestTypeUid` LAB_TEST orders for a single bench run (OPEN → PROCESSING → COMPLETED). `LabBatchMember` enforces at-most-one-batch-per-order. CRUD + transitions under `/encounters/lab-batches`. Purely organisational — individual order statuses are unchanged by batch transitions. |
 | Insurance-specific lab pricing | ⚠️ | `ServicePrice` table covers it but only one row per (plan, service); legacy has a dedicated `LabTestTypeInsurancePlan`. Same data, different shape — acceptable. |
 
 ### 17.5 Radiology

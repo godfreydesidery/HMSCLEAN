@@ -628,7 +628,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 |---|---|---|
 | Order acceptance + result entry | ✅ | Phase 5 via OrderResult. |
 | Status flow (PENDING / ACCEPTED / COMPLETED / CANCELLED) | ✅ | Aligned with legacy. |
-| Result attachments (files / images) | ❌ | No file upload yet. |
+| Result attachments (files / images) | ✅ | Phase 39 — `OrderAttachment` aggregate + filesystem-backed `AttachmentStorage` (root configurable via `hmis.attachments.dir`). Multipart upload at `POST /encounters/orders/uid/{uid}/attachments`, list / download / delete under `/encounters/attachments/uid/{uid}/...`. 25 MiB per-file cap; filename sanitised; per-order subdirectory keyed by attachment uid. |
 | Batch processing for high-volume tests | ❌ | |
 | Insurance-specific lab pricing | ⚠️ | `ServicePrice` table covers it but only one row per (plan, service); legacy has a dedicated `LabTestTypeInsurancePlan`. Same data, different shape — acceptable. |
 
@@ -637,7 +637,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Process | Status | Notes |
 |---|---|---|
 | Order + accept + report | ✅ | Same OrderResult pipeline. |
-| Image attachments | ❌ | Same gap as lab attachments. |
+| Image attachments | ✅ | Phase 39 — same `OrderAttachment` plumbing as lab; radiology orders accept binary uploads via the same multipart endpoint. |
 | Insurance-specific radiology pricing | ⚠️ | Same as 17.4. |
 
 ### 17.6 Procedure

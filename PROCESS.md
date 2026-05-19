@@ -603,7 +603,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Working + final diagnoses | ✅ | Phase 1 — uses kind = WORKING / FINAL. |
 | Lab / radiology / procedure orders | ✅ | Phase 2 — polymorphic ClinicalOrder. |
 | Order results (narrative + impression + finalize) | ✅ | Phase 5. |
-| Prescriptions | ⚠️ | Phase 2 — simplified status (REQUESTED / DISPENSED / CANCELLED). **Must be expanded** to PENDING → ACCEPTED → HELD → VERIFIED → APPROVED → SOLD plus pay-status. |
+| Prescriptions | ✅ | `PrescriptionStatus` covers the full PENDING → ACCEPTED → HELD → VERIFIED → APPROVED → SOLD chain plus REJECTED / CANCELLED (V18). Per-line UNPAID → PAID pay-status enforced on dispense for CASH patients. Phase 33 wired Dosage / Route / Frequency picklists; Phase 37 added the issue/sales-pharmacy split. |
 | Follow-up visit flag | ✅ | Phase 44 — `StartConsultationRequest.followUpOfConsultationUid` (optional); service validates the referenced consultation belongs to the same patient. Surfaced on `ConsultationDto`. |
 | Consultation transfer between clinics | ✅ | Phase 44 — `POST /encounters/consultations/uid/{uid}/transfer` with target clinic + clinician. Closes the original as new status TRANSFERRED, creates a fresh BOOKED consultation at the target; both reference each other via `transferred_to/_from_consultation_uid` + `transfer_reason` + `transferred_at`. |
 
@@ -630,7 +630,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Status flow (PENDING / ACCEPTED / COMPLETED / CANCELLED) | ✅ | Aligned with legacy. |
 | Result attachments (files / images) | ✅ | Phase 39 — `OrderAttachment` aggregate + filesystem-backed `AttachmentStorage` (root configurable via `hmis.attachments.dir`). Multipart upload at `POST /encounters/orders/uid/{uid}/attachments`, list / download / delete under `/encounters/attachments/uid/{uid}/...`. 25 MiB per-file cap; filename sanitised; per-order subdirectory keyed by attachment uid. |
 | Batch processing for high-volume tests | ✅ | Phase 45 — `LabBatch` aggregate groups N same-`labTestTypeUid` LAB_TEST orders for a single bench run (OPEN → PROCESSING → COMPLETED). `LabBatchMember` enforces at-most-one-batch-per-order. CRUD + transitions under `/encounters/lab-batches`. Purely organisational — individual order statuses are unchanged by batch transitions. |
-| Insurance-specific lab pricing | ⚠️ | `ServicePrice` table covers it but only one row per (plan, service); legacy has a dedicated `LabTestTypeInsurancePlan`. Same data, different shape — acceptable. |
+| Insurance-specific lab pricing | ✅ | Delivered via the cross-cutting `ServicePrice(planUid, kind=LAB_TEST, serviceUid)` matrix instead of legacy's dedicated `LabTestTypeInsurancePlan`. Same data, single table — by-design simplification. `PriceLookup.resolve` falls back to the cash price when no plan-specific row exists. |
 
 ### 17.5 Radiology
 
@@ -638,7 +638,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 |---|---|---|
 | Order + accept + report | ✅ | Same OrderResult pipeline. |
 | Image attachments | ✅ | Phase 39 — same `OrderAttachment` plumbing as lab; radiology orders accept binary uploads via the same multipart endpoint. |
-| Insurance-specific radiology pricing | ⚠️ | Same as 17.4. |
+| Insurance-specific radiology pricing | ✅ | Same `ServicePrice(planUid, kind=RADIOLOGY, serviceUid)` matrix as the lab row — single table covering all priced service kinds. |
 
 ### 17.6 Procedure
 
@@ -695,7 +695,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Per-line type breakdown (CONSULTATION / LAB / PROCEDURE / RADIOLOGY / MEDICINE / WARD) | ✅ | Phase 3 + 6. |
 | Invoice status (DRAFT → ISSUED → PARTIALLY_PAID → PAID / CANCELLED) | ✅ | Phase 3. Equivalent semantics to legacy. |
 | Payment recording (multiple methods, partial allocation) | ✅ | Phase 3. |
-| Insurance-specific pricing | ⚠️ | Via the cross-cutting `ServicePrice` table; legacy uses per-service tables. Acceptable design simplification — must verify all 6 service kinds have entries. |
+| Insurance-specific pricing | ✅ | Cross-cutting `ServicePrice(planUid, kind, serviceUid)` matrix covers all 7 priced kinds (CONSULTATION / LAB_TEST / PROCEDURE / RADIOLOGY / MEDICINE / WARD / REGISTRATION). Single source for `PriceLookup` across consultation, admission, and outsider invoice generators. Per-plan rows override the cash row; missing plan row falls back to cash. |
 | Credit note / write-off | ✅ | Phase 25 — `CreditNote` aggregate per invoice with `CreditNoteReason` (HARDSHIP / GOODWILL / ERROR_CORRECTION / SERVICE_NOT_RENDERED / ROUNDING / OTHER). Invoice gains `totalCredited`; `balance = subtotal - totalPaid - totalCredited`. POST `/billing/invoices/uid/{uid}/credit-notes`. |
 | Refunds | ✅ | Phase 25 — `Refund` aggregate per invoice with `RefundReason` (OVERPAYMENT / SERVICE_NOT_RENDERED / DOUBLE_PAYMENT / CANCELLATION / OTHER) + `PaymentMethod`. Reduces `totalPaid` and rolls invoice status back from PAID → PARTIALLY_PAID / ISSUED as needed. POST `/billing/invoices/uid/{uid}/refunds`. |
 | End-of-day cash collection vs. invoice reconciliation | ✅ | Phase 32 — `CashierShift` per cashier (OPEN → CLOSED). `POST /billing/cashier-shifts/open` and `/close`; close computes expected = openingFloat + sum(CASH payments where createdBy=user in window), records variance for audit. Partial unique index enforces at-most-one OPEN shift per user. |

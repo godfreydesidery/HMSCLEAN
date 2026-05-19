@@ -5,7 +5,8 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { PageResponse } from '../../../core/http/page.types';
 import {
-  Consultation, ConsultationSearchParams, ConsultationSummary, StartConsultationRequest
+  Consultation, ConsultationSearchParams, ConsultationSummary, StartConsultationRequest,
+  TransferConsultationRequest
 } from './consultation.types';
 
 @Injectable({ providedIn: 'root' })
@@ -31,6 +32,10 @@ export class ConsultationService {
   start(uid: string): Observable<Consultation> { return this.http.post<Consultation>(`${this.base}/uid/${uid}/start`, {}); }
   complete(uid: string): Observable<Consultation> { return this.http.post<Consultation>(`${this.base}/uid/${uid}/complete`, {}); }
   cancel(uid: string, reason: string | null): Observable<Consultation> { return this.http.post<Consultation>(`${this.base}/uid/${uid}/cancel`, { reason }); }
+  /** Hand the patient off to another clinic / clinician. Returns the new receiving consultation. */
+  transfer(uid: string, req: TransferConsultationRequest): Observable<Consultation> {
+    return this.http.post<Consultation>(`${this.base}/uid/${uid}/transfer`, req);
+  }
   recentForPatient(patientUid: string): Observable<ConsultationSummary[]> {
     return this.http.get<ConsultationSummary[]>(`${this.base}/by-patient/uid/${patientUid}/recent`);
   }

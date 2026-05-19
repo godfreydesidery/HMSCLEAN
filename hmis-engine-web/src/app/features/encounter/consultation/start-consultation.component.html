@@ -95,5 +95,11 @@
       <label class="form-label" for="sc-reason">Reason for visit</label>
       <textarea id="sc-reason" name="reason" rows="3" class="form-control" formControlName="reason" placeholder="Chief complaint, presenting symptoms…"></textarea>
     </div>
+
+    <div class="col-12">
+      <label class="form-label" for="sc-follow-up">Follow-up of (optional)</label>
+      <input id="sc-follow-up" name="followUpOfConsultationUid" type="text" class="form-control hmis-code" formControlName="followUpOfConsultationUid" placeholder="Paste the prior consultation uid, or open this page from the prior consultation" autocomplete="off">
+      <div class="form-text">When set, this visit is linked to the referenced consultation as a follow-up. Must belong to the same patient.</div>
+    </div>
   </div>
 </form>

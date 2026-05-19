@@ -47,7 +47,9 @@ export class StartConsultationComponent {
     clinicianUsername: ['', [Validators.required]],
     paymentType: ['CASH' as PaymentType, [Validators.required]],
     insurancePlanUid: [''],
-    reason: ['', [Validators.maxLength(500)]]
+    reason: ['', [Validators.maxLength(500)]],
+    /** Pre-filled when the route is opened with ?followUpOf=<uid>. */
+    followUpOfConsultationUid: ['', [Validators.minLength(26), Validators.maxLength(26)]]
   });
 
   constructor() {
@@ -63,6 +65,11 @@ export class StartConsultationComponent {
       },
       error: () => this.errorMessage.set('Could not load lookups.')
     });
+
+    const followUpOf = this.route.snapshot.queryParamMap.get('followUpOf');
+    if (followUpOf) {
+      this.form.controls.followUpOfConsultationUid.setValue(followUpOf);
+    }
 
     const patientUid = this.route.snapshot.queryParamMap.get('patientUid');
     if (patientUid) {
@@ -100,7 +107,8 @@ export class StartConsultationComponent {
       clinicianUsername: raw.clinicianUsername,
       paymentType: raw.paymentType,
       insurancePlanUid: raw.insurancePlanUid || null,
-      reason: raw.reason?.trim() || null
+      reason: raw.reason?.trim() || null,
+      followUpOfConsultationUid: raw.followUpOfConsultationUid?.trim() || null
     }).pipe(finalize(() => this.submitting.set(false))).subscribe({
       next: (c) => void this.router.navigate(['/encounters', 'consultations', c.uid]),
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not start consultation.')

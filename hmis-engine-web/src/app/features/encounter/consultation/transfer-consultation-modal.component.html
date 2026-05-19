@@ -1,0 +1,55 @@
+<div class="modal-header">
+  <h5 class="modal-title">Transfer consultation</h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss('x')"></button>
+</div>
+
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-body">
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+    }
+    <p class="hmis-muted small">
+      The current consultation closes as <span class="badge text-bg-warning-subtle text-warning-emphasis border border-warning-subtle">TRANSFERRED</span>
+      and a fresh BOOKED consultation is opened at the target. Both reference each other for audit.
+    </p>
+
+    <div class="mb-3">
+      <label for="targetClinicUid" class="form-label">Target clinic <span class="text-danger">*</span></label>
+      <select id="targetClinicUid" name="targetClinicUid" class="form-select" formControlName="targetClinicUid" [class.is-invalid]="form.controls.targetClinicUid.invalid && form.controls.targetClinicUid.touched">
+        <option value="" disabled>— pick a clinic —</option>
+        @for (c of clinics(); track c.uid) {
+          <option [value]="c.uid">{{ c.code }} — {{ c.name }}</option>
+        }
+      </select>
+      @if (form.controls.targetClinicUid.invalid && form.controls.targetClinicUid.touched) {
+        <div class="invalid-feedback">Pick a target clinic.</div>
+      }
+    </div>
+
+    <div class="mb-3">
+      <label for="targetClinicianUsername" class="form-label">Target clinician <span class="text-danger">*</span></label>
+      <select id="targetClinicianUsername" name="targetClinicianUsername" class="form-select" formControlName="targetClinicianUsername" [class.is-invalid]="form.controls.targetClinicianUsername.invalid && form.controls.targetClinicianUsername.touched">
+        <option value="" disabled>— pick a clinician —</option>
+        @for (cl of clinicians(); track cl.username) {
+          <option [value]="cl.username">{{ cl.fullName }} ({{ cl.username }})</option>
+        }
+      </select>
+      @if (form.controls.targetClinicianUsername.invalid && form.controls.targetClinicianUsername.touched) {
+        <div class="invalid-feedback">Pick a target clinician.</div>
+      }
+    </div>
+
+    <div class="mb-3">
+      <label for="transferReason" class="form-label">Reason</label>
+      <textarea id="transferReason" name="reason" rows="2" class="form-control" formControlName="reason" placeholder="e.g. needs pediatric specialist"></textarea>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss('cancel')">Cancel</button>
+    <button type="submit" class="btn btn-warning" [disabled]="submitting()">
+      @if (submitting()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+      <i class="bi bi-arrow-right me-1"></i> Transfer
+    </button>
+  </div>
+</form>

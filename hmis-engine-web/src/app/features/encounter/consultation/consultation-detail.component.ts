@@ -18,6 +18,7 @@ import { ClinicalNote } from '../note/clinical-note.types';
 import { AttachmentsModalComponent } from '../attachment/attachments-modal.component';
 import { AddOrderComponent } from '../order/add-order.component';
 import { ClinicalOrderService } from '../order/clinical-order.service';
+import { TransferConsultationModalComponent } from './transfer-consultation-modal.component';
 import {
   CLINICAL_ORDER_KINDS, CLINICAL_ORDER_STATUSES, ClinicalOrder, ClinicalOrderKind, ClinicalOrderStatus,
   ORDER_URGENCIES, OrderUrgency
@@ -94,6 +95,14 @@ export class ConsultationDetailComponent {
     const s = this.consultation()?.status;
     return s === 'BOOKED' || s === 'IN_PROGRESS';
   });
+  readonly canTransfer = computed(() => {
+    const c = this.consultation();
+    if (!c) return false;
+    const s = c.status;
+    return (s === 'BOOKED' || s === 'IN_PROGRESS') && !c.transferredToConsultationUid;
+  });
+  /** Once a visit is complete the next visit is a follow-up; before then it's just the current one. */
+  readonly canFollowUp = computed(() => this.consultation()?.status === 'COMPLETED');
   readonly isEditable = computed(() => {
     const s = this.consultation()?.status;
     return s === 'BOOKED' || s === 'IN_PROGRESS';
@@ -288,6 +297,27 @@ export class ConsultationDetailComponent {
     const inst = ref.componentInstance as AttachmentsModalComponent;
     inst.orderUid = o.uid;
     inst.orderLabel = `${o.kind} · ${o.orderNo}`;
+  }
+
+  // ----- Phase 44: transfer + follow-up linkage --------------------------
+
+  openTransfer(): void {
+    const c = this.consultation();
+    if (!c) return;
+    const ref = this.modal.open(TransferConsultationModalComponent, { size: 'lg', backdrop: 'static' });
+    const inst = ref.componentInstance as TransferConsultationModalComponent;
+    inst.sourceUid = c.uid;
+    ref.closed.subscribe((receiver) => {
+      if (receiver?.uid) void this.router.navigate(['/encounters/consultations', receiver.uid]);
+    });
+  }
+
+  scheduleFollowUp(): void {
+    const c = this.consultation();
+    if (!c) return;
+    void this.router.navigate(['/encounters/consultations/new'], {
+      queryParams: { patientUid: c.patientUid, followUpOf: c.uid }
+    });
   }
 
   private refreshOrders(): void {

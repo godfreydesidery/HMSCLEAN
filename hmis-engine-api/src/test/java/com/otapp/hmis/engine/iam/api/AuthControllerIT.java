@@ -5,16 +5,31 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.otapp.hmis.engine.AbstractIntegrationTest;
 import com.otapp.hmis.engine.iam.application.dto.LoginRequest;
 import com.otapp.hmis.engine.iam.application.dto.LoginResponse;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 
 class AuthControllerIT extends AbstractIntegrationTest {
 
     @Autowired
     private TestRestTemplate rest;
+
+    /**
+     * The default {@code SimpleClientHttpRequestFactory} uses the legacy
+     * {@code HttpURLConnection}, which throws {@code HttpRetryException:
+     * cannot retry due to server authentication, in streaming mode} when
+     * the server returns 401-with-body + auth challenge. Swap in the
+     * Java-11 {@code HttpClient}-based factory — it doesn't have that
+     * retry quirk, so the 401 propagates cleanly.
+     */
+    @BeforeEach
+    void useModernRequestFactory() {
+        rest.getRestTemplate().setRequestFactory(new JdkClientHttpRequestFactory());
+    }
 
     @Test
     void rootCanLoginAndReceivesPrivileges() {

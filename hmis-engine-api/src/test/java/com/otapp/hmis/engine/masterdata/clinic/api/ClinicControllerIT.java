@@ -52,23 +52,25 @@ class ClinicControllerIT extends AbstractIntegrationTest {
         assertThat(saved.code()).isEqualTo("ENT");
         assertThat(saved.active()).isTrue();
 
-        // Deactivate
+        // Deactivate — controller path is /uid/{uid}/active, body is the ActiveRequest DTO.
         ResponseEntity<ClinicDto> deactivated = rest.exchange(
-                "/masterdata/clinics/" + saved.uid() + "/active",
+                "/masterdata/clinics/uid/" + saved.uid() + "/active",
                 HttpMethod.PUT,
-                new HttpEntity<>("{\"active\":false}", jsonHeaders()),
+                new HttpEntity<>(new ActiveBody(false), authHeaders()),
                 ClinicDto.class);
         assertThat(deactivated.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(deactivated.getBody().active()).isFalse();
 
         // Delete
         ResponseEntity<Void> deleted = rest.exchange(
-                "/masterdata/clinics/" + saved.uid(),
+                "/masterdata/clinics/uid/" + saved.uid(),
                 HttpMethod.DELETE,
                 new HttpEntity<>(authHeaders()),
                 Void.class);
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
     }
+
+    private record ActiveBody(boolean active) {}
 
     @Test
     void unauthenticatedRequestIsRejected() {
@@ -83,10 +85,5 @@ class ClinicControllerIT extends AbstractIntegrationTest {
         headers.setBearerAuth(accessToken);
         headers.add("Content-Type", "application/json");
         return headers;
-    }
-
-    private HttpHeaders jsonHeaders() {
-        HttpHeaders h = authHeaders();
-        return h;
     }
 }

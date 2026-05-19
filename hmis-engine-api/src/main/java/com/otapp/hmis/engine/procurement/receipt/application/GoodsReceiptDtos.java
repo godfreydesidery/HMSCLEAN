@@ -49,6 +49,8 @@ public final class GoodsReceiptDtos {
     public record ReceiveLineRequest(
             @NotBlank @Size(min = 26, max = 26) String poLineUid,
             @Min(1) int quantity,
+            /** Optional — when set the quantity is in this unit and is converted to base before credit. */
+            @Size(min = 26, max = 26) String unitUid,
             @NotBlank @Size(max = 64) String batchNo,
             LocalDate expiresAt) {}
 

@@ -2,8 +2,10 @@ package com.otapp.hmis.engine.procurement.receipt.application;
 
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
+import com.otapp.hmis.engine.masterdata.medicine.application.UnitConversionService;
 import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineRepository;
+import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineUnit;
 import com.otapp.hmis.engine.masterdata.store.domain.Store;
 import com.otapp.hmis.engine.masterdata.store.domain.StoreRepository;
 import com.otapp.hmis.engine.procurement.order.domain.PurchaseOrder;
@@ -38,6 +40,7 @@ public class GoodsReceiptService {
     private final PurchaseOrderLineRepository orderLineRepository;
     private final StoreRepository storeRepository;
     private final MedicineRepository medicineRepository;
+    private final UnitConversionService unitConversion;
     private final GoodsReceiptNumberGenerator numberGenerator;
     private final StoreStockService storeStockService;
 
@@ -74,7 +77,10 @@ public class GoodsReceiptService {
             if (!poLine.getOrderUid().equals(order.getUid())) {
                 throw new BusinessRuleException("PO line " + lineReq.poLineUid() + " does not belong to this order");
             }
-            int claimed = lineReq.quantity();
+            // Convert to base units up front so PO outstanding accounting + GRN
+            // storage are always in the same unit. Null unitUid → already base.
+            MedicineUnit unit = unitConversion.resolveUnit(poLine.getMedicineUid(), lineReq.unitUid());
+            int claimed = unitConversion.toBaseQuantity(unit, lineReq.quantity());
             int outstanding = poLine.outstandingQuantity();
             if (claimed > outstanding) {
                 throw new BusinessRuleException(

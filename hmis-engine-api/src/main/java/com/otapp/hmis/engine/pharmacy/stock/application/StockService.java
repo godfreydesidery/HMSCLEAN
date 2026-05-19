@@ -6,8 +6,10 @@ import com.otapp.hmis.engine.common.error.NotFoundException;
 import com.otapp.hmis.engine.encounter.prescription.domain.Prescription;
 import com.otapp.hmis.engine.encounter.prescription.domain.PrescriptionRepository;
 import com.otapp.hmis.engine.encounter.prescription.domain.PrescriptionStatus;
+import com.otapp.hmis.engine.masterdata.medicine.application.UnitConversionService;
 import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineRepository;
+import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineUnit;
 import com.otapp.hmis.engine.masterdata.pharmacy.domain.Pharmacy;
 import com.otapp.hmis.engine.masterdata.pharmacy.domain.PharmacyRepository;
 import com.otapp.hmis.engine.pharmacy.sale.domain.PharmacySaleLineStatus;
@@ -60,6 +62,7 @@ public class StockService {
     private final PrescriptionRepository prescriptionRepository;
     private final PharmacySaleOrderRepository saleRepository;
     private final PharmacySaleOrderLineRepository saleLineRepository;
+    private final UnitConversionService unitConversion;
 
     // ----- receive ----------------------------------------------------------
 
@@ -68,8 +71,10 @@ public class StockService {
         if (request.quantity() <= 0) {
             throw new BusinessRuleException("Receipt quantity must be positive");
         }
+        MedicineUnit unit = unitConversion.resolveUnit(request.medicineUid(), request.unitUid());
+        int baseQty = unitConversion.toBaseQuantity(unit, request.quantity());
         return doReceive(pharmacyUid, request.medicineUid(), request.batchNo(),
-                request.expiresAt(), request.quantity(),
+                request.expiresAt(), baseQty,
                 StockMovementKind.RECEIPT, null, emptyToNull(request.note()));
     }
 
@@ -205,11 +210,20 @@ public class StockService {
         }
         Medicine medicine = activeMedicine(batch.getMedicineUid());
 
-        batch.applyDelta(request.delta());
-        StockBalance balance = lockOrCreateBalance(pharmacy.getUid(), medicine.getUid());
-        balance.applyDelta(request.delta());
+        // Scale magnitude by unit factor, preserve sign. Null unitUid keeps the
+        // legacy "delta is in base units" behaviour for callers that haven't migrated.
+        int baseDelta = request.delta();
+        if (request.unitUid() != null && !request.unitUid().isBlank()) {
+            MedicineUnit unit = unitConversion.resolveUnit(medicine.getUid(), request.unitUid());
+            int magnitude = unitConversion.toBaseQuantity(unit, Math.abs(request.delta()));
+            baseDelta = request.delta() < 0 ? -magnitude : magnitude;
+        }
 
-        recordMovement(balance, batch, StockMovementKind.ADJUSTMENT, request.delta(),
+        batch.applyDelta(baseDelta);
+        StockBalance balance = lockOrCreateBalance(pharmacy.getUid(), medicine.getUid());
+        balance.applyDelta(baseDelta);
+
+        recordMovement(balance, batch, StockMovementKind.ADJUSTMENT, baseDelta,
                 null, emptyToNull(request.note()));
         return toBatchDto(batch, medicine);
     }
@@ -232,12 +246,15 @@ public class StockService {
         }
         Medicine medicine = activeMedicine(batch.getMedicineUid());
 
-        batch.applyDelta(-request.quantity());
+        MedicineUnit unit = unitConversion.resolveUnit(medicine.getUid(), request.unitUid());
+        int baseQty = unitConversion.toBaseQuantity(unit, request.quantity());
+
+        batch.applyDelta(-baseQty);
         StockBalance balance = lockOrCreateBalance(pharmacy.getUid(), medicine.getUid());
-        balance.applyDelta(-request.quantity());
+        balance.applyDelta(-baseQty);
 
         StockMovement movement = recordMovement(balance, batch, StockMovementKind.WASTAGE,
-                -request.quantity(), null, emptyToNull(request.note()));
+                -baseQty, null, emptyToNull(request.note()));
         movement.setWastageReason(request.reason());
         return toBatchDto(batch, medicine);
     }

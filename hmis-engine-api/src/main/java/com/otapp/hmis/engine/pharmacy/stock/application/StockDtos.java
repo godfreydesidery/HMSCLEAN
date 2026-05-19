@@ -64,27 +64,33 @@ public final class StockDtos {
             @NotBlank @Size(max = 64) String batchNo,
             LocalDate expiresAt,
             @Min(1) int quantity,
+            /** Optional — when set the quantity is in this unit and is converted to base on save. */
+            @Size(min = 26, max = 26) String unitUid,
             @Size(max = 500) String note) {}
 
     /**
      * Signed adjustment against a specific batch. The batch must already
      * exist (you can't adjust a batch into existence — use receive for that).
+     * {@code unitUid} is optional — when set, {@code delta}'s magnitude is
+     * scaled by the unit's {@code factorToBase} (sign preserved).
      */
     public record AdjustStockRequest(
             @NotBlank @Size(min = 26, max = 26) String batchUid,
             @NotNull Integer delta,
+            @Size(min = 26, max = 26) String unitUid,
             @Size(max = 500) String note) {}
 
     /**
      * Pharmacist write-off against a specific batch: expired, damaged,
      * recalled, lost, etc. Quantity is positive — the service applies the
      * negative delta. Reason is structured so the shrinkage report can
-     * categorise losses.
+     * categorise losses. {@code unitUid} is optional and converts to base.
      */
     public record WriteOffStockRequest(
             @NotBlank @Size(min = 26, max = 26) String batchUid,
             @Min(1) int quantity,
             @NotNull WastageReason reason,
+            @Size(min = 26, max = 26) String unitUid,
             @Size(max = 500) String note) {}
 
     /**

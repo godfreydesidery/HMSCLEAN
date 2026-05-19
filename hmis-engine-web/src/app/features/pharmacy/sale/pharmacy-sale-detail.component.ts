@@ -72,8 +72,13 @@ export class PharmacySaleDetailComponent {
 
   dispenseLine(line: PharmacySaleOrderLine): void {
     const sale = this.sale(); if (!sale) return;
+    // Phase 37 multi-pharmacy override — paste a different pharmacy uid here
+    // to pull stock from another location without a formal transfer doc. Blank
+    // / cancelled keeps the default (sale opened-at pharmacy).
+    const promptText = `Sales pharmacy uid (optional)\n\nDefaults to the pharmacy that opened the sale (${sale.pharmacyName || sale.pharmacyUid}). Paste a different pharmacy uid to pull stock from there.`;
+    const salesPharmacyUid = globalThis.prompt(promptText)?.trim() || null;
     this.busy.set(true);
-    this.saleService.dispenseLine(sale.pharmacyUid, line.uid)
+    this.saleService.dispenseLine(sale.pharmacyUid, line.uid, salesPharmacyUid)
       .pipe(finalize(() => this.busy.set(false))).subscribe({
         next: () => { this.actionMessage.set('Dispensed — stock decremented.'); this.load(sale.uid); },
         error: (err) => this.errorMessage.set(err?.error?.message ?? 'Dispense failed.')

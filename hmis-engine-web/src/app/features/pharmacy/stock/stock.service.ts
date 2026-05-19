@@ -34,8 +34,23 @@ export class StockService {
     return this.http.post<StockBatch>(`${this.base}/pharmacies/uid/${pharmacyUid}/stock/adjust`, req);
   }
 
-  dispense(pharmacyUid: string, prescriptionUid: string): Observable<StockMovement[]> {
-    return this.http.post<StockMovement[]>(`${this.base}/pharmacies/uid/${pharmacyUid}/dispense/uid/${prescriptionUid}`, {});
+  /**
+   * Dispense a prescription. When {@code salesPharmacyUid} is set and differs
+   * from {@code pharmacyUid}, the script is filled at the issuing pharmacy
+   * but stock is pulled from the sales pharmacy (Phase 37 multi-pharmacy
+   * dispense). The receiving Prescription records both uids.
+   */
+  dispense(pharmacyUid: string, prescriptionUid: string,
+           salesPharmacyUid?: string | null): Observable<StockMovement[]> {
+    let params = new HttpParams();
+    if (salesPharmacyUid && salesPharmacyUid !== pharmacyUid) {
+      params = params.set('salesPharmacyUid', salesPharmacyUid);
+    }
+    return this.http.post<StockMovement[]>(
+      `${this.base}/pharmacies/uid/${pharmacyUid}/dispense/uid/${prescriptionUid}`,
+      {},
+      { params }
+    );
   }
 
   searchMovements(params: MovementSearchParams = {}): Observable<PageResponse<StockMovement>> {

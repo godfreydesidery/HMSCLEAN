@@ -30,7 +30,9 @@ export class DispensePrescriptionComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
 
   readonly form = this.fb.nonNullable.group({
-    pharmacyUid: ['', [Validators.required]]
+    pharmacyUid: ['', [Validators.required]],
+    /** Phase 37 multi-pharmacy: when set + different from pharmacyUid, stock comes from here. */
+    salesPharmacyUid: ['']
   });
 
   ngOnInit(): void {
@@ -53,7 +55,7 @@ export class DispensePrescriptionComponent implements OnInit {
     this.submitting.set(true);
     this.errorMessage.set(null);
     const raw = this.form.getRawValue();
-    this.stockService.dispense(raw.pharmacyUid, this.prescription.uid)
+    this.stockService.dispense(raw.pharmacyUid, this.prescription.uid, raw.salesPharmacyUid || null)
       .pipe(finalize(() => this.submitting.set(false))).subscribe({
         next: (movements: StockMovement[]) => this.activeModal.close(movements),
         error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not dispense.')

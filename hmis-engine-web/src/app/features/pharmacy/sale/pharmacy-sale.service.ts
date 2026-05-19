@@ -60,9 +60,22 @@ export class PharmacySaleOrderService {
     return this.http.post<PharmacySaleOrder>(`${this.base}/uid/${saleUid}/lines/uid/${lineUid}/cancel`, { reason });
   }
 
-  /** Final dispense of an APPROVED line — decrements stock (FEFO across batches) and marks the line SOLD. */
-  dispenseLine(pharmacyUid: string, saleLineUid: string): Observable<StockMovement[]> {
+  /**
+   * Final dispense of an APPROVED line — decrements stock (FEFO across batches)
+   * and marks the line SOLD. {@code salesPharmacyUid} is the Phase 37
+   * override: when set, the sale was opened at {@code pharmacyUid} but
+   * stock is actually pulled from the sales pharmacy.
+   */
+  dispenseLine(pharmacyUid: string, saleLineUid: string,
+               salesPharmacyUid?: string | null): Observable<StockMovement[]> {
+    let params = new HttpParams();
+    if (salesPharmacyUid && salesPharmacyUid !== pharmacyUid) {
+      params = params.set('salesPharmacyUid', salesPharmacyUid);
+    }
     return this.http.post<StockMovement[]>(
-      `${this.pharmacyBase}/pharmacies/uid/${pharmacyUid}/dispense-sale-line/uid/${saleLineUid}`, {});
+      `${this.pharmacyBase}/pharmacies/uid/${pharmacyUid}/dispense-sale-line/uid/${saleLineUid}`,
+      {},
+      { params }
+    );
   }
 }

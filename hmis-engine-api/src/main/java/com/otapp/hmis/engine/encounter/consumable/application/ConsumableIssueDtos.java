@@ -13,6 +13,30 @@ public final class ConsumableIssueDtos {
 
     private ConsumableIssueDtos() {}
 
+    public record ReceiveConsumableRequest(
+            @jakarta.validation.constraints.NotNull ConsumableSourceKind sourceKind,
+            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(min = 26, max = 26) String sourceLocationUid,
+            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(min = 26, max = 26) String consumableUid,
+            @jakarta.validation.constraints.Min(1) int quantity,
+            @jakarta.validation.constraints.Size(max = 500) String note) {}
+
+    public record AdjustConsumableRequest(
+            @jakarta.validation.constraints.NotNull ConsumableSourceKind sourceKind,
+            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(min = 26, max = 26) String sourceLocationUid,
+            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(min = 26, max = 26) String consumableUid,
+            @jakarta.validation.constraints.NotNull Integer delta,
+            @jakarta.validation.constraints.Size(max = 500) String note) {}
+
+    public record ConsumableStockBalanceDto(
+            String uid,
+            ConsumableSourceKind sourceKind,
+            String sourceUid,
+            String consumableUid,
+            String consumableCode,
+            String consumableName,
+            int quantity,
+            java.time.Instant updatedAt) {}
+
     public record IssueConsumableRequest(
             @NotBlank @Size(min = 26, max = 26) String consumableUid,
             @NotNull ConsumableSourceKind sourceKind,

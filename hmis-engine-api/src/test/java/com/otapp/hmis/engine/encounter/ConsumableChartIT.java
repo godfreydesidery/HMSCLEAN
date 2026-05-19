@@ -58,6 +58,23 @@ class ConsumableChartIT extends AuthenticatedIntegrationTest {
         String admissionUid = (String) admission.get("uid");
         assertThat(admission.get("status")).isEqualTo("ADMITTED");
 
+        // 3a. Seed source stock at MAIN_PHARMACY so the issue decrements
+        //     successfully (Phase 46: issues now require on-hand stock).
+        expectOk(post("/consumables/stock/receive",
+                Map.of(
+                        "sourceKind",        "PHARMACY",
+                        "sourceLocationUid", MAIN_PHARMACY,
+                        "consumableUid",     GAUZE_UID,
+                        "quantity",          20),
+                Map.class));
+        expectOk(post("/consumables/stock/receive",
+                Map.of(
+                        "sourceKind",        "PHARMACY",
+                        "sourceLocationUid", MAIN_PHARMACY,
+                        "consumableUid",     SALINE_UID,
+                        "quantity",          10),
+                Map.class));
+
         // 3. Issue two consumables on the chart.
         Map gauzeIssue = expectOk(post(
                 "/encounters/admissions/uid/" + admissionUid + "/consumables",

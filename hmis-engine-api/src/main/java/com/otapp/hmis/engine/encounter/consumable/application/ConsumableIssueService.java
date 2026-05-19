@@ -24,6 +24,7 @@ public class ConsumableIssueService {
     private final ConsumableIssueRepository issueRepository;
     private final AdmissionRepository admissionRepository;
     private final ConsumableRepository consumableRepository;
+    private final ConsumableStockService consumableStockService;
 
     @Transactional
     public ConsumableIssueDto issue(String admissionUid, IssueConsumableRequest request) {
@@ -49,6 +50,11 @@ public class ConsumableIssueService {
                 currentUsername(),
                 emptyToNull(request.note()));
         issueRepository.save(issued);
+        // Decrement source stock after the audit row exists so the movement
+        // can reference the issue uid. Throws if the source location is short.
+        consumableStockService.decrementForIssue(
+                request.sourceKind(), request.sourceLocationUid(),
+                consumable.getUid(), request.quantity(), issued.getUid());
         return toDto(issued, consumable);
     }
 

@@ -36,3 +36,36 @@ public class ConsumableIssueController {
         return ResponseEntity.ok(consumableIssueService.listForAdmission(admissionUid));
     }
 }
+
+/** Stock-side endpoints (receive / adjust / read) for consumables at store / pharmacy locations. */
+@Tag(name = "Consumable stock")
+@RestController
+@RequestMapping("/consumables/stock")
+@RequiredArgsConstructor
+@PreAuthorize("hasAuthority('ENCOUNTER_ACCESS')")
+class ConsumableStockController {
+
+    private final com.otapp.hmis.engine.encounter.consumable.application.ConsumableStockService consumableStockService;
+
+    @PostMapping("/receive")
+    public ResponseEntity<com.otapp.hmis.engine.encounter.consumable.application.ConsumableIssueDtos.ConsumableStockBalanceDto>
+            receive(@Valid @RequestBody
+                    com.otapp.hmis.engine.encounter.consumable.application.ConsumableIssueDtos.ReceiveConsumableRequest request) {
+        return ResponseEntity.ok(consumableStockService.receive(request));
+    }
+
+    @PostMapping("/adjust")
+    public ResponseEntity<com.otapp.hmis.engine.encounter.consumable.application.ConsumableIssueDtos.ConsumableStockBalanceDto>
+            adjust(@Valid @RequestBody
+                   com.otapp.hmis.engine.encounter.consumable.application.ConsumableIssueDtos.AdjustConsumableRequest request) {
+        return ResponseEntity.ok(consumableStockService.adjust(request));
+    }
+
+    @GetMapping("/by-source")
+    public ResponseEntity<List<com.otapp.hmis.engine.encounter.consumable.application.ConsumableIssueDtos.ConsumableStockBalanceDto>>
+            listBySource(@org.springframework.web.bind.annotation.RequestParam
+                         com.otapp.hmis.engine.encounter.consumable.domain.ConsumableSourceKind sourceKind,
+                         @org.springframework.web.bind.annotation.RequestParam String sourceUid) {
+        return ResponseEntity.ok(consumableStockService.listBalances(sourceKind, sourceUid));
+    }
+}

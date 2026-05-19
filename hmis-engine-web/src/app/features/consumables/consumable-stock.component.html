@@ -1,0 +1,109 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">Consumable stock</h1>
+    <p class="hmis-muted mb-0 small">Gauze, IV fluids, syringes, dressings — tracked per (source, consumable).</p>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-auto">
+        <label class="form-label">Source kind</label>
+        <div class="btn-group btn-group-sm d-block">
+          @for (k of sourceKinds; track k.value) {
+            <button type="button" class="btn btn-outline-secondary" [class.active]="sourceKind() === k.value" (click)="setSourceKind(k.value)">{{ k.label }}</button>
+          }
+        </div>
+      </div>
+      <div class="col-md-5">
+        <label for="sourceUid" class="form-label">Location</label>
+        <select id="sourceUid" name="sourceUid" class="form-select" [value]="sourceUid()" (change)="setSourceUid($any($event.target).value)">
+          <option value="">— pick a {{ sourceKind() === 'PHARMACY' ? 'pharmacy' : 'store' }} —</option>
+          @for (loc of locations; track loc.uid) {
+            <option [value]="loc.uid">{{ loc.label }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-md-auto ms-md-auto">
+        <button type="button" class="btn btn-light border" (click)="refreshBalances()" [disabled]="!sourceUid() || loading()">
+          <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+@if (sourceUid()) {
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header bg-white"><h2 class="h6 mb-0">Balances</h2></div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 hmis-table">
+            <thead><tr><th>Code</th><th>Consumable</th><th class="text-end">On hand</th><th class="hmis-muted small">Updated</th><th class="text-end"></th></tr></thead>
+            <tbody>
+              @if (loading()) {
+                <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div></td></tr>
+              } @else if (balances().length === 0) {
+                <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-box-seam"></i><div class="fw-semibold mb-1">No stock yet</div><div class="small">Record a receipt below to seed this location.</div></div></td></tr>
+              } @else {
+                @for (b of balances(); track b.uid) {
+                  <tr>
+                    <td class="hmis-code">{{ b.consumableCode || '—' }}</td>
+                    <td class="fw-semibold">{{ b.consumableName || b.consumableUid }}</td>
+                    <td class="text-end fw-semibold" [class.text-success]="b.quantity > 0">{{ b.quantity }}</td>
+                    <td class="hmis-muted small">{{ b.updatedAt | date:'short' }}</td>
+                    <td class="text-end">
+                      <button type="button" class="btn btn-sm btn-light border" (click)="adjust(b)" aria-label="Adjust">
+                        <i class="bi bi-pencil"></i> Adjust
+                      </button>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <form [formGroup]="receiveForm" (ngSubmit)="receive()" class="card">
+        <div class="card-header bg-white"><h2 class="h6 mb-0">Record receipt</h2></div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label for="recConsumable" class="form-label">Consumable <span class="text-danger">*</span></label>
+            <select id="recConsumable" name="consumableUid" class="form-select" formControlName="consumableUid" [class.is-invalid]="receiveForm.controls.consumableUid.invalid && receiveForm.controls.consumableUid.touched">
+              <option value="" disabled>— pick one —</option>
+              @for (c of consumables(); track c.uid) {
+                <option [value]="c.uid">{{ c.code }} — {{ c.name }}</option>
+              }
+            </select>
+            @if (receiveForm.controls.consumableUid.invalid && receiveForm.controls.consumableUid.touched) {
+              <div class="invalid-feedback">Pick a consumable.</div>
+            }
+          </div>
+          <div class="mb-3">
+            <label for="recQuantity" class="form-label">Quantity <span class="text-danger">*</span></label>
+            <input id="recQuantity" name="quantity" type="number" min="1" class="form-control" formControlName="quantity" [class.is-invalid]="receiveForm.controls.quantity.invalid && receiveForm.controls.quantity.touched">
+            @if (receiveForm.controls.quantity.invalid && receiveForm.controls.quantity.touched) {
+              <div class="invalid-feedback">Quantity must be a positive integer.</div>
+            }
+          </div>
+          <div class="mb-3">
+            <label for="recNote" class="form-label">Note</label>
+            <input id="recNote" name="note" type="text" class="form-control" formControlName="note" maxlength="500">
+          </div>
+          <button type="submit" class="btn btn-primary w-100" [disabled]="submitting()">
+            @if (submitting()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+            <i class="bi bi-box-arrow-in-down me-1"></i> Record receipt
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

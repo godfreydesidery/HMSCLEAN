@@ -8,6 +8,9 @@ import { finalize, forkJoin } from 'rxjs';
 import { RecordPaymentComponent } from '../../billing/record-payment.component';
 import { InvoiceService } from '../../billing/invoice.service';
 import { INVOICE_STATUSES, Invoice, InvoiceStatus } from '../../billing/invoice.types';
+import { ConsumableIssueService } from '../../consumables/consumable.service';
+import { ConsumableIssue } from '../../consumables/consumable.types';
+import { IssueConsumableModalComponent } from '../../consumables/issue-consumable-modal.component';
 import { WardService } from '../../masterdata/wards/ward.service';
 import { Ward } from '../../masterdata/wards/ward.types';
 import { PAYMENT_TYPES, PaymentType } from '../../patient/patient.types';
@@ -16,7 +19,7 @@ import { ADMISSION_STATUSES, Admission, AdmissionStatus } from './admission.type
 import { ProgressNoteService } from './progress-note.service';
 import { PROGRESS_NOTE_KINDS, ProgressNote, ProgressNoteKind } from './progress-note.types';
 
-type TabKey = 'overview' | 'notes' | 'billing';
+type TabKey = 'overview' | 'notes' | 'consumables' | 'billing';
 
 @Component({
   selector: 'app-admission-detail',
@@ -31,6 +34,7 @@ export class AdmissionDetailComponent {
   private readonly wardService = inject(WardService);
   private readonly noteService = inject(ProgressNoteService);
   private readonly invoiceService = inject(InvoiceService);
+  private readonly consumableIssueService = inject(ConsumableIssueService);
   private readonly modal = inject(NgbModal);
   private readonly fb = inject(FormBuilder);
 
@@ -43,6 +47,7 @@ export class AdmissionDetailComponent {
   readonly wards = signal<Ward[]>([]);
   readonly notes = signal<ProgressNote[]>([]);
   readonly invoice = signal<Invoice | null>(null);
+  readonly consumables = signal<ConsumableIssue[]>([]);
 
   readonly loading = signal(true);
   readonly notesLoading = signal(false);
@@ -90,22 +95,35 @@ export class AdmissionDetailComponent {
     forkJoin({
       admission: this.admissionService.findByUid(uid),
       notes: this.noteService.list(uid),
-      invoice: this.invoiceService.findForAdmission(uid)
+      invoice: this.invoiceService.findForAdmission(uid),
+      consumables: this.consumableIssueService.listForAdmission(uid)
     }).pipe(finalize(() => {
       this.loading.set(false);
       this.notesLoading.set(false);
       this.invoiceLoading.set(false);
     })).subscribe({
-      next: ({ admission, notes, invoice }) => {
+      next: ({ admission, notes, invoice, consumables }) => {
         this.admission.set(admission);
         this.notes.set(notes);
         this.invoice.set(invoice);
+        this.consumables.set(consumables);
       },
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load admission.')
     });
   }
 
   setTab(tab: TabKey): void { this.activeTab.set(tab); }
+
+  openIssueConsumable(): void {
+    const a = this.admission();
+    if (!a) return;
+    const ref = this.modal.open(IssueConsumableModalComponent, { size: 'lg', backdrop: 'static' });
+    const inst = ref.componentInstance as IssueConsumableModalComponent;
+    inst.admissionUid = a.uid;
+    ref.closed.subscribe((saved?: ConsumableIssue) => {
+      if (saved) this.consumables.update((rows) => [...rows, saved]);
+    });
+  }
 
   // ----- ward transfer / discharge / cancel --------------------------------
 

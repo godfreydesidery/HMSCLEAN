@@ -53,6 +53,7 @@ export class ShellComponent {
         { label: 'Pharmacy stock', path: '/pharmacy/stock', icon: 'bi-capsule',     privileges: ['PHARMACY_ACCESS'] },
         { label: 'Pharmacy sales', path: '/pharmacy/sales', icon: 'bi-cart',        privileges: ['PHARMACY_ACCESS'] },
         { label: 'Store stock',    path: '/store/stock',    icon: 'bi-box-seam',    privileges: ['STORE_ACCESS'] },
+        { label: 'Consumables',    path: '/consumables/stock', icon: 'bi-bandaid',  privileges: ['ENCOUNTER_ACCESS'] },
         { label: 'Procurement', path: '/procurement/orders',    icon: 'bi-truck',          privileges: ['PROCUREMENT_ACCESS'] },
         { label: 'Suppliers',   path: '/procurement/suppliers', icon: 'bi-buildings',      privileges: ['PROCUREMENT_ACCESS'] },
         { label: 'Billing',     path: '/billing',     icon: 'bi-cash-coin',       privileges: ['BILLING_ACCESS'] },

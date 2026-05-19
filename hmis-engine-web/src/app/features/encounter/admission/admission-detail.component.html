@@ -39,6 +39,7 @@
   <ul class="nav nav-tabs mb-3">
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'overview'" (click)="setTab('overview')"><i class="bi bi-info-circle me-1"></i>Overview</button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'notes'" (click)="setTab('notes')"><i class="bi bi-journal-text me-1"></i>Progress notes <span class="badge text-bg-light border ms-1">{{ notes().length }}</span></button></li>
+    <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'consumables'" (click)="setTab('consumables')"><i class="bi bi-bandaid me-1"></i>Consumables <span class="badge text-bg-light border ms-1">{{ consumables().length }}</span></button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'billing'" (click)="setTab('billing')"><i class="bi bi-cash-coin me-1"></i>Billing @if (invoice()) { <i class="bi bi-check-circle text-success ms-1"></i> }</button></li>
   </ul>
 
@@ -168,6 +169,42 @@
             }
           </ul>
         }
+      </div>
+    }
+
+    @case ('consumables') {
+      <div class="card">
+        <div class="card-header bg-white d-flex align-items-center">
+          <h2 class="h6 mb-0"><i class="bi bi-bandaid me-2 hmis-muted"></i>Patient consumable chart</h2>
+          @if (isActive()) {
+            <button type="button" class="btn btn-sm btn-primary ms-auto" (click)="openIssueConsumable()">
+              <i class="bi bi-plus-lg me-1"></i> Issue consumable
+            </button>
+          }
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 hmis-table">
+            <thead><tr><th>Code</th><th>Consumable</th><th>Source</th><th class="text-end">Qty</th><th class="text-end">Unit</th><th class="text-end">Line</th><th>By</th><th>When</th></tr></thead>
+            <tbody>
+              @if (consumables().length === 0) {
+                <tr><td colspan="8"><div class="hmis-empty"><i class="bi bi-bandaid"></i><div class="fw-semibold mb-1">No consumables on this chart</div><div class="small">Use 'Issue consumable' to record gauze, IV fluids, dressings used at the bedside.</div></div></td></tr>
+              } @else {
+                @for (c of consumables(); track c.uid) {
+                  <tr>
+                    <td class="hmis-code">{{ c.consumableCode || '—' }}</td>
+                    <td class="fw-semibold">{{ c.consumableName || c.consumableUid }}@if (c.note) { <div class="hmis-muted small">{{ c.note }}</div> }</td>
+                    <td><span class="badge text-bg-light border">{{ c.sourceKind }}</span> <span class="hmis-code small">{{ c.sourceLocationUid }}</span></td>
+                    <td class="text-end">{{ c.quantity }}</td>
+                    <td class="text-end hmis-muted">{{ c.unitCost | number:'1.2-2' }}</td>
+                    <td class="text-end fw-semibold">{{ c.lineAmount | number:'1.2-2' }}</td>
+                    <td class="hmis-muted small">{{ c.issuedByUsername }}</td>
+                    <td class="hmis-muted small">{{ c.issuedAt | date:'short' }}</td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
       </div>
     }
 

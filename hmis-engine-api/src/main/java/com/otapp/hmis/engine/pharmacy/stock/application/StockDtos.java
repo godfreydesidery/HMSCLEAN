@@ -1,6 +1,7 @@
 package com.otapp.hmis.engine.pharmacy.stock.application;
 
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockMovementKind;
+import com.otapp.hmis.engine.pharmacy.stock.domain.WastageReason;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -72,6 +73,18 @@ public final class StockDtos {
     public record AdjustStockRequest(
             @NotBlank @Size(min = 26, max = 26) String batchUid,
             @NotNull Integer delta,
+            @Size(max = 500) String note) {}
+
+    /**
+     * Pharmacist write-off against a specific batch: expired, damaged,
+     * recalled, lost, etc. Quantity is positive — the service applies the
+     * negative delta. Reason is structured so the shrinkage report can
+     * categorise losses.
+     */
+    public record WriteOffStockRequest(
+            @NotBlank @Size(min = 26, max = 26) String batchUid,
+            @Min(1) int quantity,
+            @NotNull WastageReason reason,
             @Size(max = 500) String note) {}
 
     /**

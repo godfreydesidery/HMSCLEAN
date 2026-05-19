@@ -6,6 +6,7 @@ import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.ReceiveStockRe
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.StockBalanceDto;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.StockBatchDto;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.StockMovementDto;
+import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.WriteOffStockRequest;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockService;
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockMovementKind;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,16 +44,24 @@ public class StockController {
         return ResponseEntity.ok(stockService.adjust(pharmacyUid, request));
     }
 
+    @PostMapping("/pharmacies/uid/{pharmacyUid}/stock/write-off")
+    public ResponseEntity<StockBatchDto> writeOff(@PathVariable String pharmacyUid,
+                                                  @Valid @RequestBody WriteOffStockRequest request) {
+        return ResponseEntity.ok(stockService.writeOff(pharmacyUid, request));
+    }
+
     @PostMapping("/pharmacies/uid/{pharmacyUid}/dispense/uid/{prescriptionUid}")
     public ResponseEntity<List<StockMovementDto>> dispense(@PathVariable String pharmacyUid,
-                                                           @PathVariable String prescriptionUid) {
-        return ResponseEntity.ok(stockService.dispense(pharmacyUid, prescriptionUid));
+                                                           @PathVariable String prescriptionUid,
+                                                           @RequestParam(required = false) String salesPharmacyUid) {
+        return ResponseEntity.ok(stockService.dispense(pharmacyUid, prescriptionUid, salesPharmacyUid));
     }
 
     @PostMapping("/pharmacies/uid/{pharmacyUid}/dispense-sale-line/uid/{saleLineUid}")
     public ResponseEntity<List<StockMovementDto>> dispenseSaleLine(@PathVariable String pharmacyUid,
-                                                                   @PathVariable String saleLineUid) {
-        return ResponseEntity.ok(stockService.dispenseSaleLine(pharmacyUid, saleLineUid));
+                                                                   @PathVariable String saleLineUid,
+                                                                   @RequestParam(required = false) String salesPharmacyUid) {
+        return ResponseEntity.ok(stockService.dispenseSaleLine(pharmacyUid, saleLineUid, salesPharmacyUid));
     }
 
     @GetMapping("/stock/movements")

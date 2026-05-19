@@ -58,6 +58,13 @@ public class Prescription extends AuditableEntity {
     @Setter @Column(name = "route",         length = 80) private String route;
     @Setter @Column(name = "frequency_uid", length = 26) private String frequencyUid;
 
+    // ----- multi-pharmacy dispense (Phase 37) ------------------------------
+    // Both populated at dispense time. Equal in the common case; differ when
+    // the prescription is filled at pharmacy A but stock is pulled from
+    // pharmacy B without a formal transfer document.
+    @Setter @Column(name = "issue_pharmacy_uid", length = 26) private String issuePharmacyUid;
+    @Setter @Column(name = "sales_pharmacy_uid", length = 26) private String salesPharmacyUid;
+
     @Column(name = "requested_at", nullable = false) private Instant requestedAt;
     @Setter @Column(name = "accepted_at")  private Instant acceptedAt;
     @Setter @Column(name = "held_at")      private Instant heldAt;

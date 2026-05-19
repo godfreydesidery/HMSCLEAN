@@ -661,10 +661,10 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Pharmacy sales order (retail / OTC) | ✅ | `PharmacySaleOrder` head + per-line lifecycle. Supports registered OUTSIDER patients and anonymous walk-ins (customer name required for audit). |
 | Pharmacy → Pharmacy transfer (RO / TO / RN) | ✅ | Phase 20b — requesting pharmacy RO → delivering pharmacy TO → requesting pharmacy RN, FEFO TRANSFER_OUT / TRANSFER_IN movements, shares the `TransferDocStatus` / `ReceiveNoteStatus` enums in `transfer.common.domain`. |
 | Pharmacy ↔ Store transfer (RO / TO / RN) | ✅ | Phase 20a forward (pharmacy RO → store TO → pharmacy RN, FEFO store-side issue, per-batch propagation) plus Phase 30 reverse (single-document `PharmacyStoreReturn`: DRAFT → SUBMITTED → COMPLETED with FEFO TRANSFER_OUT at the pharmacy + RETURN credit at the store). |
-| Conversion coefficients on items | ❌ | Single unit per medicine today. |
-| Batch + expiry tracking per pharmacy | ❌ | Stock balance is a single integer per (pharmacy, medicine); no batch granularity. |
-| Wastage / transfer-in / transfer-out movement kinds | ⚠️ | Enum has them but no flows emit them yet. |
-| `issuePharmacy` vs. `salesPharmacy` split | ❌ | |
+| Conversion coefficients on items | ⚠️ | Phase 21 `MedicineUnit` wired into the transfer chains; manual receive / dispense / sale / GRN still take base units only. |
+| Batch + expiry tracking per pharmacy | ✅ | Phase 20 — `StockBatch` aggregate per (pharmacy, medicine, batchNo) with expiry; `StockBalance` is the per-medicine roll-up. Dispense + sale-order paths walk batches FEFO via `StockBatchRepository.lockFefoForDispense` (pessimistic-write lock, null expiry sorted last). |
+| Wastage / transfer-in / transfer-out movement kinds | ✅ | Phase 20/20a/20b emit `TRANSFER_IN` / `TRANSFER_OUT` from the transfer chains and `issueToPharmacy`; Phase 37 adds the pharmacist `POST /pharmacy/pharmacies/uid/{uid}/stock/write-off` path emitting `WASTAGE` with a structured `WastageReason`. |
+| `issuePharmacy` vs. `salesPharmacy` split | ✅ | Phase 37 — both `Prescription` and `PharmacySaleOrderLine` record `issuePharmacyUid` (where the script was filled) and `salesPharmacyUid` (where stock was actually pulled). Dispense endpoints accept an optional `salesPharmacyUid` query param; when set, FEFO decrement runs at the sales pharmacy without a formal transfer document. |
 
 ### 17.8 Store
 
@@ -682,7 +682,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Supplier registry | ✅ | Phase 8. |
 | Local Purchase Order (header + lines) | ✅ | Phase 8 + 23a — full legacy gate chain: DRAFT → VERIFIED → APPROVED → ORDERED → PARTIALLY_RECEIVED → RECEIVED, with REJECTED from any pre-submission state and CANCELLED from any non-RECEIVED state. |
 | Goods Received Note | ✅ | Phase 8 + 23a — full PENDING → VERIFIED → APPROVED workflow. Stock credit + PO line `recordReceipt` now fire on APPROVED (not on creation), so a count mismatch caught at verification doesn't pollute the ledger. REJECTED branch has no stock impact. |
-| Per-line batch info on GRN | ❌ | Single qty per line today; no batch breakdown. |
+| Per-line batch info on GRN | ✅ | `GoodsReceiptLine` carries `batchNo + expiresAt` per line; multi-batch receipts are modelled as multiple lines against the same PO line (each with its own batch) rather than a child batch table. |
 | Supplier item price list | ✅ | Phase 23b — `SupplierItemPrice` per (supplier, medicine, validity window). CRUD at `/procurement/suppliers/uid/{uid}/prices`; comparison shopping at `/procurement/medicines/uid/{uid}/prices/{active|best}`. LPO line still takes its own typed unit cost — the price list is a lookup, not auto-fill. |
 | Three-way match (PO vs. GRN vs. invoice) | ✅ | Phase 31 — `SupplierInvoice` aggregate at `/procurement/supplier-invoices` with DRAFT → SUBMITTED → APPROVED → PAID lifecycle. Match runs on APPROVED: per-line `invoiced ≤ received ≤ ordered` cumulative across all approved invoices for the PO. `PurchaseOrderLine.invoicedQuantity` tracks the running total. |
 

@@ -6,6 +6,7 @@ import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /**
  * Ledger entry of one stock change at one pharmacy. Quantity is signed:
@@ -58,6 +59,12 @@ public class StockMovement extends AuditableEntity {
 
     @Column(length = 500)
     private String note;
+
+    /** Set on WASTAGE movements; null elsewhere. Drives the shrinkage report. */
+    @Setter
+    @Enumerated(EnumType.STRING)
+    @Column(name = "wastage_reason", length = 16)
+    private WastageReason wastageReason;
 
     @Column(name = "occurred_at", nullable = false)
     private Instant occurredAt;

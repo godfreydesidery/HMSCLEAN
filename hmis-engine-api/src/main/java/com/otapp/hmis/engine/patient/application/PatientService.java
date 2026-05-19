@@ -11,6 +11,7 @@ import com.otapp.hmis.engine.patient.application.dto.CreatePatientRequest;
 import com.otapp.hmis.engine.patient.application.dto.PatientDto;
 import com.otapp.hmis.engine.patient.application.dto.PatientSummary;
 import com.otapp.hmis.engine.patient.application.dto.UpdatePatientRequest;
+import com.otapp.hmis.engine.patient.application.event.PatientRegisteredEvent;
 import com.otapp.hmis.engine.patient.domain.Gender;
 import com.otapp.hmis.engine.patient.domain.Patient;
 import com.otapp.hmis.engine.patient.domain.PatientRepository;
@@ -18,6 +19,7 @@ import com.otapp.hmis.engine.patient.domain.PatientType;
 import com.otapp.hmis.engine.patient.domain.PaymentType;
 import com.otapp.hmis.engine.patient.infrastructure.PatientNumberGenerator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,7 @@ public class PatientService {
     private final InsurancePlanRepository insurancePlanRepository;
     private final InsuranceProviderRepository insuranceProviderRepository;
     private final PatientNumberGenerator patientNumberGenerator;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public PatientDto register(CreatePatientRequest request) {
@@ -50,6 +53,7 @@ public class PatientService {
         patient.setMembershipNo(emptyToNull(request.membershipNo()));
 
         patientRepository.save(patient);
+        eventPublisher.publishEvent(new PatientRegisteredEvent(patient.getUid()));
         return toDto(patient);
     }
 

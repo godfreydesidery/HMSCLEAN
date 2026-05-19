@@ -1,6 +1,7 @@
 package com.otapp.hmis.engine.billing.invoice.application;
 
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLineKind;
+import com.otapp.hmis.engine.billing.invoice.domain.InvoiceScope;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceStatus;
 import com.otapp.hmis.engine.billing.payment.domain.PaymentMethod;
 import com.otapp.hmis.engine.patient.domain.PaymentType;
@@ -30,6 +31,7 @@ public final class InvoiceDtos {
     public record InvoiceDto(
             String uid,
             String invoiceNo,
+            InvoiceScope scope,
             String consultationUid,
             String admissionUid,
             String patientUid,
@@ -55,6 +57,7 @@ public final class InvoiceDtos {
     public record InvoiceSummary(
             String uid,
             String invoiceNo,
+            InvoiceScope scope,
             String consultationUid,
             String admissionUid,
             String patientUid,

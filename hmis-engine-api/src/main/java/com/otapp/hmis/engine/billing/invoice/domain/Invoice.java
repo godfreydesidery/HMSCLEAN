@@ -56,19 +56,25 @@ public class Invoice extends AuditableEntity {
     @Column(nullable = false, length = 16)
     private InvoiceStatus status = InvoiceStatus.DRAFT;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private InvoiceScope scope;
+
     @Setter @Column(name = "issued_at")    private Instant issuedAt;
     @Setter @Column(name = "paid_at")      private Instant paidAt;
     @Setter @Column(name = "cancelled_at") private Instant cancelledAt;
     @Setter @Column(name = "cancel_reason", length = 255) private String cancelReason;
 
-    private Invoice(String invoiceNo, String consultationUid, String admissionUid, String patientUid,
-                    PaymentType paymentType, String insurancePlanUid, String currency) {
+    @SuppressWarnings("java:S107") // private constructor; the 4 named factories keep the public surface narrow
+    private Invoice(String invoiceNo, InvoiceScope scope, String consultationUid, String admissionUid,
+                    String patientUid, PaymentType paymentType, String insurancePlanUid, String currency) {
         if (consultationUid != null && admissionUid != null) {
             throw new BusinessRuleException(
                     "An invoice cannot reference both a consultation and an admission");
         }
-        // both null is allowed — that's an OUTSIDER (walk-in) invoice keyed only by patient.
+        // both null is allowed — that's an OUTSIDER or REGISTRATION invoice keyed only by patient.
         this.invoiceNo = invoiceNo;
+        this.scope = scope;
         this.consultationUid = consultationUid;
         this.admissionUid = admissionUid;
         this.patientUid = patientUid;
@@ -79,22 +85,36 @@ public class Invoice extends AuditableEntity {
 
     public static Invoice forConsultation(String invoiceNo, String consultationUid, String patientUid,
                                           PaymentType paymentType, String insurancePlanUid, String currency) {
-        return new Invoice(invoiceNo, consultationUid, null, patientUid, paymentType, insurancePlanUid, currency);
+        return new Invoice(invoiceNo, InvoiceScope.CONSULTATION,
+                consultationUid, null, patientUid, paymentType, insurancePlanUid, currency);
     }
 
     public static Invoice forAdmission(String invoiceNo, String admissionUid, String patientUid,
                                        PaymentType paymentType, String insurancePlanUid, String currency) {
-        return new Invoice(invoiceNo, null, admissionUid, patientUid, paymentType, insurancePlanUid, currency);
+        return new Invoice(invoiceNo, InvoiceScope.ADMISSION,
+                null, admissionUid, patientUid, paymentType, insurancePlanUid, currency);
     }
 
     /** OUTSIDER walk-in invoice — keyed only by patient, no consultation or admission. */
     public static Invoice forOutsider(String invoiceNo, String patientUid,
                                       PaymentType paymentType, String insurancePlanUid, String currency) {
-        return new Invoice(invoiceNo, null, null, patientUid, paymentType, insurancePlanUid, currency);
+        return new Invoice(invoiceNo, InvoiceScope.OUTSIDER,
+                null, null, patientUid, paymentType, insurancePlanUid, currency);
+    }
+
+    /** Registration fee invoice — one per patient, generated at registration time. */
+    public static Invoice forRegistration(String invoiceNo, String patientUid,
+                                          PaymentType paymentType, String insurancePlanUid, String currency) {
+        return new Invoice(invoiceNo, InvoiceScope.REGISTRATION,
+                null, null, patientUid, paymentType, insurancePlanUid, currency);
     }
 
     public boolean isOutsider() {
-        return consultationUid == null && admissionUid == null;
+        return scope == InvoiceScope.OUTSIDER;
+    }
+
+    public boolean isRegistration() {
+        return scope == InvoiceScope.REGISTRATION;
     }
 
     /** What the patient still owes: billed amount minus cash received minus authorised write-downs. */

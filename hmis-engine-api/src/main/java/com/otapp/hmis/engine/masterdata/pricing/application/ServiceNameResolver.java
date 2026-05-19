@@ -40,10 +40,16 @@ class ServiceNameResolver {
             case RADIOLOGY    -> radiologyTypeRepository.findByUid(serviceUid).map(RadiologyType::getName).orElse(null);
             case MEDICINE     -> medicineRepository.findByUid(serviceUid).map(Medicine::getName).orElse(null);
             case WARD         -> wardRepository.findByUid(serviceUid).map(Ward::getName).orElse(null);
+            // REGISTRATION uses the sentinel serviceUid "DEFAULT" — there's no
+            // masterdata catalogue to resolve against, the name is the kind itself.
+            case REGISTRATION -> "Patient registration fee";
         };
     }
 
     boolean serviceExists(ServiceKind kind, String serviceUid) {
+        if (kind == ServiceKind.REGISTRATION) {
+            return ServiceKind.REGISTRATION_SERVICE_UID.equals(serviceUid);
+        }
         return resolveName(kind, serviceUid) != null;
     }
 }

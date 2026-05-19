@@ -2,9 +2,7 @@ package com.otapp.hmis.engine.billing.invoice.application;
 
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.CancelInvoiceRequest;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceDto;
-import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceLineDto;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceSummary;
-import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.PaymentDto;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.RecordPaymentRequest;
 import com.otapp.hmis.engine.billing.invoice.domain.Invoice;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLine;
@@ -33,8 +31,6 @@ import com.otapp.hmis.engine.encounter.prescription.domain.PrescriptionRepositor
 import com.otapp.hmis.engine.encounter.prescription.domain.PrescriptionStatus;
 import com.otapp.hmis.engine.masterdata.clinic.domain.Clinic;
 import com.otapp.hmis.engine.masterdata.clinic.domain.ClinicRepository;
-import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlan;
-import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlanRepository;
 import com.otapp.hmis.engine.masterdata.labtest.domain.LabTestType;
 import com.otapp.hmis.engine.masterdata.labtest.domain.LabTestTypeRepository;
 import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
@@ -82,10 +78,10 @@ public class InvoiceService {
     private final ProcedureTypeRepository procedureTypeRepository;
     private final MedicineRepository medicineRepository;
     private final PatientRepository patientRepository;
-    private final InsurancePlanRepository insurancePlanRepository;
     private final InvoiceNumberGenerator invoiceNumberGenerator;
     private final PaymentNumberGenerator paymentNumberGenerator;
     private final PriceLookup priceLookup;
+    private final InvoiceDtoAssembler dtoAssembler;
 
     /**
      * Generates or regenerates the invoice for a consultation. Only allowed
@@ -427,37 +423,7 @@ public class InvoiceService {
     }
 
     private InvoiceDto toDto(Invoice invoice) {
-        List<InvoiceLine> lines = invoiceLineRepository.findAllByInvoiceUidOrderByCreatedAtAsc(invoice.getUid());
-        List<Payment> payments = paymentRepository.findAllByInvoiceUidOrderByReceivedAtAsc(invoice.getUid());
-        Patient patient = patientRepository.findByUid(invoice.getPatientUid()).orElse(null);
-        InsurancePlan plan = invoice.getInsurancePlanUid() == null
-                ? null
-                : insurancePlanRepository.findByUid(invoice.getInsurancePlanUid()).orElse(null);
-
-        return new InvoiceDto(
-                invoice.getUid(),
-                invoice.getInvoiceNo(),
-                invoice.getConsultationUid(),
-                invoice.getAdmissionUid(),
-                invoice.getPatientUid(),
-                patient == null ? null : patient.fullName(),
-                patient == null ? null : patient.getPatientNo(),
-                invoice.getPaymentType(),
-                invoice.getInsurancePlanUid(),
-                plan == null ? null : plan.getName(),
-                invoice.getCurrency(),
-                invoice.getSubtotal(),
-                invoice.getTotalPaid(),
-                invoice.balance(),
-                invoice.getStatus(),
-                invoice.getIssuedAt(),
-                invoice.getPaidAt(),
-                invoice.getCancelledAt(),
-                invoice.getCancelReason(),
-                invoice.getCreatedAt(),
-                invoice.getUpdatedAt(),
-                lines.stream().map(InvoiceService::toLineDto).toList(),
-                payments.stream().map(InvoiceService::toPaymentDto).toList());
+        return dtoAssembler.toDto(invoice);
     }
 
     private InvoiceSummary toSummary(Invoice i) {
@@ -465,6 +431,7 @@ public class InvoiceService {
         return new InvoiceSummary(
                 i.getUid(),
                 i.getInvoiceNo(),
+                i.getScope(),
                 i.getConsultationUid(),
                 i.getAdmissionUid(),
                 i.getPatientUid(),
@@ -478,31 +445,6 @@ public class InvoiceService {
                 i.getCurrency(),
                 i.getIssuedAt(),
                 i.getCreatedAt());
-    }
-
-    private static InvoiceLineDto toLineDto(InvoiceLine l) {
-        return new InvoiceLineDto(
-                l.getUid(),
-                l.getKind(),
-                l.getServiceUid(),
-                l.getReferenceUid(),
-                l.getDescription(),
-                l.getQuantity(),
-                l.getUnitPrice(),
-                l.getAmount());
-    }
-
-    private static PaymentDto toPaymentDto(Payment p) {
-        return new PaymentDto(
-                p.getUid(),
-                p.getPaymentNo(),
-                p.getMethod(),
-                p.getAmount(),
-                p.getCurrency(),
-                p.getReference(),
-                p.getNote(),
-                p.getReceivedAt(),
-                p.getCreatedAt());
     }
 
     private static String emptyToNull(String s) {

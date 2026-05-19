@@ -588,9 +588,9 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Patient kin / nationality fields | ⚠️ | Only basic kin captured; legacy supports 3 kin contacts. |
 | Payment type at registration (CASH, INSURANCE, etc.) | ✅ | `PaymentType` enum present. |
 | Insurance plan + membership no at registration | ✅ | `insurancePlanUid` on Patient. |
-| Registration fee bill | ❌ | New system charges consultation-level fees; no separate registration fee yet. |
-| OUTPATIENT vs. OUTSIDER patient type | ❌ | Only one patient type today. Need to add and propagate through encounter and pharmacy. |
-| Patient type conversion | ❌ | Depends on above. |
+| Registration fee bill | ✅ | Phase 36 — `PatientService.register` publishes `PatientRegisteredEvent`; billing seeds an ISSUED `Invoice` (scope=REGISTRATION) via after-commit listener. Idempotent recovery at `POST /billing/patients/uid/{uid}/registration-fee`. Pricing via `ServicePrice(kind=REGISTRATION, serviceUid="DEFAULT")` so plans can waive (amount=0). |
+| OUTPATIENT vs. OUTSIDER patient type | ✅ | `PatientType` enum on Patient (default OUTPATIENT). Walk-in OUTSIDERs raise lab/radiology/procedure directly via `POST /encounters/patients/uid/{uid}/outsider-orders` and pharmacy retail via `PharmacySaleOrder`. |
+| Patient type conversion | ✅ | `PUT /patients/uid/{uid}/type` flips between OUTPATIENT and OUTSIDER without touching past encounters. |
 | Last visit tracking display | ⚠️ | Data is queryable but not surfaced on the registry. |
 | Pre-generated search keys / card scan | ❌ | Plain name + no. search only. |
 
@@ -656,9 +656,9 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Receive stock (RECEIPT movement) | ✅ | Phase 7 + Phase 8 via GRN. |
 | Adjustment movement | ✅ | Phase 7. |
 | Dispense to prescription (decrement) | ✅ | Phase 7 — pessimistic-locked. |
-| Full prescription status lifecycle (PENDING → ACCEPTED → HELD → VERIFIED → APPROVED → SOLD) | ❌ | Currently REQUESTED → DISPENSED only. |
-| Prescription pay-status | ❌ | |
-| Pharmacy sales order (retail / OTC) | ❌ | No separate PharmacySaleOrder entity. |
+| Full prescription status lifecycle (PENDING → ACCEPTED → HELD → VERIFIED → APPROVED → SOLD) | ✅ | `PrescriptionStatus` covers the full chain plus REJECTED / CANCELLED; pay-status per-line. |
+| Prescription pay-status | ✅ | Per-line UNPAID → PAID gate; dispense path enforces it for CASH patients. |
+| Pharmacy sales order (retail / OTC) | ✅ | `PharmacySaleOrder` head + per-line lifecycle. Supports registered OUTSIDER patients and anonymous walk-ins (customer name required for audit). |
 | Pharmacy → Pharmacy transfer (RO / TO / RN) | ✅ | Phase 20b — requesting pharmacy RO → delivering pharmacy TO → requesting pharmacy RN, FEFO TRANSFER_OUT / TRANSFER_IN movements, shares the `TransferDocStatus` / `ReceiveNoteStatus` enums in `transfer.common.domain`. |
 | Pharmacy ↔ Store transfer (RO / TO / RN) | ✅ | Phase 20a forward (pharmacy RO → store TO → pharmacy RN, FEFO store-side issue, per-batch propagation) plus Phase 30 reverse (single-document `PharmacyStoreReturn`: DRAFT → SUBMITTED → COMPLETED with FEFO TRANSFER_OUT at the pharmacy + RETURN credit at the store). |
 | Conversion coefficients on items | ❌ | Single unit per medicine today. |
@@ -699,7 +699,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Credit note / write-off | ✅ | Phase 25 — `CreditNote` aggregate per invoice with `CreditNoteReason` (HARDSHIP / GOODWILL / ERROR_CORRECTION / SERVICE_NOT_RENDERED / ROUNDING / OTHER). Invoice gains `totalCredited`; `balance = subtotal - totalPaid - totalCredited`. POST `/billing/invoices/uid/{uid}/credit-notes`. |
 | Refunds | ✅ | Phase 25 — `Refund` aggregate per invoice with `RefundReason` (OVERPAYMENT / SERVICE_NOT_RENDERED / DOUBLE_PAYMENT / CANCELLATION / OTHER) + `PaymentMethod`. Reduces `totalPaid` and rolls invoice status back from PAID → PARTIALLY_PAID / ISSUED as needed. POST `/billing/invoices/uid/{uid}/refunds`. |
 | End-of-day cash collection vs. invoice reconciliation | ✅ | Phase 32 — `CashierShift` per cashier (OPEN → CLOSED). `POST /billing/cashier-shifts/open` and `/close`; close computes expected = openingFloat + sum(CASH payments where createdBy=user in window), records variance for audit. Partial unique index enforces at-most-one OPEN shift per user. |
-| Registration / consultation fee that gates clinical activity for cash patients | ⚠️ | Invoices exist but workflow does not block consultation if unpaid. |
+| Registration / consultation fee that gates clinical activity for cash patients | ✅ | Phase 36 — `ConsultationService.book` publishes `ConsultationBookingRequestedEvent`; billing's sync listener refuses booking for CASH patients with an outstanding REGISTRATION-scope invoice. Insurance/plan-waived (zero-balance) invoices do not block. |
 
 ### 17.11 Human Resource
 
@@ -745,6 +745,13 @@ phase that respects the modulith boundaries:
 1. **Patient type + OUTSIDER pathway** — add `PatientType` (OUTPATIENT /
    OUTSIDER), allow lab / radiology / procedure / pharmacy-sale to be
    raised on an outsider without a consultation. Add registration fee.
+   *Delivered:* OUTSIDER plumbing (PatientType, outsider orders,
+   `Invoice.forOutsider`, `PharmacySaleOrder`) landed across earlier
+   phases. Phase 36 added the registration-fee invoice (auto-seeded
+   on registration via `PatientRegisteredEvent` after-commit listener;
+   idempotent recovery at `POST /billing/patients/uid/{uid}/registration-fee`)
+   and the CASH-patient consultation gate (sync `@EventListener` on
+   `ConsultationBookingRequestedEvent`).
 2. **Prescription status lifecycle + pay-status** — extend prescription
    states and gate dispensing on payment status for cash patients.
 3. **Pharmacy retail (PharmacySaleOrder)** — OTC sales head entity, same

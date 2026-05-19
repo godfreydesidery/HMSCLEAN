@@ -5,6 +5,7 @@ import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceDto;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceSummary;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.RecordPaymentRequest;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceService;
+import com.otapp.hmis.engine.billing.invoice.application.RegistrationFeeService;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceStatus;
 import com.otapp.hmis.engine.common.api.PageResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class InvoiceController {
 
     private final InvoiceService invoiceService;
+    private final RegistrationFeeService registrationFeeService;
 
     @GetMapping("/billing/invoices")
     public ResponseEntity<PageResponse<InvoiceSummary>> search(
@@ -69,6 +71,17 @@ public class InvoiceController {
     @PostMapping("/billing/patients/uid/{patientUid}/outsider-invoice")
     public ResponseEntity<InvoiceDto> generateForOutsider(@PathVariable String patientUid) {
         return ResponseEntity.ok(invoiceService.generateForOutsider(patientUid));
+    }
+
+    @GetMapping("/billing/patients/uid/{patientUid}/registration-fee")
+    public ResponseEntity<InvoiceDto> findRegistrationFee(@PathVariable String patientUid) {
+        InvoiceDto dto = registrationFeeService.findFor(patientUid);
+        return dto == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(dto);
+    }
+
+    @PostMapping("/billing/patients/uid/{patientUid}/registration-fee")
+    public ResponseEntity<InvoiceDto> ensureRegistrationFee(@PathVariable String patientUid) {
+        return ResponseEntity.ok(registrationFeeService.ensureFor(patientUid));
     }
 
     @PostMapping("/billing/invoices/uid/{invoiceUid}/issue")

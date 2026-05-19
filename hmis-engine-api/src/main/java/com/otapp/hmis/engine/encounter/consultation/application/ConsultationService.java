@@ -7,6 +7,7 @@ import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.ConsultationDto;
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.ConsultationSummary;
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.StartConsultationRequest;
+import com.otapp.hmis.engine.encounter.consultation.application.event.ConsultationBookingRequestedEvent;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationStatus;
@@ -22,6 +23,7 @@ import com.otapp.hmis.engine.patient.domain.PatientRepository;
 import com.otapp.hmis.engine.patient.domain.PaymentType;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +38,7 @@ public class ConsultationService {
     private final InsurancePlanRepository insurancePlanRepository;
     private final UserRepository userRepository;
     private final ConsultationNumberGenerator numberGenerator;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public ConsultationDto book(StartConsultationRequest request) {
@@ -70,6 +73,10 @@ public class ConsultationService {
             insurancePlanRepository.findByUid(planUid)
                     .orElseThrow(() -> new NotFoundException("Insurance plan not found: " + planUid));
         }
+
+        // Sync gate — any registered listener (billing) may throw to abort the booking
+        // (e.g. cash patient with an unpaid registration invoice).
+        eventPublisher.publishEvent(new ConsultationBookingRequestedEvent(patient.getUid(), request.paymentType()));
 
         Consultation consultation = new Consultation(
                 numberGenerator.next(),

@@ -12,5 +12,6 @@ public enum InvoiceLineKind {
     RADIOLOGY,
     MEDICINE,
     WARD,
-    REGISTRATION
+    REGISTRATION,
+    CONSUMABLE
 }

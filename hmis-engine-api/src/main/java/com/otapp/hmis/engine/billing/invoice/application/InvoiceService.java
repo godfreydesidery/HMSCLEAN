@@ -22,6 +22,8 @@ import com.otapp.hmis.engine.encounter.admission.domain.AdmissionRepository;
 import com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
+import com.otapp.hmis.engine.encounter.consumable.domain.ConsumableIssue;
+import com.otapp.hmis.engine.encounter.consumable.domain.ConsumableIssueRepository;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrder;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderKind;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderRepository;
@@ -71,6 +73,7 @@ public class InvoiceService {
     private final AdmissionRepository admissionRepository;
     private final ClinicalOrderRepository clinicalOrderRepository;
     private final PrescriptionRepository prescriptionRepository;
+    private final ConsumableIssueRepository consumableIssueRepository;
     private final ClinicRepository clinicRepository;
     private final WardRepository wardRepository;
     private final LabTestTypeRepository labTestTypeRepository;
@@ -217,6 +220,18 @@ public class InvoiceService {
                     ward.getUid(), admission.getUid(),
                     "Ward stay — " + ward.getName() + " (" + days + " day" + (days.compareTo(BigDecimal.ONE) == 0 ? "" : "s") + ")",
                     days, r.amount(), amount));
+            subtotal = subtotal.add(amount);
+        }
+
+        // 2) Patient consumable chart — every consumable issued against this
+        // admission becomes a CONSUMABLE line using the snapshot unit cost.
+        for (ConsumableIssue issue : consumableIssueRepository.findAllByAdmissionUidOrderByIssuedAtAsc(admissionUid)) {
+            BigDecimal qty = BigDecimal.valueOf(issue.getQuantity());
+            BigDecimal amount = issue.lineAmount();
+            lines.add(new InvoiceLine(invoice.getUid(), InvoiceLineKind.CONSUMABLE,
+                    issue.getConsumableUid(), issue.getUid(),
+                    "Consumable — " + issue.getConsumableUid() + " ×" + issue.getQuantity(),
+                    qty, issue.getUnitCost(), amount));
             subtotal = subtotal.add(amount);
         }
 

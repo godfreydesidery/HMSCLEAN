@@ -1,0 +1,105 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">{{ title }}</h1>
+    <p class="hmis-muted mb-0 small">{{ isEdit() ? 'Update asset details. Tag is immutable.' : 'Register a new fixed asset on the register.' }}</p>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="card mb-3">
+    <div class="card-header bg-white"><h2 class="h6 mb-0">Identity</h2></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label for="tag" class="form-label">Tag <span class="text-danger">*</span></label>
+          <input id="tag" name="tag" type="text" class="form-control" formControlName="tag" [class.is-invalid]="form.controls.tag.invalid && form.controls.tag.touched" autocomplete="off">
+          <div class="form-text">Asset barcode / sticker. Immutable once saved.</div>
+          @if (form.controls.tag.invalid && form.controls.tag.touched) {
+            <div class="invalid-feedback">A tag is required (max 64 chars).</div>
+          }
+        </div>
+        <div class="col-md-8">
+          <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
+          <input id="name" name="name" type="text" class="form-control" formControlName="name" [class.is-invalid]="form.controls.name.invalid && form.controls.name.touched" autocomplete="off">
+          @if (form.controls.name.invalid && form.controls.name.touched) {
+            <div class="invalid-feedback">A name is required (max 160 chars).</div>
+          }
+        </div>
+        <div class="col-md-4">
+          <label for="category" class="form-label">Category</label>
+          <input id="category" name="category" type="text" class="form-control" formControlName="category" placeholder="e.g. Diagnostic equipment">
+        </div>
+        <div class="col-md-4">
+          <label for="location" class="form-label">Location</label>
+          <input id="location" name="location" type="text" class="form-control" formControlName="location" placeholder="e.g. Radiology suite 2">
+        </div>
+        <div class="col-md-4">
+          <label for="custodianUsername" class="form-label">Custodian (username)</label>
+          <input id="custodianUsername" name="custodianUsername" type="text" class="form-control" formControlName="custodianUsername" autocomplete="off">
+        </div>
+        <div class="col-12">
+          <label for="description" class="form-label">Description</label>
+          <textarea id="description" name="description" class="form-control" rows="2" formControlName="description"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header bg-white"><h2 class="h6 mb-0">Make / model</h2></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label for="serialNo" class="form-label">Serial number</label>
+          <input id="serialNo" name="serialNo" type="text" class="form-control" formControlName="serialNo" autocomplete="off">
+        </div>
+        <div class="col-md-4">
+          <label for="manufacturer" class="form-label">Manufacturer</label>
+          <input id="manufacturer" name="manufacturer" type="text" class="form-control" formControlName="manufacturer">
+        </div>
+        <div class="col-md-4">
+          <label for="model" class="form-label">Model</label>
+          <input id="model" name="model" type="text" class="form-control" formControlName="model">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header bg-white"><h2 class="h6 mb-0">Acquisition</h2></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label for="acquisitionDate" class="form-label">Date</label>
+          <input id="acquisitionDate" name="acquisitionDate" type="date" class="form-control" formControlName="acquisitionDate">
+        </div>
+        <div class="col-md-4">
+          <label for="acquisitionCost" class="form-label">Cost</label>
+          <input id="acquisitionCost" name="acquisitionCost" type="text" inputmode="decimal" class="form-control" formControlName="acquisitionCost" [class.is-invalid]="form.controls.acquisitionCost.invalid && form.controls.acquisitionCost.touched" autocomplete="off">
+          @if (form.controls.acquisitionCost.invalid && form.controls.acquisitionCost.touched) {
+            <div class="invalid-feedback">Use up to 2 decimal places (e.g. 12500000.00).</div>
+          }
+        </div>
+        <div class="col-md-4">
+          <label for="currency" class="form-label">Currency</label>
+          <input id="currency" name="currency" type="text" class="form-control text-uppercase" formControlName="currency" maxlength="3" [class.is-invalid]="form.controls.currency.invalid && form.controls.currency.touched">
+          @if (form.controls.currency.invalid && form.controls.currency.touched) {
+            <div class="invalid-feedback">Three-letter ISO code (e.g. TZS, USD).</div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary" [disabled]="submitting()">
+      @if (submitting()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+      {{ isEdit() ? 'Save changes' : 'Register asset' }}
+    </button>
+    <button type="button" class="btn btn-light border" (click)="cancel()">Cancel</button>
+  </div>
+</form>

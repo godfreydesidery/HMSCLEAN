@@ -1,0 +1,97 @@
+@if (loading()) {
+  <div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading asset…</div></div>
+} @else if (!asset()) {
+  <div class="alert alert-danger">{{ errorMessage() ?? 'Asset not found.' }}</div>
+} @else {
+  @if (asset(); as a) {
+    <div class="hmis-page-header">
+      <div>
+        <h1 class="hmis-page-title">
+          {{ a.name }}
+          <span class="ms-2" [class]="statusBadgeClass(a.status)">{{ statusLabel(a.status) }}</span>
+        </h1>
+        <p class="hmis-muted mb-0 small">
+          <span class="hmis-code me-2">{{ a.tag }}</span>
+          @if (a.category) { · {{ a.category }} }
+          @if (a.location) { · {{ a.location }} }
+        </p>
+      </div>
+      <div class="ms-auto d-flex gap-2 flex-wrap">
+        <a class="btn btn-light border" routerLink="/hr/assets"><i class="bi bi-arrow-left me-1"></i> Back</a>
+        @if (canEdit()) {
+          <button type="button" class="btn btn-light border" (click)="edit()"><i class="bi bi-pencil-square me-1"></i> Edit</button>
+        }
+        @if (canReinstate()) {
+          <button type="button" class="btn btn-success" (click)="reinstate()" [disabled]="busy()"><i class="bi bi-arrow-counterclockwise me-1"></i> Reinstate</button>
+        }
+        @if (canRetire()) {
+          <div class="btn-group">
+            <button type="button" class="btn btn-warning dropdown-toggle" data-bs-toggle="dropdown" [disabled]="busy()" aria-expanded="false">
+              <i class="bi bi-x-octagon me-1"></i> Retire
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              @for (t of retireTargets; track t.value) {
+                <li><button type="button" class="dropdown-item" (click)="retire(t.value)">Mark as {{ t.label }}</button></li>
+              }
+            </ul>
+          </div>
+        }
+      </div>
+    </div>
+
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+    }
+
+    <div class="row g-3">
+      <div class="col-lg-7">
+        <div class="card mb-3">
+          <div class="card-header bg-white"><h2 class="h6 mb-0">Details</h2></div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-4">Description</dt><dd class="col-sm-8">{{ a.description || '—' }}</dd>
+              <dt class="col-sm-4">Custodian</dt><dd class="col-sm-8">{{ a.custodianUsername || '—' }}</dd>
+              <dt class="col-sm-4">Serial number</dt><dd class="col-sm-8 hmis-code">{{ a.serialNo || '—' }}</dd>
+              <dt class="col-sm-4">Manufacturer</dt><dd class="col-sm-8">{{ a.manufacturer || '—' }}</dd>
+              <dt class="col-sm-4">Model</dt><dd class="col-sm-8">{{ a.model || '—' }}</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="card mb-3">
+          <div class="card-header bg-white"><h2 class="h6 mb-0">Acquisition</h2></div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-5">Acquired</dt><dd class="col-sm-7">{{ a.acquisitionDate || '—' }}</dd>
+              <dt class="col-sm-5">Cost</dt>
+              <dd class="col-sm-7">
+                @if (a.acquisitionCost) { {{ a.acquisitionCost | number:'1.2-2' }} {{ a.currency }} }
+                @else { — }
+              </dd>
+            </dl>
+          </div>
+        </div>
+
+        @if (a.retiredAt) {
+          <div class="card mb-3">
+            <div class="card-header bg-white"><h2 class="h6 mb-0">Retirement</h2></div>
+            <div class="card-body">
+              <dl class="row mb-0">
+                <dt class="col-sm-5">Date</dt><dd class="col-sm-7">{{ a.retiredAt }}</dd>
+                <dt class="col-sm-5">Reason</dt><dd class="col-sm-7">{{ a.retiredReason || '—' }}</dd>
+              </dl>
+            </div>
+          </div>
+        }
+
+        <div class="card">
+          <div class="card-body">
+            <div class="hmis-muted small">Registered {{ a.createdAt | date:'medium' }}</div>
+            <div class="hmis-muted small">Last updated {{ a.updatedAt | date:'medium' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+}

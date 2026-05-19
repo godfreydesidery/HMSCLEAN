@@ -22,6 +22,9 @@ export class PatientListComponent {
   readonly genders = GENDERS;
   readonly paymentTypes = PAYMENT_TYPES;
   readonly query = new FormControl('', { nonNullable: true });
+  readonly findByNoControl = new FormControl('', { nonNullable: true });
+  readonly findByNoBusy = signal(false);
+  readonly findByNoError = signal<string | null>(null);
   readonly activeFilter = signal<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
   readonly genderFilter = signal<Gender | 'ALL'>('ALL');
   readonly paymentFilter = signal<PaymentType | 'ALL'>('ALL');
@@ -81,6 +84,20 @@ export class PatientListComponent {
   register(): void { void this.router.navigate(['/patients', 'new']); }
   view(p: PatientSummary): void { void this.router.navigate(['/patients', p.uid]); }
   edit(p: PatientSummary): void { void this.router.navigate(['/patients', p.uid, 'edit']); }
+
+  /** Card-scan workflow — paste a patient_no and jump straight to the detail page. */
+  findByNo(): void {
+    const raw = this.findByNoControl.value.trim();
+    if (!raw || this.findByNoBusy()) return;
+    this.findByNoBusy.set(true);
+    this.findByNoError.set(null);
+    this.patientService.findByPatientNo(raw).pipe(finalize(() => this.findByNoBusy.set(false))).subscribe({
+      next: (p) => { this.findByNoControl.reset(''); void this.router.navigate(['/patients', p.uid]); },
+      error: (err) => this.findByNoError.set(err?.status === 404
+        ? `No patient with number "${raw}".`
+        : (err?.error?.message ?? 'Lookup failed.'))
+    });
+  }
 
   toggleActive(p: PatientSummary): void {
     this.patientService.setActive(p.uid, !p.active).subscribe({

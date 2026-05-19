@@ -51,6 +51,16 @@ export interface Patient {
   kinRelationship: string | null;
   kinPhoneNo: string | null;
 
+  kin2FullName: string | null;
+  kin2Relationship: string | null;
+  kin2PhoneNo: string | null;
+
+  kin3FullName: string | null;
+  kin3Relationship: string | null;
+  kin3PhoneNo: string | null;
+
+  lastVisitAt: string | null;
+
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -67,6 +77,7 @@ export interface PatientSummary {
   type: PatientType;
   paymentType: PaymentType;
   phoneNo: string | null;
+  lastVisitAt: string | null;
   active: boolean;
 }
 
@@ -93,6 +104,14 @@ export interface CreatePatientRequest {
   kinFullName: string | null;
   kinRelationship: string | null;
   kinPhoneNo: string | null;
+
+  kin2FullName?: string | null;
+  kin2Relationship?: string | null;
+  kin2PhoneNo?: string | null;
+
+  kin3FullName?: string | null;
+  kin3Relationship?: string | null;
+  kin3PhoneNo?: string | null;
 }
 
 export type UpdatePatientRequest = CreatePatientRequest;

@@ -58,7 +58,15 @@ export class PatientFormComponent implements OnInit {
 
     kinFullName: ['', [Validators.maxLength(160)]],
     kinRelationship: ['', [Validators.maxLength(80)]],
-    kinPhoneNo: ['', [Validators.maxLength(40)]]
+    kinPhoneNo: ['', [Validators.maxLength(40)]],
+
+    kin2FullName: ['', [Validators.maxLength(160)]],
+    kin2Relationship: ['', [Validators.maxLength(80)]],
+    kin2PhoneNo: ['', [Validators.maxLength(40)]],
+
+    kin3FullName: ['', [Validators.maxLength(160)]],
+    kin3Relationship: ['', [Validators.maxLength(80)]],
+    kin3PhoneNo: ['', [Validators.maxLength(40)]]
   });
 
   /** True when the chosen payment type requires an insurance plan. */
@@ -101,7 +109,13 @@ export class PatientFormComponent implements OnInit {
         passportNo: e.passportNo ?? '',
         kinFullName: e.kinFullName ?? '',
         kinRelationship: e.kinRelationship ?? '',
-        kinPhoneNo: e.kinPhoneNo ?? ''
+        kinPhoneNo: e.kinPhoneNo ?? '',
+        kin2FullName: e.kin2FullName ?? '',
+        kin2Relationship: e.kin2Relationship ?? '',
+        kin2PhoneNo: e.kin2PhoneNo ?? '',
+        kin3FullName: e.kin3FullName ?? '',
+        kin3Relationship: e.kin3Relationship ?? '',
+        kin3PhoneNo: e.kin3PhoneNo ?? ''
       });
     }
   }
@@ -139,7 +153,13 @@ export class PatientFormComponent implements OnInit {
       passportNo: emptyToNull(raw.passportNo),
       kinFullName: emptyToNull(raw.kinFullName),
       kinRelationship: emptyToNull(raw.kinRelationship),
-      kinPhoneNo: emptyToNull(raw.kinPhoneNo)
+      kinPhoneNo: emptyToNull(raw.kinPhoneNo),
+      kin2FullName: emptyToNull(raw.kin2FullName),
+      kin2Relationship: emptyToNull(raw.kin2Relationship),
+      kin2PhoneNo: emptyToNull(raw.kin2PhoneNo),
+      kin3FullName: emptyToNull(raw.kin3FullName),
+      kin3Relationship: emptyToNull(raw.kin3Relationship),
+      kin3PhoneNo: emptyToNull(raw.kin3PhoneNo)
     };
 
     const existing = this.existing();

@@ -81,15 +81,4 @@ export interface PayrollSearchParams {
   sort?: string;
 }
 
-// ----- Employee (minimal, just for the picker) -------------------------------
-
-export interface EmployeeSummary {
-  uid: string;
-  employeeNo: string;
-  firstName: string;
-  middleName: string | null;
-  lastName: string;
-  designation: string | null;
-  department: string | null;
-  employmentStatus: string;
-}
+export type { EmployeeSummary } from '../employee/employee.types';

@@ -57,6 +57,7 @@ export class ShellComponent {
         { label: 'Procurement', path: '/procurement/orders',    icon: 'bi-truck',          privileges: ['PROCUREMENT_ACCESS'] },
         { label: 'Suppliers',   path: '/procurement/suppliers', icon: 'bi-buildings',      privileges: ['PROCUREMENT_ACCESS'] },
         { label: 'Billing',     path: '/billing',     icon: 'bi-cash-coin',       privileges: ['BILLING_ACCESS'] },
+        { label: 'Employees',      path: '/hr/employees', icon: 'bi-people',       privileges: ['HR_ACCESS'] },
         { label: 'Asset register', path: '/hr/assets', icon: 'bi-archive',         privileges: ['HR_ACCESS'] },
         { label: 'Payroll',     path: '/hr/payroll',  icon: 'bi-cash-stack',       privileges: ['HR_ACCESS'] },
         { label: 'Reports',     path: '/reporting',   icon: 'bi-bar-chart-line',  privileges: ['REPORTING_ACCESS'] }

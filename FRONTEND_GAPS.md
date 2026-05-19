@@ -45,9 +45,11 @@ Each gap is independently pickable. **Hard parity gaps** are surfaces where the 
 
 ### A2. Employee CRUD UI
 
-- **Status:** TODO
+- **Status:** DONE
 - **Type:** parity-gap
 - **Effort:** L
+- **Landed:** new `features/hr/employee/` feature module — full `EmployeeService` (search / findByUid / create / update / setStatus / terminate), 3-section employee form (identity / contact / employment), paginated list with name+no+designation+department+hireDate+status columns, detail page with status dropdown (ACTIVE / ON_LEAVE / SUSPENDED) + dedicated terminate modal (TERMINATED is one-way), edit page. Routed under `/hr/employees` with the HR default redirect now pointing there. Nav link added.
+- **Refactor:** removed the W5-era inline `EmployeeReadService` and `EmployeeSummary` type from `payroll.service.ts`/`payroll.types.ts` — payroll-detail now imports the full `EmployeeService.search()` from the new feature, and `EmployeeSummary` is re-exported from `employee.types.ts` for compatibility.
 - **Backend surface (Phase 26, already shipped):**
   - `GET /hr/employees` (paginated search)
   - `POST /hr/employees`

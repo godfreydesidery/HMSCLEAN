@@ -1,0 +1,114 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">{{ title }}</h1>
+    <p class="hmis-muted mb-0 small">{{ isEdit() ? 'Update employee details. Hire date is immutable.' : 'Register a new staff member.' }}</p>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="card mb-3">
+    <div class="card-header bg-white"><h2 class="h6 mb-0">Identity</h2></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label for="firstName" class="form-label">First name <span class="text-danger">*</span></label>
+          <input id="firstName" name="firstName" type="text" class="form-control" formControlName="firstName" [class.is-invalid]="form.controls.firstName.invalid && form.controls.firstName.touched" autocomplete="off">
+          @if (form.controls.firstName.invalid && form.controls.firstName.touched) {
+            <div class="invalid-feedback">First name is required (max 80 chars).</div>
+          }
+        </div>
+        <div class="col-md-4">
+          <label for="middleName" class="form-label">Middle name</label>
+          <input id="middleName" name="middleName" type="text" class="form-control" formControlName="middleName" autocomplete="off">
+        </div>
+        <div class="col-md-4">
+          <label for="lastName" class="form-label">Last name <span class="text-danger">*</span></label>
+          <input id="lastName" name="lastName" type="text" class="form-control" formControlName="lastName" [class.is-invalid]="form.controls.lastName.invalid && form.controls.lastName.touched" autocomplete="off">
+          @if (form.controls.lastName.invalid && form.controls.lastName.touched) {
+            <div class="invalid-feedback">Last name is required (max 80 chars).</div>
+          }
+        </div>
+        <div class="col-md-3">
+          <label for="gender" class="form-label">Gender</label>
+          <select id="gender" name="gender" class="form-select" formControlName="gender">
+            <option value="">—</option>
+            <option value="MALE">Male</option>
+            <option value="FEMALE">Female</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="dateOfBirth" class="form-label">Date of birth</label>
+          <input id="dateOfBirth" name="dateOfBirth" type="date" class="form-control" formControlName="dateOfBirth">
+        </div>
+        <div class="col-md-6">
+          <label for="nationalId" class="form-label">National ID</label>
+          <input id="nationalId" name="nationalId" type="text" class="form-control" formControlName="nationalId" autocomplete="off">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header bg-white"><h2 class="h6 mb-0">Contact</h2></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label for="phone" class="form-label">Phone</label>
+          <input id="phone" name="phone" type="tel" class="form-control" formControlName="phone" autocomplete="off">
+        </div>
+        <div class="col-md-8">
+          <label for="email" class="form-label">Email</label>
+          <input id="email" name="email" type="email" class="form-control" formControlName="email" autocomplete="off">
+        </div>
+        <div class="col-12">
+          <label for="address" class="form-label">Address</label>
+          <textarea id="address" name="address" class="form-control" rows="2" formControlName="address"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header bg-white"><h2 class="h6 mb-0">Employment</h2></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label for="username" class="form-label">System username</label>
+          <input id="username" name="username" type="text" class="form-control" formControlName="username" autocomplete="off" placeholder="e.g. jdoe">
+          <div class="form-text">Optional — links the employee to an IAM user account.</div>
+        </div>
+        <div class="col-md-4">
+          <label for="designation" class="form-label">Designation</label>
+          <input id="designation" name="designation" type="text" class="form-control" formControlName="designation" placeholder="e.g. Senior nurse">
+        </div>
+        <div class="col-md-4">
+          <label for="department" class="form-label">Department</label>
+          <input id="department" name="department" type="text" class="form-control" formControlName="department" placeholder="e.g. Outpatient">
+        </div>
+        <div class="col-md-4">
+          <label for="hireDate" class="form-label">Hire date <span class="text-danger">*</span></label>
+          <input id="hireDate" name="hireDate" type="date" class="form-control" formControlName="hireDate" [class.is-invalid]="form.controls.hireDate.invalid && form.controls.hireDate.touched">
+          @if (isEdit()) {
+            <div class="form-text">Immutable.</div>
+          }
+          @if (form.controls.hireDate.invalid && form.controls.hireDate.touched) {
+            <div class="invalid-feedback">A hire date is required.</div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary" [disabled]="submitting()">
+      @if (submitting()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+      {{ isEdit() ? 'Save changes' : 'Register employee' }}
+    </button>
+    <button type="button" class="btn btn-light border" (click)="cancel()">Cancel</button>
+  </div>
+</form>

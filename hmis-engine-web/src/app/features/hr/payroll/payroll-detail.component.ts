@@ -4,7 +4,8 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 
-import { EmployeeReadService, PayrollService } from './payroll.service';
+import { EmployeeService } from '../employee/employee.service';
+import { PayrollService } from './payroll.service';
 import {
   EmployeeSummary, PAYROLL_PERIOD_STATUSES, PayrollItem, PayrollPeriod, PayrollPeriodStatus
 } from './payroll.types';
@@ -20,7 +21,7 @@ export class PayrollDetailComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly payrollService = inject(PayrollService);
-  private readonly employeeService = inject(EmployeeReadService);
+  private readonly employeeService = inject(EmployeeService);
 
   readonly statuses = PAYROLL_PERIOD_STATUSES;
 
@@ -53,7 +54,7 @@ export class PayrollDetailComponent implements OnInit {
     const uid = this.route.snapshot.paramMap.get('uid');
     if (!uid) { this.errorMessage.set('Missing period uid.'); this.loading.set(false); return; }
     this.load(uid);
-    this.employeeService.search().subscribe({
+    this.employeeService.search({ size: 500, sort: 'lastName,asc' }).subscribe({
       next: (page) => this.employees.set(page.content),
       error: () => { /* empty dropdown — service errors surface elsewhere */ }
     });

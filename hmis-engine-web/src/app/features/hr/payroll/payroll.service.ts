@@ -5,7 +5,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { PageResponse } from '../../../core/http/page.types';
 import {
-  CreatePayrollPeriodRequest, EmployeeSummary, PayrollItem, PayrollPeriod,
+  CreatePayrollPeriodRequest, PayrollItem, PayrollPeriod,
   PayrollPeriodWithItems, PayrollSearchParams, UpsertPayrollItemRequest
 } from './payroll.types';
 
@@ -51,20 +51,5 @@ export class PayrollService {
 
   cancel(periodUid: string, reason: string | null): Observable<PayrollPeriod> {
     return this.http.post<PayrollPeriod>(`${this.base}/periods/uid/${periodUid}/cancel`, { reason });
-  }
-}
-
-/** Minimal employee read service — drives the per-item employee picker.
- *  No edit / create paths yet (those will land with the employee feature
- *  if we ever build one separately). */
-@Injectable({ providedIn: 'root' })
-export class EmployeeReadService {
-  private readonly http = inject(HttpClient);
-  private readonly base = `${environment.apiUrl}/hr/employees`;
-
-  search(query?: string): Observable<PageResponse<EmployeeSummary>> {
-    let p = new HttpParams().set('size', '500').set('sort', 'lastName,asc');
-    if (query) p = p.set('query', query);
-    return this.http.get<PageResponse<EmployeeSummary>>(this.base, { params: p });
   }
 }

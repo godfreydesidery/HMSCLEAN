@@ -604,8 +604,8 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Lab / radiology / procedure orders | ✅ | Phase 2 — polymorphic ClinicalOrder. |
 | Order results (narrative + impression + finalize) | ✅ | Phase 5. |
 | Prescriptions | ⚠️ | Phase 2 — simplified status (REQUESTED / DISPENSED / CANCELLED). **Must be expanded** to PENDING → ACCEPTED → HELD → VERIFIED → APPROVED → SOLD plus pay-status. |
-| Follow-up visit flag | ❌ | |
-| Consultation transfer between clinics | ❌ | |
+| Follow-up visit flag | ✅ | Phase 44 — `StartConsultationRequest.followUpOfConsultationUid` (optional); service validates the referenced consultation belongs to the same patient. Surfaced on `ConsultationDto`. |
+| Consultation transfer between clinics | ✅ | Phase 44 — `POST /encounters/consultations/uid/{uid}/transfer` with target clinic + clinician. Closes the original as new status TRANSFERRED, creates a fresh BOOKED consultation at the target; both reference each other via `transferred_to/_from_consultation_uid` + `transfer_reason` + `transferred_at`. |
 
 ### 17.3 Doctor — inpatient + nurse
 

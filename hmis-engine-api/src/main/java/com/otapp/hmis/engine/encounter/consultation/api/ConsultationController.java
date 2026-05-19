@@ -5,6 +5,7 @@ import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.ConsultationDto;
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.ConsultationSummary;
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.StartConsultationRequest;
+import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.TransferConsultationRequest;
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationService;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationStatus;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -65,6 +66,13 @@ public class ConsultationController {
     public ResponseEntity<ConsultationDto> cancel(@PathVariable String consultationUid,
                                                   @Valid @RequestBody(required = false) CancelConsultationRequest request) {
         return ResponseEntity.ok(consultationService.cancel(consultationUid, request));
+    }
+
+    /** Hand the patient off to another clinic / clinician. Returns the new (receiving) consultation. */
+    @PostMapping("/uid/{consultationUid}/transfer")
+    public ResponseEntity<ConsultationDto> transfer(@PathVariable String consultationUid,
+                                                    @Valid @RequestBody TransferConsultationRequest request) {
+        return ResponseEntity.ok(consultationService.transfer(consultationUid, request));
     }
 
     @GetMapping("/by-patient/uid/{patientUid}/recent")

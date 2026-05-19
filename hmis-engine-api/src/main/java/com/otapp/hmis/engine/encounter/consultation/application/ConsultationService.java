@@ -80,6 +80,16 @@ public class ConsultationService {
         // (e.g. cash patient with an unpaid registration invoice).
         eventPublisher.publishEvent(new ConsultationBookingRequestedEvent(patient.getUid(), request.paymentType()));
 
+        // Optional follow-up linkage — must reference an existing consultation for the same patient.
+        String followUpOf = emptyToNull(request.followUpOfConsultationUid());
+        if (followUpOf != null) {
+            Consultation source = consultationRepository.findByUid(followUpOf)
+                    .orElseThrow(() -> new NotFoundException("Source consultation not found: " + followUpOf));
+            if (!source.getPatientUid().equals(patient.getUid())) {
+                throw new BusinessRuleException("Follow-up source consultation belongs to a different patient");
+            }
+        }
+
         Consultation consultation = new Consultation(
                 numberGenerator.next(),
                 patient.getUid(),
@@ -88,9 +98,45 @@ public class ConsultationService {
                 request.paymentType(),
                 planUid,
                 emptyToNull(request.reason()));
+        consultation.setFollowUpOfConsultationUid(followUpOf);
         consultationRepository.save(consultation);
         patientService.touchLastVisit(patient.getUid());
         return toDto(consultation);
+    }
+
+    /**
+     * Hand the patient off to another clinic / clinician. The original
+     * consultation closes as TRANSFERRED; a new BOOKED consultation is
+     * created at the target. Both reference each other for audit.
+     */
+    @Transactional
+    public ConsultationDto transfer(String uid,
+                                    com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.TransferConsultationRequest request) {
+        Consultation source = loadOrThrow(uid);
+        Clinic targetClinic = clinicRepository.findByUid(request.targetClinicUid())
+                .orElseThrow(() -> new NotFoundException("Target clinic not found: " + request.targetClinicUid()));
+        if (!targetClinic.isActive()) {
+            throw new BusinessRuleException("Target clinic is not active: " + targetClinic.getName());
+        }
+        User targetClinician = userRepository.findByUsername(request.targetClinicianUsername())
+                .orElseThrow(() -> new NotFoundException("Target clinician not found: " + request.targetClinicianUsername()));
+        if (!targetClinician.isEnabled()) {
+            throw new BusinessRuleException("Target clinician account is disabled");
+        }
+
+        Consultation receiver = new Consultation(
+                numberGenerator.next(),
+                source.getPatientUid(),
+                targetClinic.getUid(),
+                targetClinician.getUsername(),
+                source.getPaymentType(),
+                source.getInsurancePlanUid(),
+                source.getReason());
+        receiver.setTransferredFromConsultationUid(source.getUid());
+        consultationRepository.save(receiver);
+
+        source.markTransferredTo(receiver.getUid(), emptyToNull(request.reason()));
+        return toDto(receiver);
     }
 
     @Transactional
@@ -176,6 +222,11 @@ public class ConsultationService {
                 c.getCompletedAt(),
                 c.getCancelledAt(),
                 c.getCancelReason(),
+                c.getFollowUpOfConsultationUid(),
+                c.getTransferredToConsultationUid(),
+                c.getTransferredFromConsultationUid(),
+                c.getTransferReason(),
+                c.getTransferredAt(),
                 c.getCreatedAt(),
                 c.getUpdatedAt());
     }

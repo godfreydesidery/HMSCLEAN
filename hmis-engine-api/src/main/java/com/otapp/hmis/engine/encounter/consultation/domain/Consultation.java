@@ -63,6 +63,22 @@ public class Consultation extends AuditableEntity {
 
     @Setter @Column(length = 500) private String reason;
 
+    // ----- Phase 44 linkages ----------------------------------------------
+    /** When set, this visit is a follow-up to the referenced prior consultation. */
+    @Setter @Column(name = "follow_up_of_consultation_uid", length = 26)
+    private String followUpOfConsultationUid;
+
+    /** Set on the original consultation when it was transferred to another clinic. */
+    @Setter @Column(name = "transferred_to_consultation_uid", length = 26)
+    private String transferredToConsultationUid;
+
+    /** Set on the new consultation that took over after a transfer. */
+    @Setter @Column(name = "transferred_from_consultation_uid", length = 26)
+    private String transferredFromConsultationUid;
+
+    @Setter @Column(name = "transfer_reason", length = 500) private String transferReason;
+    @Setter @Column(name = "transferred_at")                private Instant transferredAt;
+
     @Column(name = "booked_at",  nullable = false) private Instant bookedAt;
     @Setter @Column(name = "started_at")   private Instant startedAt;
     @Setter @Column(name = "completed_at") private Instant completedAt;
@@ -108,5 +124,16 @@ public class Consultation extends AuditableEntity {
         status = ConsultationStatus.CANCELLED;
         cancelledAt = Instant.now();
         cancelReason = reason;
+    }
+
+    /** Hand the patient off to {@code newConsultationUid}; this consultation closes as TRANSFERRED. */
+    public void markTransferredTo(String newConsultationUid, String reason) {
+        if (status != ConsultationStatus.BOOKED && status != ConsultationStatus.IN_PROGRESS) {
+            throw new BusinessRuleException("Only BOOKED or IN_PROGRESS consultations can be transferred (current: " + status + ")");
+        }
+        status = ConsultationStatus.TRANSFERRED;
+        transferredToConsultationUid = newConsultationUid;
+        transferReason = reason;
+        transferredAt = Instant.now();
     }
 }

@@ -156,6 +156,20 @@ export class StockListComponent {
     });
   }
 
+  openWriteOffBatch(batch: StockBatch): void {
+    const pharm = this.selectedPharmacy(); if (!pharm) return;
+    const ref = this.modal.open(StockEditComponent, { backdrop: 'static' });
+    const inst = ref.componentInstance as StockEditComponent;
+    inst.pharmacyUid = pharm.uid;
+    inst.pharmacyName = pharm.name;
+    inst.mode = 'write-off';
+    inst.prefillBatchUid = batch.uid;
+    inst.prefillBatchLabel = `${batch.medicineName ?? batch.medicineUid} · batch ${batch.batchNo}`;
+    ref.closed.subscribe((updated) => {
+      if (updated) { this.actionMessage.set('Batch written off.'); this.refresh(); }
+    });
+  }
+
   movementBadgeClass(k: StockMovementKind): string {
     return 'badge d-inline-flex align-items-center gap-1 ' + (this.movementKinds.find((x) => x.value === k)?.badgeClass ?? '');
   }

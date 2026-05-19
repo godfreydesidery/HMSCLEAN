@@ -100,7 +100,10 @@
                               <td class="hmis-muted small">{{ batch.receivedAt | date:'short' }}</td>
                               <td class="text-end">{{ batch.quantity }}</td>
                               <td class="text-end">
-                                <button type="button" class="btn btn-sm btn-light border" (click)="openAdjustBatch(batch); $event.stopPropagation()"><i class="bi bi-sliders me-1"></i>Adjust</button>
+                                <div class="btn-group btn-group-sm">
+                                  <button type="button" class="btn btn-light border" (click)="openAdjustBatch(batch); $event.stopPropagation()"><i class="bi bi-sliders me-1"></i>Adjust</button>
+                                  <button type="button" class="btn btn-light border text-danger-emphasis" (click)="openWriteOffBatch(batch); $event.stopPropagation()" [disabled]="batch.quantity <= 0"><i class="bi bi-trash me-1"></i>Write off</button>
+                                </div>
                               </td>
                             </tr>
                           }

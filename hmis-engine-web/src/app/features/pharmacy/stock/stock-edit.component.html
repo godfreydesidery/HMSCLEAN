@@ -41,11 +41,25 @@
       </div>
     }
 
+    @if (mode === 'write-off') {
+      <div class="mb-3">
+        <label class="form-label" for="se-reason">Reason <span class="text-danger">*</span></label>
+        <select id="se-reason" name="reason" class="form-select" formControlName="reason">
+          <option value="" disabled>— Select reason —</option>
+          @for (r of wastageReasons; track r.value) {
+            <option [value]="r.value">{{ r.label }}</option>
+          }
+        </select>
+      </div>
+    }
+
     <div class="mb-3">
       <label class="form-label" for="se-qty">{{ quantityLabel }} <span class="text-danger">*</span></label>
-      <input id="se-qty" name="quantity" type="number" step="1" class="form-control" formControlName="quantity">
+      <input id="se-qty" name="quantity" type="number" step="1" [attr.min]="mode === 'adjust' ? null : 1" class="form-control" formControlName="quantity">
       @if (mode === 'adjust') {
         <div class="form-text">Use a positive number to add, negative to remove. Must be non-zero.</div>
+      } @else if (mode === 'write-off') {
+        <div class="form-text">Positive quantity in base units. The service applies the negative delta.</div>
       }
     </div>
 

@@ -5,7 +5,8 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { PageResponse } from '../../../core/http/page.types';
 import {
-  AdjustStockRequest, ReceiveStockRequest, StockBalance, StockBatch, StockMovement, StockMovementKind
+  AdjustStockRequest, ReceiveStockRequest, StockBalance, StockBatch, StockMovement, StockMovementKind,
+  WriteOffStockRequest
 } from './stock.types';
 
 export interface MovementSearchParams {
@@ -32,6 +33,10 @@ export class StockService {
 
   adjust(pharmacyUid: string, req: AdjustStockRequest): Observable<StockBatch> {
     return this.http.post<StockBatch>(`${this.base}/pharmacies/uid/${pharmacyUid}/stock/adjust`, req);
+  }
+
+  writeOff(pharmacyUid: string, req: WriteOffStockRequest): Observable<StockBatch> {
+    return this.http.post<StockBatch>(`${this.base}/pharmacies/uid/${pharmacyUid}/stock/write-off`, req);
   }
 
   /**

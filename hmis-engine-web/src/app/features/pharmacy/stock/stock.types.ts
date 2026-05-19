@@ -60,12 +60,14 @@ export interface ReceiveStockRequest {
   batchNo: string;
   expiresAt: string | null;
   quantity: number;
+  unitUid?: string | null;
   note: string | null;
 }
 
 export interface AdjustStockRequest {
   batchUid: string;
   delta: number;
+  unitUid?: string | null;
   note: string | null;
 }
 

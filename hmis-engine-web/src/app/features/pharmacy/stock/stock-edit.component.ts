@@ -5,7 +5,7 @@ import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
 
 import { MedicineService } from '../../masterdata/medicines/medicine.service';
-import { Medicine } from '../../masterdata/medicines/medicine.types';
+import { Medicine, MedicineUnit } from '../../masterdata/medicines/medicine.types';
 import { StockService } from './stock.service';
 import { StockBatch, WASTAGE_REASONS, WastageReason } from './stock.types';
 
@@ -21,9 +21,11 @@ export class StockEditComponent implements OnInit {
   @Input({ required: true }) pharmacyUid!: string;
   @Input({ required: true }) pharmacyName!: string;
   @Input({ required: true }) mode!: StockEditMode;
-  /** Adjust mode: uid of the batch being adjusted (set by the row "Adjust" action). */
+  /** Adjust / write-off: uid of the batch being touched (set by the row action). */
   @Input() prefillBatchUid: string | null = null;
   @Input() prefillBatchLabel: string | null = null;
+  /** Adjust / write-off: medicine uid driving the unit dropdown (set by the row action). */
+  @Input() prefillMedicineUid: string | null = null;
 
   private readonly fb = inject(FormBuilder);
   private readonly stockService = inject(StockService);
@@ -32,6 +34,8 @@ export class StockEditComponent implements OnInit {
 
   readonly medicines = signal<Medicine[]>([]);
   readonly loadingMedicines = signal(false);
+  readonly units = signal<MedicineUnit[]>([]);
+  readonly loadingUnits = signal(false);
   readonly submitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
@@ -42,6 +46,7 @@ export class StockEditComponent implements OnInit {
     batchNo: [''],
     expiresAt: [''],
     quantity: [0, [Validators.required]],
+    unitUid: '',
     reason: '',
     note: ['', [Validators.maxLength(500)]]
   });
@@ -55,12 +60,41 @@ export class StockEditComponent implements OnInit {
         .pipe(finalize(() => this.loadingMedicines.set(false)))
         .subscribe({ next: (res) => this.medicines.set(res.content) });
       this.form.controls.quantity.setValue(1);
+      this.form.controls.medicineUid.valueChanges.subscribe((uid) => this.loadUnits(uid));
     } else if (this.mode === 'write-off') {
       this.form.controls.reason.addValidators(Validators.required);
       this.form.controls.quantity.setValue(1);
+      if (this.prefillMedicineUid) this.loadUnits(this.prefillMedicineUid);
     } else {
       this.form.controls.quantity.setValue(0);
+      if (this.prefillMedicineUid) this.loadUnits(this.prefillMedicineUid);
     }
+  }
+
+  private loadUnits(medicineUid: string | null): void {
+    this.form.controls.unitUid.setValue('');
+    if (!medicineUid) { this.units.set([]); return; }
+    this.loadingUnits.set(true);
+    this.medicineService.listUnits(medicineUid)
+      .pipe(finalize(() => this.loadingUnits.set(false)))
+      .subscribe({
+        next: (us) => {
+          this.units.set(us.filter((u) => u.active));
+          const base = us.find((u) => u.base && u.active);
+          if (base) this.form.controls.unitUid.setValue(base.uid);
+        },
+        error: () => this.units.set([])
+      });
+  }
+
+  unitLabel(u: MedicineUnit): string {
+    return u.base ? `${u.name} (base)` : `${u.name} (×${u.factorToBase})`;
+  }
+
+  private resolveUnitUid(selected: string): string | null {
+    if (!selected) return null;
+    const unit = this.units().find((u) => u.uid === selected);
+    return unit?.base ? null : selected;
   }
 
   get title(): string {
@@ -98,6 +132,7 @@ export class StockEditComponent implements OnInit {
     this.submitting.set(true);
     this.errorMessage.set(null);
     const note = raw.note?.trim() || null;
+    const unitUid = this.resolveUnitUid(raw.unitUid);
     let obs;
     if (this.mode === 'receive') {
       obs = this.stockService.receive(this.pharmacyUid, {
@@ -105,6 +140,7 @@ export class StockEditComponent implements OnInit {
         batchNo: raw.batchNo.trim(),
         expiresAt: raw.expiresAt?.trim() || null,
         quantity: raw.quantity,
+        unitUid,
         note
       });
     } else if (this.mode === 'write-off') {
@@ -112,12 +148,14 @@ export class StockEditComponent implements OnInit {
         batchUid: this.prefillBatchUid!,
         quantity: raw.quantity,
         reason: raw.reason as WastageReason,
+        unitUid,
         note
       });
     } else {
       obs = this.stockService.adjust(this.pharmacyUid, {
         batchUid: this.prefillBatchUid!,
         delta: raw.quantity,
+        unitUid,
         note
       });
     }

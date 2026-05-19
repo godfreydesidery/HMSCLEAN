@@ -151,6 +151,7 @@ export class StockListComponent {
     inst.mode = 'adjust';
     inst.prefillBatchUid = batch.uid;
     inst.prefillBatchLabel = `${batch.medicineName ?? batch.medicineUid} · batch ${batch.batchNo}`;
+    inst.prefillMedicineUid = batch.medicineUid;
     ref.closed.subscribe((updated) => {
       if (updated) { this.actionMessage.set('Batch adjusted.'); this.refresh(); }
     });
@@ -165,6 +166,7 @@ export class StockListComponent {
     inst.mode = 'write-off';
     inst.prefillBatchUid = batch.uid;
     inst.prefillBatchLabel = `${batch.medicineName ?? batch.medicineUid} · batch ${batch.batchNo}`;
+    inst.prefillMedicineUid = batch.medicineUid;
     ref.closed.subscribe((updated) => {
       if (updated) { this.actionMessage.set('Batch written off.'); this.refresh(); }
     });

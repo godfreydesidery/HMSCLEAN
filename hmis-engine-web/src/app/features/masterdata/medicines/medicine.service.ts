@@ -5,7 +5,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { PageResponse } from '../../../core/http/page.types';
 import {
-  CreateMedicineRequest, Medicine, MedicineSearchParams, UpdateMedicineRequest
+  CreateMedicineRequest, Medicine, MedicineSearchParams, MedicineUnit, UpdateMedicineRequest
 } from './medicine.types';
 
 @Injectable({ providedIn: 'root' })
@@ -29,4 +29,8 @@ export class MedicineService {
   update(uid: string, req: UpdateMedicineRequest): Observable<Medicine> { return this.http.put<Medicine>(`${this.base}/uid/${uid}`, req); }
   setActive(uid: string, active: boolean): Observable<Medicine> { return this.http.put<Medicine>(`${this.base}/uid/${uid}/active`, { active }); }
   delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/uid/${uid}`); }
+
+  listUnits(medicineUid: string): Observable<MedicineUnit[]> {
+    return this.http.get<MedicineUnit[]>(`${this.base}/uid/${medicineUid}/units`);
+  }
 }

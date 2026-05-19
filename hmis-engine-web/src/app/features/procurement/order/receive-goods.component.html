@@ -34,7 +34,7 @@
   } @else {
     <div class="table-responsive">
       <table class="table table-sm align-middle mb-0">
-        <thead><tr><th>Medicine</th><th class="text-end" style="width:90px;">Outstanding</th><th style="width:140px;">Batch #</th><th style="width:150px;">Expires</th><th class="text-end" style="width:110px;">Receive qty</th></tr></thead>
+        <thead><tr><th>Medicine</th><th class="text-end" style="width:90px;">Outstanding</th><th style="width:140px;">Batch #</th><th style="width:140px;">Expires</th><th class="text-end" style="width:100px;">Receive qty</th><th style="width:140px;">Unit</th></tr></thead>
         <tbody>
           @for (lf of lineForms(); track $index) {
             <tr [formGroup]="lf">
@@ -44,6 +44,17 @@
               <td><input type="date" class="form-control form-control-sm" formControlName="expiresAt"></td>
               <td>
                 <input type="number" min="0" step="1" [max]="lf.controls['outstanding'].value" class="form-control form-control-sm text-end" formControlName="quantity">
+              </td>
+              <td>
+                @if (unitsFor(lf.controls['poLineUid'].value).length > 0) {
+                  <select class="form-select form-select-sm" formControlName="unitUid">
+                    @for (u of unitsFor(lf.controls['poLineUid'].value); track u.uid) {
+                      <option [value]="u.uid">{{ unitLabel(u) }}</option>
+                    }
+                  </select>
+                } @else {
+                  <span class="hmis-muted small">Base</span>
+                }
               </td>
             </tr>
           }

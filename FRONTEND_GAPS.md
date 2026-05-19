@@ -77,9 +77,11 @@ Each gap is independently pickable. **Hard parity gaps** are surfaces where the 
 
 ### A3. `MedicineUnit` unit-awareness in pharmacy stock forms
 
-- **Status:** TODO
+- **Status:** DONE
 - **Type:** parity-gap
 - **Effort:** M
+- **Landed:** added `MedicineUnit` type + `listUnits(medicineUid)` to `MedicineService`. Wired a unit `<select>` into `StockEditComponent` (receive/adjust/write-off — `prefillMedicineUid` carries the medicine from the row action), and one per-line on the GRN `ReceiveGoodsComponent`. Default-selects the base unit; `unitUid` is omitted from the payload when the base unit is chosen (backend converts via `factorToBase` otherwise).
+- **Known limitation:** `MedicineUnitController` GET is gated on `MASTERDATA_MANAGE`; same pre-existing constraint applies to the medicine list dropdown. Out of scope for this card — fix is a backend privilege split (e.g. `MASTERDATA_READ`).
 - **Backend surface (Phase 43):**
   - Manual receive, manual adjust, write-off (A1), and GRN ingestion all accept an optional `unit` field
   - Unit defaults to the medicine's `baseUnit` if omitted; non-base units are converted via `MedicineUnit.factor`

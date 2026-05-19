@@ -1,0 +1,51 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">New lab batch</h1>
+    <p class="hmis-muted mb-0 small">Pick a lab test and the orders to group for a single bench run.</p>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label for="labTestTypeUid" class="form-label">Lab test <span class="text-danger">*</span></label>
+          <select id="labTestTypeUid" name="labTestTypeUid" class="form-select" formControlName="labTestTypeUid" [class.is-invalid]="form.controls.labTestTypeUid.invalid && form.controls.labTestTypeUid.touched">
+            <option value="" disabled>— select a lab test —</option>
+            @for (t of labTests(); track t.uid) {
+              <option [value]="t.uid">{{ t.code }} — {{ t.name }}</option>
+            }
+          </select>
+          @if (form.controls.labTestTypeUid.invalid && form.controls.labTestTypeUid.touched) {
+            <div class="invalid-feedback">Pick a lab test.</div>
+          }
+        </div>
+        <div class="col-md-6">
+          <label for="note" class="form-label">Note</label>
+          <input id="note" name="note" type="text" class="form-control" formControlName="note" placeholder="e.g. Morning bench run" autocomplete="off">
+        </div>
+        <div class="col-12">
+          <label for="orderUidsBlob" class="form-label">Order UIDs <span class="text-danger">*</span></label>
+          <textarea id="orderUidsBlob" name="orderUidsBlob" class="form-control hmis-code" rows="6" formControlName="orderUidsBlob" placeholder="One uid per line — comma-separated also accepted." [class.is-invalid]="form.controls.orderUidsBlob.invalid && form.controls.orderUidsBlob.touched"></textarea>
+          <div class="form-text">All listed orders must be LAB_TEST orders for the chosen test and not already in another open batch.</div>
+          @if (form.controls.orderUidsBlob.invalid && form.controls.orderUidsBlob.touched) {
+            <div class="invalid-feedback">Paste at least one order uid.</div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary" [disabled]="submitting()">
+      @if (submitting()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+      Create batch
+    </button>
+    <button type="button" class="btn btn-light border" (click)="cancel()">Cancel</button>
+  </div>
+</form>

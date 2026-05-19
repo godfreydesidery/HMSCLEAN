@@ -43,7 +43,8 @@ export class ShellComponent {
         { label: 'Patients',    path: '/patients',                icon: 'bi-people',           privileges: ['PATIENT_ACCESS'] },
         { label: 'Consultations', path: '/encounters/consultations', icon: 'bi-clipboard2-pulse', privileges: ['ENCOUNTER_ACCESS'] },
         { label: 'Admissions',  path: '/encounters/admissions',   icon: 'bi-hospital',         privileges: ['ENCOUNTER_ACCESS'] },
-        { label: 'Orders',      path: '/orders',                  icon: 'bi-card-list',        privileges: ['ORDERS_ACCESS'] }
+        { label: 'Orders',      path: '/orders',                  icon: 'bi-card-list',        privileges: ['ORDERS_ACCESS'] },
+        { label: 'Lab batches', path: '/encounters/lab-batches',  icon: 'bi-collection',       privileges: ['ENCOUNTER_ACCESS'] }
       ]
     },
     {

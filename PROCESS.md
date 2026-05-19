@@ -708,7 +708,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Employee register | ✅ | Phase 26 — `Employee` aggregate in `hr.employee.*` with optional 1:1 link to `iam.User`. CRUD at `/hr/employees`, gated by `HR_ACCESS`. Designation + department are strings for V1 (upgrade to masterdata later if needed). |
 | Payroll | ❌ | Deferred — large business surface area. |
 | Clinician performance | ✅ | Phase 26 — `GET /hr/employees/uid/{uid}/clinician-performance?from=&to=` rolls up consultations + admissions + lab/radiology/procedure orders for the linked username in a date range. |
-| Asset register | ❌ | |
+| Asset register | ✅ | Phase 42 — `Asset` aggregate with tag (unique barcode), category, location, custodian, acquisition cost, status (ACTIVE → RETIRED / DISPOSED / LOST; RETIRED can be `reinstate`d, DISPOSED is terminal). CRUD + transitions under `/hr/assets`; by-tag lookup `/hr/assets/by-tag/{tag}` for scanner workflow. Gated by `HR_ACCESS`. |
 
 ### 17.12 Management / Reports
 

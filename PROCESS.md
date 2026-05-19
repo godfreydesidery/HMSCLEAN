@@ -670,10 +670,10 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 
 | Process | Status | Notes |
 |---|---|---|
-| Central store as separate inventory | ❌ | Today, "pharmacy" stock is the only inventory; GRNs deposit into a pharmacy directly. Legacy puts goods into the store first, then transfers to pharmacy. |
-| Store stock card + batches | ❌ | |
-| Item inquiry across batches | ❌ | |
-| Direct consumable issue to ward | ❌ | |
+| Central store as separate inventory | ✅ | Store module has its own `StoreStockBalance` + `StoreStockBatch` + `StoreStockMovement` aggregates. `GoodsReceiptService.approve` calls `storeStockService.receiveFromProcurement` — goods land in the central store, never directly in a pharmacy. Pharmacy resupply flows via the RO/TO/RN transfer chain. |
+| Store stock card + batches | ✅ | `StoreStockBatch` per (store, medicine, batchNo) with expiry + `receivedAt`. `StoreStockMovement` is the append-only ledger (RECEIPT / TRANSFER_OUT / ADJUSTMENT / WASTAGE). Search at `GET /store/stock/movements?storeUid=&medicineUid=&kind=`. |
+| Item inquiry across batches | ✅ | `GET /store/stores/uid/{storeUid}/stock` returns one `StoreStockBalanceDto` per medicine with the per-batch breakdown (batch no, expiry, qty) inline. Phase 27 expiring-batches report (`/reporting/expiring-batches`) queries the same store-side batch table. |
+| Direct consumable issue to ward | ✅ | Phase 41 + 46 — `ConsumableIssue` takes `sourceKind=STORE` + `sourceLocationUid`; `ConsumableStockService.decrementForIssue` debits the store's `ConsumableStockBalance` in the same tx as the admission chart entry. Overdrafts refused. |
 
 ### 17.9 Procurement
 

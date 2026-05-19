@@ -38,6 +38,7 @@ public class AdmissionService {
 
     private final AdmissionRepository admissionRepository;
     private final PatientRepository patientRepository;
+    private final com.otapp.hmis.engine.patient.application.PatientService patientService;
     private final WardRepository wardRepository;
     private final BedRepository bedRepository;
     private final InsurancePlanRepository insurancePlanRepository;
@@ -106,6 +107,7 @@ public class AdmissionService {
             admission.setBedUid(bed.getUid());
             admission.setBedLabel(bed.getLabel());
         }
+        patientService.touchLastVisit(patient.getUid());
         return toDto(admission);
     }
 

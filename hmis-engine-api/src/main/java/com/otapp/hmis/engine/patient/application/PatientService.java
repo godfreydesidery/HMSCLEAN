@@ -100,6 +100,29 @@ public class PatientService {
         return toDto(loadOrThrow(uid));
     }
 
+    /**
+     * Exact lookup by the human-readable {@code patientNo} (e.g. PT-2026-000123).
+     * Drives the card-scan / barcode-lookup workflow at reception.
+     */
+    @Transactional(readOnly = true)
+    public PatientDto findByPatientNo(String patientNo) {
+        Patient patient = patientRepository.findByPatientNo(patientNo)
+                .orElseThrow(() -> new NotFoundException("Patient not found: " + patientNo));
+        return toDto(patient);
+    }
+
+    /**
+     * Stamps {@code lastVisitAt = now} so the registry can show recency.
+     * Called by encounter when a consultation is booked or an admission is
+     * created — same direction as the existing encounter → patient module
+     * dependency.
+     */
+    @Transactional
+    public void touchLastVisit(String patientUid) {
+        patientRepository.findByUid(patientUid)
+                .ifPresent(p -> p.setLastVisitAt(java.time.Instant.now()));
+    }
+
     @Transactional(readOnly = true)
     public PageResponse<PatientSummary> search(String query, Boolean active, Gender gender,
                                                PaymentType paymentType, Pageable pageable) {
@@ -136,6 +159,12 @@ public class PatientService {
         patient.setKinFullName(emptyToNull(r.kinFullName()));
         patient.setKinRelationship(emptyToNull(r.kinRelationship()));
         patient.setKinPhoneNo(emptyToNull(r.kinPhoneNo()));
+        patient.setKin2FullName(emptyToNull(r.kin2FullName()));
+        patient.setKin2Relationship(emptyToNull(r.kin2Relationship()));
+        patient.setKin2PhoneNo(emptyToNull(r.kin2PhoneNo()));
+        patient.setKin3FullName(emptyToNull(r.kin3FullName()));
+        patient.setKin3Relationship(emptyToNull(r.kin3Relationship()));
+        patient.setKin3PhoneNo(emptyToNull(r.kin3PhoneNo()));
     }
 
     private void applyContactAndKin(Patient patient, UpdatePatientRequest r) {
@@ -148,6 +177,12 @@ public class PatientService {
         patient.setKinFullName(emptyToNull(r.kinFullName()));
         patient.setKinRelationship(emptyToNull(r.kinRelationship()));
         patient.setKinPhoneNo(emptyToNull(r.kinPhoneNo()));
+        patient.setKin2FullName(emptyToNull(r.kin2FullName()));
+        patient.setKin2Relationship(emptyToNull(r.kin2Relationship()));
+        patient.setKin2PhoneNo(emptyToNull(r.kin2PhoneNo()));
+        patient.setKin3FullName(emptyToNull(r.kin3FullName()));
+        patient.setKin3Relationship(emptyToNull(r.kin3Relationship()));
+        patient.setKin3PhoneNo(emptyToNull(r.kin3PhoneNo()));
     }
 
     private static String emptyToNull(String s) {

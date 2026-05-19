@@ -18,6 +18,7 @@ import com.otapp.hmis.engine.masterdata.clinic.domain.Clinic;
 import com.otapp.hmis.engine.masterdata.clinic.domain.ClinicRepository;
 import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlan;
 import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlanRepository;
+import com.otapp.hmis.engine.patient.application.PatientService;
 import com.otapp.hmis.engine.patient.domain.Patient;
 import com.otapp.hmis.engine.patient.domain.PatientRepository;
 import com.otapp.hmis.engine.patient.domain.PaymentType;
@@ -34,6 +35,7 @@ public class ConsultationService {
 
     private final ConsultationRepository consultationRepository;
     private final PatientRepository patientRepository;
+    private final PatientService patientService;
     private final ClinicRepository clinicRepository;
     private final InsurancePlanRepository insurancePlanRepository;
     private final UserRepository userRepository;
@@ -87,6 +89,7 @@ public class ConsultationService {
                 planUid,
                 emptyToNull(request.reason()));
         consultationRepository.save(consultation);
+        patientService.touchLastVisit(patient.getUid());
         return toDto(consultation);
     }
 

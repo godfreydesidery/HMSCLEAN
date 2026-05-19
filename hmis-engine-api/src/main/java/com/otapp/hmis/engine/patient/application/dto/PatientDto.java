@@ -35,6 +35,16 @@ public record PatientDto(
         String kinRelationship,
         String kinPhoneNo,
 
+        String kin2FullName,
+        String kin2Relationship,
+        String kin2PhoneNo,
+
+        String kin3FullName,
+        String kin3Relationship,
+        String kin3PhoneNo,
+
+        Instant lastVisitAt,
+
         boolean active,
         Instant createdAt,
         Instant updatedAt) {

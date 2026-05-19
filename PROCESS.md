@@ -585,14 +585,14 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Process | Status | Notes |
 |---|---|---|
 | Patient registry (create, edit, search, deactivate) | ✅ | Patient module from earlier phase. |
-| Patient kin / nationality fields | ⚠️ | Only basic kin captured; legacy supports 3 kin contacts. |
+| Patient kin / nationality fields | ✅ | Phase 40 — full nationality + ID/passport set; up to 3 kin contacts (`kinFullName`/`kinRelationship`/`kinPhoneNo` plus matching kin2_/kin3_ columns) matching the legacy schema. |
 | Payment type at registration (CASH, INSURANCE, etc.) | ✅ | `PaymentType` enum present. |
 | Insurance plan + membership no at registration | ✅ | `insurancePlanUid` on Patient. |
 | Registration fee bill | ✅ | Phase 36 — `PatientService.register` publishes `PatientRegisteredEvent`; billing seeds an ISSUED `Invoice` (scope=REGISTRATION) via after-commit listener. Idempotent recovery at `POST /billing/patients/uid/{uid}/registration-fee`. Pricing via `ServicePrice(kind=REGISTRATION, serviceUid="DEFAULT")` so plans can waive (amount=0). |
 | OUTPATIENT vs. OUTSIDER patient type | ✅ | `PatientType` enum on Patient (default OUTPATIENT). Walk-in OUTSIDERs raise lab/radiology/procedure directly via `POST /encounters/patients/uid/{uid}/outsider-orders` and pharmacy retail via `PharmacySaleOrder`. |
 | Patient type conversion | ✅ | `PUT /patients/uid/{uid}/type` flips between OUTPATIENT and OUTSIDER without touching past encounters. |
-| Last visit tracking display | ⚠️ | Data is queryable but not surfaced on the registry. |
-| Pre-generated search keys / card scan | ❌ | Plain name + no. search only. |
+| Last visit tracking display | ✅ | Phase 40 — `last_visit_at` denormalised on `patient`; touched by `ConsultationService.book` and `AdmissionService.admit` via the same direction as the existing encounter → patient dependency. Surfaced on both `PatientDto` and `PatientSummary`. |
+| Pre-generated search keys / card scan | ✅ | Phase 40 — exact lookup via `GET /patients/by-no/{patientNo}`. The `PT-YYYY-NNNNNN` patient number doubles as the scannable card key (uses the existing unique index on `patient_no`). |
 
 ### 17.2 Doctor — outpatient
 

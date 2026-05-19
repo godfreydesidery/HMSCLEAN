@@ -52,6 +52,13 @@ public class PatientController {
         return ResponseEntity.ok(patientService.findByUid(patientUid));
     }
 
+    /** Exact lookup by the human-readable patient no (card-scan / barcode at reception). */
+    @GetMapping("/by-no/{patientNo}")
+    @PreAuthorize("hasAuthority('PATIENT_ACCESS')")
+    public ResponseEntity<PatientDto> findByPatientNo(@PathVariable String patientNo) {
+        return ResponseEntity.ok(patientService.findByPatientNo(patientNo));
+    }
+
     @PutMapping("/uid/{patientUid}")
     @PreAuthorize("hasAuthority('PATIENT_ACCESS')")
     public ResponseEntity<PatientDto> update(@PathVariable String patientUid, @Valid @RequestBody UpdatePatientRequest request) {

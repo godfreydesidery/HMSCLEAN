@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.ResponseEntity;
 
 /**
@@ -85,6 +86,54 @@ class LabBatchIT extends AuthenticatedIntegrationTest {
                 Map.of("orderUid", createOutsiderLabOrder(CBC_UID)),
                 Map.class);
         assertThat(postClose.getStatusCode().is4xxClientError()).isTrue();
+    }
+
+    /**
+     * The create-batch picker (B1) reads eligible orders from
+     * {@code GET /encounters/lab-batches/batchable-orders}: REQUESTED LAB_TEST
+     * orders for the chosen test, minus any already in a batch. Asserted on
+     * this test's own order uids — the testcontainer is JVM-lifetime so other
+     * tests may leave unbatched CBC orders around; never assert absolute counts.
+     */
+    @Test
+    void batchableOrdersListsEligibleAndDropsBatched() {
+        String o1 = createOutsiderLabOrder(CBC_UID);
+        String o2 = createOutsiderLabOrder(CBC_UID);
+        String o3 = createOutsiderLabOrder(CBC_UID);
+        String fbg = createOutsiderLabOrder(FBG_UID);
+
+        // 1. All three CBCs are eligible; the FBG order is not (different test).
+        List<String> eligible = batchableOrderUids(CBC_UID);
+        assertThat(eligible).contains(o1, o2, o3).doesNotContain(fbg);
+
+        // 2. The DTO carries enough to render a useful row.
+        Map<String, Object> row = batchableOrders(CBC_UID).stream()
+                .filter(r -> o2.equals(r.get("orderUid")))
+                .findFirst()
+                .orElseThrow();
+        assertThat(row.get("orderNo")).isNotNull();
+        assertThat(row.get("patientName")).isNotNull();
+        assertThat(row.get("urgency")).isEqualTo("NORMAL");
+        assertThat(row.get("requestedAt")).isNotNull();
+
+        // 3. Once o1 is in a batch it drops out; o2/o3 remain eligible.
+        expectOk(post(
+                "/encounters/lab-batches",
+                Map.of("labTestTypeUid", CBC_UID, "orderUids", List.of(o1)),
+                Map.class));
+        assertThat(batchableOrderUids(CBC_UID)).doesNotContain(o1).contains(o2, o3);
+    }
+
+    private List<Map<String, Object>> batchableOrders(String labTestUid) {
+        return expectOk(get(
+                "/encounters/lab-batches/batchable-orders?labTestTypeUid=" + labTestUid,
+                new ParameterizedTypeReference<List<Map<String, Object>>>() {}));
+    }
+
+    private List<String> batchableOrderUids(String labTestUid) {
+        return batchableOrders(labTestUid).stream()
+                .map(r -> (String) r.get("orderUid"))
+                .toList();
     }
 
     private String createOutsiderLabOrder(String labTestUid) {

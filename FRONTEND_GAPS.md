@@ -28,9 +28,10 @@ Each gap is independently pickable. **Hard parity gaps** are surfaces where the 
 
 **Open caveats carried forward:**
 - A3 dropdowns hit `MedicineUnitController` which is gated on `MASTERDATA_MANAGE`. Same pre-existing constraint as the medicine search dropdown — pharmacists with only `PHARMACY_ACCESS` will 403. Fix is a backend `MASTERDATA_READ` privilege split, out of scope for this doc.
-- **B1 has no integration test.** The whole lab-batch module (Phase 45) shipped without one, and Docker wasn't running this session to author/run one. The new `listBatchable` query + `batchable-orders` endpoint are compile-verified only. Worth a first `LabBatchIT` when Docker is up — it would cover the picker query *and* back-fill the Phase 45 gap.
 
-**No `ng serve` was run** this session. Backend `mvn compile` (BUILD SUCCESS) for B1; frontend `ng build` green at every commit.
+**B1 has an integration test.** `LabBatchIT` (existed since Phase 45 — `595d714`) gained `batchableOrdersListsEligibleAndDropsBatched`, which asserts the new `batchable-orders` endpoint lists REQUESTED unbatched CBC orders, excludes a different-test order, carries a renderable DTO, and drops an order once it's batched. **2/2 `LabBatchIT` tests green** (`mvn -Dtest=LabBatchIT`). *(Correction: an earlier note in this session wrongly claimed the lab-batch module had no IT — a glob/grep false-negative I should have verified; it has had one since Phase 45.)*
+
+**No `ng serve` was run** this session. Backend `mvn compile` + `mvn -Dtest=LabBatchIT` (BUILD SUCCESS) for B1; frontend `ng build` green at every commit.
 
 ---
 
@@ -149,7 +150,7 @@ Each gap is independently pickable. **Hard parity gaps** are surfaces where the 
   - `LabBatchService.listBatchable(labTestTypeUid)` — resolves patient name/no
   - `GET /encounters/lab-batches/batchable-orders?labTestTypeUid=` (gated `ENCOUNTER_ACCESS` via the controller class annotation)
 - **Frontend:** `LabBatchService.listBatchable` + `BatchableOrder` type; multi-select table in `lab-batch-create`.
-- **Caveat:** no IT (see the resume-checkpoint caveats). Compile-verified only.
+- **Test:** `LabBatchIT.batchableOrdersListsEligibleAndDropsBatched` (added this session) — 2/2 `LabBatchIT` green.
 
 ### B2. Consumable stock adjust modal
 
@@ -224,7 +225,7 @@ Hard parity gaps (A1–A3) and all polish (B1–B5) are done. Remaining order:
 5. ~~**B1 lab batch picker**~~ — DONE `6f12463` (required a backend endpoint)
 6. **`git push`** — `80cf349` + `6f12463` are local-only.
 7. **C1 Browser smoke check** ← *resume here* — covers W1–W9, A1/A2/A3, and B1/B5
-8. **C2 Component specs** — last; the surfaces should be settled before locking them down with tests. Consider a first `LabBatchIT` here too (back-fills the Phase 45 gap + covers B1's `batchable-orders` query).
+8. **C2 Component specs** — last; the surfaces should be settled before locking them down with tests. (Backend ITs are healthy — `LabBatchIT` now covers B1's `batchable-orders` query.)
 
 ---
 

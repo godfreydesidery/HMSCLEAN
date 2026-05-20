@@ -5,7 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 
 import { LabBatchService } from './lab-batch.service';
-import { LAB_BATCH_STATUSES, LabBatch, LabBatchStatus } from './lab-batch.types';
+import { BatchableOrder, LAB_BATCH_STATUSES, LabBatch, LabBatchStatus } from './lab-batch.types';
 
 @Component({
   selector: 'app-lab-batch-detail',
@@ -20,11 +20,12 @@ export class LabBatchDetailComponent {
 
   readonly statuses = LAB_BATCH_STATUSES;
   readonly batch = signal<LabBatch | null>(null);
+  readonly candidates = signal<BatchableOrder[]>([]);
   readonly loading = signal(true);
   readonly busy = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
-  readonly newOrderUid = new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(26), Validators.maxLength(26)] });
+  readonly selectedOrderUid = new FormControl('', { nonNullable: true, validators: [Validators.required] });
 
   readonly isOpen        = computed(() => this.batch()?.status === 'OPEN');
   readonly canProcess    = computed(() => this.batch()?.status === 'OPEN');
@@ -52,22 +53,31 @@ export class LabBatchDetailComponent {
     this.labBatchService.findByUid(uid)
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
-        next: (b) => this.batch.set(b),
+        next: (b) => { this.batch.set(b); this.refreshCandidates(b); },
         error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load batch.')
       });
+  }
+
+  /** Eligible (REQUESTED, unbatched) orders for this batch's test type — only while OPEN. */
+  private refreshCandidates(b: LabBatch): void {
+    if (b.status !== 'OPEN') { this.candidates.set([]); return; }
+    this.labBatchService.listBatchable(b.labTestTypeUid).subscribe({
+      next: (rows) => this.candidates.set(rows),
+      error: () => this.candidates.set([])
+    });
   }
 
   addOrder(): void {
     const current = this.batch();
     if (!current || this.busy()) return;
-    if (this.newOrderUid.invalid) { this.newOrderUid.markAsTouched(); return; }
-    const uid = this.newOrderUid.value.trim();
+    if (this.selectedOrderUid.invalid) { this.selectedOrderUid.markAsTouched(); return; }
+    const uid = this.selectedOrderUid.value;
     this.busy.set(true);
     this.errorMessage.set(null);
     this.labBatchService.addOrder(current.uid, uid)
       .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
-        next: (b) => { this.batch.set(b); this.newOrderUid.reset(''); },
+        next: (b) => { this.batch.set(b); this.selectedOrderUid.reset(''); this.refreshCandidates(b); },
         error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not add order to batch.')
       });
   }
@@ -80,7 +90,7 @@ export class LabBatchDetailComponent {
     this.labBatchService.removeOrder(current.uid, orderUid)
       .pipe(finalize(() => this.busy.set(false)))
       .subscribe({
-        next: (b) => this.batch.set(b),
+        next: (b) => { this.batch.set(b); this.refreshCandidates(b); },
         error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not remove order.')
       });
   }

@@ -63,13 +63,16 @@
         <div class="card-footer bg-white">
           <form (ngSubmit)="addOrder()" class="d-flex gap-2 align-items-start">
             <div class="flex-grow-1">
-              <label for="newOrderUid" class="visually-hidden">Order uid</label>
-              <input id="newOrderUid" name="newOrderUid" type="text" class="form-control form-control-sm hmis-code" placeholder="Paste a LAB_TEST order uid (26 chars)" [formControl]="newOrderUid" [class.is-invalid]="newOrderUid.invalid && newOrderUid.touched" autocomplete="off">
-              @if (newOrderUid.invalid && newOrderUid.touched) {
-                <div class="invalid-feedback d-block small">26-char uid required.</div>
-              }
+              <label for="newOrderUid" class="visually-hidden">Order to add</label>
+              <select id="newOrderUid" name="newOrderUid" class="form-select form-select-sm" [formControl]="selectedOrderUid" [class.is-invalid]="selectedOrderUid.invalid && selectedOrderUid.touched">
+                <option value="" disabled>{{ candidates().length ? '— pick an eligible order —' : 'No eligible orders' }}</option>
+                @for (o of candidates(); track o.orderUid) {
+                  <option [value]="o.orderUid">{{ o.orderNo }} · {{ o.patientName || o.patientUid }}@if (o.patientNo) { <span> ({{ o.patientNo }})</span> }</option>
+                }
+              </select>
+              <div class="form-text small">Requested orders for this test that aren't already in a batch.</div>
             </div>
-            <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy() || newOrderUid.invalid"><i class="bi bi-plus-lg me-1"></i> Add</button>
+            <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy() || selectedOrderUid.invalid || candidates().length === 0"><i class="bi bi-plus-lg me-1"></i> Add</button>
           </form>
         </div>
       }

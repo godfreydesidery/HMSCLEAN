@@ -21,28 +21,16 @@
   </div>
 }
 
-@if (patient(); as p) {
-  <div class="card mb-3 admit-patient__patient">
-    <div class="card-body d-flex align-items-center gap-3">
-      <span class="patient-avatar">{{ ((p.firstName[0] || '') + (p.lastName[0] || '')) | uppercase }}</span>
-      <div>
-        <div class="fw-semibold">{{ p.firstName }} {{ p.middleName }} {{ p.lastName }}</div>
-        <div class="hmis-muted small d-flex gap-3">
-          <span><span class="hmis-code">{{ p.patientNo }}</span></span>
-          <span>{{ p.gender }}</span>
-          @if (p.phoneNo) { <span><i class="bi bi-telephone me-1"></i>{{ p.phoneNo }}</span> }
-        </div>
-      </div>
-    </div>
-  </div>
-}
-
 <form id="admit-patient-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
   <div class="row g-3">
-    <div class="col-md-6">
-      <label class="form-label" for="ad-patient">Patient UID <span class="text-danger">*</span></label>
-      <input id="ad-patient" name="patientUid" type="text" class="form-control" formControlName="patientUid" autocomplete="off" placeholder="Paste patient uid or open this page from a patient profile">
-      <div class="form-text">Tip: from a patient's profile, click "Admit" to pre-fill this field.</div>
+    <div class="col-12">
+      <label class="form-label">Patient <span class="text-danger">*</span></label>
+      <app-patient-search [initialUid]="initialPatientUid"
+                          [invalid]="form.controls.patientUid.invalid && form.controls.patientUid.touched"
+                          (selectedChange)="onPatientSelected($event)"></app-patient-search>
+      @if (form.controls.patientUid.invalid && form.controls.patientUid.touched) {
+        <div class="text-danger small mt-1">Search and select a patient.</div>
+      }
     </div>
 
     <div class="col-md-6">
@@ -97,8 +85,20 @@
     </div>
 
     <div class="col-md-6">
-      <label class="form-label" for="ad-consultation">Source consultation UID</label>
-      <input id="ad-consultation" name="consultationUid" type="text" class="form-control" formControlName="consultationUid" autocomplete="off" placeholder="Optional — link to a consultation that triggered the admission">
+      <label class="form-label" for="ad-consultation">Source consultation</label>
+      <select id="ad-consultation" name="consultationUid" class="form-select" formControlName="consultationUid" [disabled]="!patient()">
+        <option value="">— None —</option>
+        @for (c of consultationCandidates(); track c.uid) {
+          <option [value]="c.uid">{{ c.consultationNo }} · {{ c.clinicName || 'Clinic' }} · {{ c.bookedAt | date:'mediumDate' }}</option>
+        }
+        @if (consultationValueMissing) {
+          <option [value]="form.controls.consultationUid.value">Linked consultation {{ form.controls.consultationUid.value }}</option>
+        }
+      </select>
+      <div class="form-text">
+        @if (!patient()) { Select a patient first to list their consultations. }
+        @else { Optional — link the consultation that triggered this admission. }
+      </div>
     </div>
 
     <div class="col-12">

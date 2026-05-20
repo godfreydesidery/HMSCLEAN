@@ -1,28 +1,24 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { debounceTime, distinctUntilChanged, finalize, forkJoin } from 'rxjs';
+import { finalize, forkJoin } from 'rxjs';
 
 import { StaffDirectoryService, StaffOption } from '../../../core/directory/staff-directory.service';
+import { PatientSearchComponent } from '../../../shared/patient-search/patient-search.component';
 import { ClinicService } from '../../masterdata/clinics/clinic.service';
 import { Clinic } from '../../masterdata/clinics/clinic.types';
 import { InsurancePlanService } from '../../masterdata/insurance-plans/insurance-plan.service';
 import { InsurancePlan } from '../../masterdata/insurance-plans/insurance-plan.types';
 import { InvoiceService } from '../../billing/invoice.service';
-import { PatientService } from '../../patient/patient.service';
 import { PAYMENT_TYPES, Patient, PaymentType } from '../../patient/patient.types';
 import { ConsultationService } from './consultation.service';
 import { ConsultationSummary } from './consultation.types';
 
-/** ULID length — patient uids are 26 chars; used to gate the follow-up lookup. */
-const ULID_LENGTH = 26;
-
 @Component({
   selector: 'app-start-consultation',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, PatientSearchComponent],
   templateUrl: './start-consultation.component.html',
   styleUrl: './start-consultation.component.scss'
 })
@@ -31,7 +27,6 @@ export class StartConsultationComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly consultationService = inject(ConsultationService);
-  private readonly patientService = inject(PatientService);
   private readonly clinicService = inject(ClinicService);
   private readonly planService = inject(InsurancePlanService);
   private readonly staffService = inject(StaffDirectoryService);
@@ -45,6 +40,8 @@ export class StartConsultationComponent {
   readonly plans = signal<InsurancePlan[]>([]);
   /** Prior COMPLETED consultations for the selected patient (most recent first, top 10). */
   readonly followUpCandidates = signal<ConsultationSummary[]>([]);
+  /** Patient uid from a ?patientUid deep-link, handed to the patient-search to preload. */
+  readonly initialPatientUid = this.route.snapshot.queryParamMap.get('patientUid');
 
   readonly loadingLookups = signal(true);
   readonly submitting = signal(false);
@@ -83,33 +80,27 @@ export class StartConsultationComponent {
     if (followUpOf) {
       this.form.controls.followUpOfConsultationUid.setValue(followUpOf);
     }
+  }
 
-    // Refresh the follow-up dropdown whenever a complete patient uid is in play.
-    this.form.controls.patientUid.valueChanges
-      .pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed())
-      .subscribe((uid) => this.loadFollowUpCandidates(uid));
-
-    const patientUid = this.route.snapshot.queryParamMap.get('patientUid');
-    if (patientUid) {
-      this.form.controls.patientUid.setValue(patientUid);
-      this.loadFollowUpCandidates(patientUid);
-      this.patientService.findByUid(patientUid).subscribe({
-        next: (p) => {
-          this.patient.set(p);
-          this.form.patchValue({
-            paymentType: p.paymentType,
-            insurancePlanUid: p.insurancePlanUid ?? ''
-          });
-        },
-        error: () => this.errorMessage.set('Could not load patient details.')
+  /** Patient chosen via the search typeahead (or preloaded from the deep-link). */
+  onPatientSelected(p: Patient | null): void {
+    this.patient.set(p);
+    this.form.controls.patientUid.setValue(p?.uid ?? '');
+    if (p) {
+      this.form.patchValue({
+        paymentType: p.paymentType,
+        insurancePlanUid: p.insurancePlanUid ?? ''
       });
+      this.loadFollowUpCandidates(p.uid);
+    } else {
+      this.followUpCandidates.set([]);
     }
   }
 
   /** Load the patient's prior COMPLETED consultations for the follow-up picker. */
   private loadFollowUpCandidates(patientUid: string | null | undefined): void {
     const uid = patientUid?.trim() ?? '';
-    if (uid.length !== ULID_LENGTH) { this.followUpCandidates.set([]); return; }
+    if (!uid) { this.followUpCandidates.set([]); return; }
     this.consultationService.recentForPatient(uid).subscribe({
       next: (rows) => this.followUpCandidates.set(rows.filter((c) => c.status === 'COMPLETED').slice(0, 10)),
       error: () => this.followUpCandidates.set([])

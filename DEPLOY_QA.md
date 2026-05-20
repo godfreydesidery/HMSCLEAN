@@ -22,6 +22,56 @@ Why this works with no extra config:
 
 ---
 
+## ⚡ Quick start — two commands
+
+Everything is scripted. Run from the repo root (`d:\My_Works\HMS\HMSCLEAN`) in a
+**bash** shell (Git Bash / WSL / macOS / Linux) with the **AWS CLI v2 configured**.
+
+```bash
+# INITIAL — create the AWS instance, then build & run the container on it.
+bash deploy/aws-up.sh
+```
+
+```bash
+# CONTINUOUS — after code changes: re-sync + rebuild + restart the same instance.
+bash deploy/aws-redeploy.sh
+```
+
+```bash
+# TEARDOWN — terminate the instance and delete the SG + key pair.
+bash deploy/aws-down.sh
+```
+
+Both `up` and `redeploy` print the QA URL and login (`root` / `QaRoot!123` by
+default) when done. Override defaults via env, e.g.:
+
+```bash
+AWS_REGION=eu-west-1 INSTANCE_TYPE=t3.large \
+HMIS_BOOTSTRAP_ROOT_PASSWORD='Secret!123' bash deploy/aws-up.sh
+```
+
+What the scripts use (all committed under `deploy/`):
+
+| File | Role |
+|---|---|
+| `aws-up.sh` | provision EC2 (key, SG, instance) → calls `aws-redeploy.sh` |
+| `aws-redeploy.sh` | sync source to the instance, then run `remote-build.sh` over SSH |
+| `remote-build.sh` | on the instance: install Docker + swap, `docker build`, `docker run` |
+| `Dockerfile` | multi-stage build → one image (Postgres + JRE + nginx) |
+| `nginx.conf` | serve SPA + proxy `/api` |
+| `start.sh` | container entrypoint: Postgres → API → nginx |
+| `aws-down.sh` | teardown |
+
+State (instance id, public DNS) is saved to `deploy/.qa-state` (gitignored) so
+`aws-redeploy.sh` / `aws-down.sh` know which box to target. The sync step uses
+`rsync` if present, otherwise falls back to `tar`-over-SSH (works in Git Bash on
+Windows with no extra tools).
+
+> The rest of this document is the **manual breakdown** of exactly what those
+> scripts do — read it only if you want to run or adjust the steps by hand.
+
+---
+
 ## 0. Prerequisites (on your laptop)
 
 - **AWS CLI v2** configured (`aws configure`) with rights to create EC2 instances,

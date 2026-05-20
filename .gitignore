@@ -53,3 +53,6 @@ yarn-error.log*
 
 # --- Docker volumes ---
 .docker-data/
+
+# --- QA deploy state (instance ids, public dns) ---
+deploy/.qa-state

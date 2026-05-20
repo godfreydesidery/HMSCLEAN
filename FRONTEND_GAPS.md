@@ -6,28 +6,31 @@ Each gap is independently pickable. **Hard parity gaps** are surfaces where the 
 
 ---
 
-## ⏯ Resume checkpoint — 2026-05-19 (end of session)
+## ⏯ Resume checkpoint — 2026-05-20 (end of session)
 
-**Branch:** `develop`, head `7024193`. Working tree clean. Pushed.
+**Branch:** `develop`, head `6f12463`. Working tree clean. **Not yet pushed** (`origin/develop` is at `7024193`).
 
-**Done this session (A1 → A2 → A3, all 3 hard parity gaps):**
+**Done this session (B1 → B5, all five polish items):**
 
 | Card | Commit | Summary |
 |---|---|---|
-| A1 | `aad91d9` | Pharmacy WASTAGE write-off — extended `StockEditComponent` with a third `write-off` mode (reason `<select>` + positive qty), `writeOff()` on `StockService`, "Write off" button beside "Adjust" in stock-list rows |
-| A3 | `fecc52a` | `MedicineUnit` dropdowns on receive / adjust / write-off / GRN — `MedicineService.listUnits()`, unit `<select>` defaulting to base, `unitUid` omitted when base chosen |
-| A2 | `7024193` | Employee CRUD — new `features/hr/employee/` module (service + list + form + edit + detail + terminate modal + routes), nav link, HR default redirect now `/hr/employees`. W5-era inline `EmployeeReadService` removed; payroll now imports the full service. |
+| B2 | `80cf349` | Consumable stock adjust — replaced `globalThis.prompt()` with `AdjustConsumableModalComponent` (signed-delta reactive form + projected on-hand) |
+| B3 | `80cf349` | Pharmacy dispense — replaced the salesPharmacyUid `prompt()` with `DispenseLineModalComponent` (pharmacy dropdown, defaults to the sale's own pharmacy) |
+| B4 | `80cf349` | Start-consultation follow-up is now a dropdown of the patient's prior COMPLETED consultations (`recentForPatient`, top 10), loaded on patient-uid change; a pre-filled `?followUpOf` uid not in the list is preserved as an extra option |
+| B5 | `80cf349` | CASH-patient unpaid-registration-fee 422 is intercepted and shown as a "Settle the registration fee first" alert with a deep-link to the registration invoice |
+| B1 | `6f12463` | Lab batch member picker — **needed a new backend endpoint** (`GET /encounters/lab-batches/batchable-orders?labTestTypeUid=`) since none existed. Replaced the order-uid textarea blob with a checkbox table of eligible (REQUESTED, unbatched) orders. Spans backend + frontend (5 + 4 files). |
 
-**Next up (start here tomorrow):**
+**Next up (start here next session):**
 
-1. **C1 — Browser smoke check** *(recommended next — surfaces bugs in everything just shipped before piling on more polish)*. Start `ng serve`, walk through W1–W9 + A1/A2/A3 against a running backend. The full checklist is in §C1 below.
-2. **B1–B5 polish** (any order, all S effort). Each is independent. Pick opportunistically.
+1. **`git push`** — this session's two commits (`80cf349`, `6f12463`) are local-only.
+2. **C1 — Browser smoke check** *(recommended — surfaces bugs in everything shipped)*. Start `ng serve`, walk through W1–W9 + A1/A2/A3 + B1/B5 against a running backend. The full checklist is in §C1 below. **Also exercise the B1 picker and the B5 reg-fee gate while the backend is up.**
 3. **C2 Karma/Jasmine specs** (L effort) — last, after surfaces have stabilised through C1.
 
 **Open caveats carried forward:**
 - A3 dropdowns hit `MedicineUnitController` which is gated on `MASTERDATA_MANAGE`. Same pre-existing constraint as the medicine search dropdown — pharmacists with only `PHARMACY_ACCESS` will 403. Fix is a backend `MASTERDATA_READ` privilege split, out of scope for this doc.
+- **B1 has no integration test.** The whole lab-batch module (Phase 45) shipped without one, and Docker wasn't running this session to author/run one. The new `listBatchable` query + `batchable-orders` endpoint are compile-verified only. Worth a first `LabBatchIT` when Docker is up — it would cover the picker query *and* back-fill the Phase 45 gap.
 
-**No `ng serve` was run** this session. Only `ng build` (~5–6s, green at every commit).
+**No `ng serve` was run** this session. Backend `mvn compile` (BUILD SUCCESS) for B1; frontend `ng build` green at every commit.
 
 ---
 
@@ -135,48 +138,47 @@ Each gap is independently pickable. **Hard parity gaps** are surfaces where the 
 
 ### B1. Lab batch member picker
 
-- **Status:** TODO
-- **Type:** polish (W2)
-- **Effort:** S
-- **Current:** create form is a textarea blob of order UIDs parsed on whitespace/comma
-- **Plan:** typeahead/dropdown of unbatched `LAB_TEST` orders in `REQUESTED` state for the chosen lab-test type — multi-select with chips
-- **Files:** `features/encounter/lab-batch/create-lab-batch.component.ts` + a new `orders/lab-order-read.service.ts` method `searchUnbatched(testTypeUid)`
+- **Status:** DONE (`6f12463`)
+- **Type:** polish (W2) — **but required backend work** (re-scoped from S to M)
+- **Effort:** S → M (no eligible-orders endpoint existed; had to add one)
+- **Landed:** picking a lab test in `lab-batch-create.component` now loads its eligible orders (REQUESTED LAB_TEST orders for that type, not already in a batch) into a checkbox table (select all / clear, live selected count); submit sends the checked uids. Replaced the whitespace/comma order-uid textarea blob.
+- **Backend added** (kept inside the lab-batch module so the order module stays dependency-free):
+  - `ClinicalOrderRepository.findAllByKindAndServiceUidAndStatusOrderByRequestedAtAsc`
+  - `LabBatchMemberRepository.findAllByOrderUidIn` (already-batched filter)
+  - `LabBatchDtos.BatchableOrderDto` (orderNo + patient no/name + urgency + requestedAt)
+  - `LabBatchService.listBatchable(labTestTypeUid)` — resolves patient name/no
+  - `GET /encounters/lab-batches/batchable-orders?labTestTypeUid=` (gated `ENCOUNTER_ACCESS` via the controller class annotation)
+- **Frontend:** `LabBatchService.listBatchable` + `BatchableOrder` type; multi-select table in `lab-batch-create`.
+- **Caveat:** no IT (see the resume-checkpoint caveats). Compile-verified only.
 
 ### B2. Consumable stock adjust modal
 
-- **Status:** TODO
+- **Status:** DONE (`80cf349`)
 - **Type:** polish (W4)
 - **Effort:** S
-- **Current:** uses `globalThis.prompt()` for delta + reason
-- **Plan:** proper modal with reactive form (delta number, reason textarea, optional unit dropdown)
-- **Files:** `features/consumables/stock/` — new `adjust-stock-modal.component.ts`
+- **Landed:** new `adjust-consumable-modal.component.ts` — reactive form with a signed-delta (non-zero-integer validator) + reason note + a live "new on-hand" projection. `ConsumableStockComponent.adjust()` now opens it via `NgbModal` instead of `globalThis.prompt()`. (No unit dropdown — consumables have no unit-conversion model, unlike medicines.)
 
 ### B3. Pharmacy sale dispense — sales-pharmacy override modal
 
-- **Status:** TODO
+- **Status:** DONE (`80cf349`)
 - **Type:** polish (W8)
 - **Effort:** S
-- **Current:** `pharmacy-sale-detail.dispenseLine` uses `globalThis.prompt()` for the optional `salesPharmacyUid`
-- **Plan:** modal with a pharmacy dropdown (filtered to those the user has access to), defaulting to "no override"
-- **Files:** `features/pharmacy/sale/pharmacy-sale-detail.component.ts` + new `dispense-line-modal.component.ts`
+- **Landed:** new `dispense-line-modal.component.ts` — a pharmacy dropdown defaulting to "Default — <sale pharmacy>" (the opening pharmacy is excluded from override options). Returns the override uid or `null`; the detail component owns the dispense call so busy/refresh stay in one place. Replaced `globalThis.prompt()` in `pharmacy-sale-detail.dispenseLine`.
 
 ### B4. Follow-up of picker on start-consultation
 
-- **Status:** TODO
+- **Status:** DONE (`80cf349`)
 - **Type:** polish (W6)
 - **Effort:** S
-- **Current:** `?followUpOf=<uid>` query-param wiring expects a raw 26-char ULID paste
-- **Plan:** when patient is selected, dropdown of that patient's prior `COMPLETED` consultations (most recent first, top 10)
-- **Files:** `features/encounter/consultation/start-consultation.component.ts` + `consultation.service.listForPatient(patientUid)` if not present
+- **Landed:** the follow-up field is now a `<select>` populated from `consultationService.recentForPatient(patientUid)` (filtered to COMPLETED, top 10), reloaded whenever a full 26-char patient uid is entered (debounced `valueChanges`). A `?followUpOf` uid pre-filled via query param but not in the candidate list is preserved as a synthetic option. `recentForPatient` already existed — no new service method needed.
 
 ### B5. CASH-patient registration-fee gate UX
 
-- **Status:** TODO
+- **Status:** DONE (`80cf349`)
 - **Type:** polish (W9)
 - **Effort:** S
-- **Current:** backend 4xx error surfaces as raw error string
-- **Plan:** intercept the specific error code/message, show contextual alert: *"Settle the registration fee first"* with a deep-link to the registration invoice (use `invoice.service.findRegistrationFee` to resolve the link)
-- **Files:** likely `features/encounter/consultation/start-consultation.component.ts` and/or `features/encounter/admission/admit-patient.component.ts` (wherever the CASH booking path lives)
+- **Landed:** `start-consultation.submit()` now routes booking errors through `handleBookingError`. A 422 whose message matches `/registration fee/i` (the `RegistrationFeeListeners` gate — `ErrorCode.BUSINESS_RULE`) raises a contextual "Settle the registration fee first" warning alert and resolves the invoice via `invoiceService.findRegistrationFee(patientUid)` for an "Open registration invoice" deep-link to `/billing/<uid>`.
+- **Note:** only the **consultation** booking path is gated server-side — admission does *not* consult the gate (confirmed in `ConsumableChartIT`), so `admit-patient` was left unchanged.
 
 ---
 
@@ -213,14 +215,16 @@ Each gap is independently pickable. **Hard parity gaps** are surfaces where the 
 
 ## D. Ordering recommendation
 
-Hard parity gaps (A1, A2, A3) are all done. Remaining order:
+Hard parity gaps (A1–A3) and all polish (B1–B5) are done. Remaining order:
 
 1. ~~**A1 Pharmacy write-off**~~ — DONE `aad91d9`
 2. ~~**A3 MedicineUnit dropdowns**~~ — DONE `fecc52a`
 3. ~~**A2 Employee CRUD**~~ — DONE `7024193`
-4. **C1 Browser smoke check** ← *resume here* — covers W1–W9 and the new A1/A2/A3 surfaces
-5. **B1–B5 polish** — pick opportunistically; none block each other
-6. **C2 Component specs** — last; the surfaces should be settled before locking them down with tests
+4. ~~**B2–B5 polish**~~ — DONE `80cf349`
+5. ~~**B1 lab batch picker**~~ — DONE `6f12463` (required a backend endpoint)
+6. **`git push`** — `80cf349` + `6f12463` are local-only.
+7. **C1 Browser smoke check** ← *resume here* — covers W1–W9, A1/A2/A3, and B1/B5
+8. **C2 Component specs** — last; the surfaces should be settled before locking them down with tests. Consider a first `LabBatchIT` here too (back-fills the Phase 45 gap + covers B1's `batchable-orders` query).
 
 ---
 

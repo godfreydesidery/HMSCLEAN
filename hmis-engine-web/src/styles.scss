@@ -17,7 +17,9 @@ $dark:           #0f172a;
 
 $body-bg:        #f8fafc;
 $body-color:     #0f172a;
-$body-secondary-color: #64748b;
+// Secondary/muted text — slate-600 rather than slate-500 so it stays clearly
+// legible (AA) instead of looking dimmed.
+$body-secondary-color: #475569;
 $border-color:   #e2e8f0;
 
 $font-family-sans-serif:
@@ -84,7 +86,7 @@ $nav-link-hover-color:  #ffffff;
   --hmis-surface:          #ffffff;
   --hmis-surface-2:        #f1f5f9;
   --hmis-border:           #e2e8f0;
-  --hmis-text-muted:       #64748b;
+  --hmis-text-muted:       #475569;
   --hmis-shadow-sm:        0 1px 2px rgba(15, 23, 42, 0.06);
   --hmis-shadow-md:        0 4px 14px rgba(15, 23, 42, 0.06);
   --hmis-shadow-lg:        0 24px 60px rgba(15, 23, 42, 0.18);
@@ -176,12 +178,12 @@ html, body {
 
 .hmis-table {
   thead th {
-    font-size: 0.72rem;
+    font-size: 0.76rem;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: #64748b;
-    font-weight: 600;
-    background: #f8fafc;
+    letter-spacing: 0.05em;
+    color: #475569;
+    font-weight: 700;
+    background: #f1f5f9;
     border-bottom: 1px solid #e2e8f0;
     padding: 0.75rem 1rem;
   }

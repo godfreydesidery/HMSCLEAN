@@ -1,12 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
 
 import { PharmacyService } from '../masterdata/pharmacies/pharmacy.service';
 import { Pharmacy } from '../masterdata/pharmacies/pharmacy.types';
 import { StoreService } from '../masterdata/stores/store.service';
 import { Store } from '../masterdata/stores/store.types';
+import { AdjustConsumableModalComponent } from './adjust-consumable-modal.component';
 import { ConsumableMasterdataService, ConsumableStockService } from './consumable.service';
 import {
   CONSUMABLE_SOURCE_KINDS, Consumable, ConsumableSourceKind, ConsumableStockBalanceDto
@@ -24,6 +26,7 @@ export class ConsumableStockComponent implements OnInit {
   private readonly consumableService = inject(ConsumableMasterdataService);
   private readonly pharmacyService = inject(PharmacyService);
   private readonly storeService = inject(StoreService);
+  private readonly modal = inject(NgbModal);
 
   readonly sourceKinds = CONSUMABLE_SOURCE_KINDS;
 
@@ -107,23 +110,14 @@ export class ConsumableStockComponent implements OnInit {
   }
 
   adjust(b: ConsumableStockBalanceDto): void {
-    const raw = globalThis.prompt(`Signed adjustment for ${b.consumableName || b.consumableUid} (current: ${b.quantity}). Use negative for a debit:`);
-    if (!raw) return;
-    const delta = Number(raw);
-    if (!Number.isInteger(delta) || delta === 0) {
-      this.errorMessage.set('Adjustment must be a non-zero integer.');
-      return;
-    }
-    this.errorMessage.set(null);
-    this.stockService.adjust({
-      sourceKind: this.sourceKind(),
-      sourceLocationUid: this.sourceUid(),
-      consumableUid: b.consumableUid,
-      delta,
-      note: 'Manual adjustment'
-    }).subscribe({
-      next: () => this.refreshBalances(),
-      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Adjustment failed.')
-    });
+    if (!this.sourceUid()) return;
+    const ref = this.modal.open(AdjustConsumableModalComponent, { centered: true });
+    ref.componentInstance.sourceKind = this.sourceKind();
+    ref.componentInstance.sourceUid = this.sourceUid();
+    ref.componentInstance.balance = b;
+    ref.result.then(
+      () => { this.errorMessage.set(null); this.refreshBalances(); },
+      () => { /* dismissed — nothing to do */ }
+    );
   }
 }

@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
+import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
 
+import { DispenseLineModalComponent } from './dispense-line-modal.component';
 import { PharmacySaleOrderService } from './pharmacy-sale.service';
 import {
   PHARMACY_SALE_LINE_STATUSES, PHARMACY_SALE_ORDER_STATUSES,
@@ -20,6 +21,7 @@ export class PharmacySaleDetailComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly saleService = inject(PharmacySaleOrderService);
+  private readonly modal = inject(NgbModal);
 
   readonly orderStatuses = PHARMACY_SALE_ORDER_STATUSES;
   readonly lineStatuses = PHARMACY_SALE_LINE_STATUSES;
@@ -72,17 +74,25 @@ export class PharmacySaleDetailComponent {
 
   dispenseLine(line: PharmacySaleOrderLine): void {
     const sale = this.sale(); if (!sale) return;
-    // Phase 37 multi-pharmacy override — paste a different pharmacy uid here
-    // to pull stock from another location without a formal transfer doc. Blank
-    // / cancelled keeps the default (sale opened-at pharmacy).
-    const promptText = `Sales pharmacy uid (optional)\n\nDefaults to the pharmacy that opened the sale (${sale.pharmacyName || sale.pharmacyUid}). Paste a different pharmacy uid to pull stock from there.`;
-    const salesPharmacyUid = globalThis.prompt(promptText)?.trim() || null;
-    this.busy.set(true);
-    this.saleService.dispenseLine(sale.pharmacyUid, line.uid, salesPharmacyUid)
-      .pipe(finalize(() => this.busy.set(false))).subscribe({
-        next: () => { this.actionMessage.set('Dispensed — stock decremented.'); this.load(sale.uid); },
-        error: (err) => this.errorMessage.set(err?.error?.message ?? 'Dispense failed.')
-      });
+    // Phase 37 multi-pharmacy override — pick a different pharmacy to pull
+    // stock from another location without a formal transfer doc. The modal
+    // returns the override uid, or null to keep the default (sale's pharmacy).
+    const ref = this.modal.open(DispenseLineModalComponent, { centered: true });
+    ref.componentInstance.openedAtPharmacyUid = sale.pharmacyUid;
+    ref.componentInstance.openedAtPharmacyName = sale.pharmacyName;
+    ref.componentInstance.medicineLabel = line.medicineName || line.medicineUid;
+    ref.result.then(
+      (salesPharmacyUid: string | null) => {
+        this.busy.set(true);
+        this.errorMessage.set(null);
+        this.saleService.dispenseLine(sale.pharmacyUid, line.uid, salesPharmacyUid)
+          .pipe(finalize(() => this.busy.set(false))).subscribe({
+            next: () => { this.actionMessage.set('Dispensed — stock decremented.'); this.load(sale.uid); },
+            error: (err) => this.errorMessage.set(err?.error?.message ?? 'Dispense failed.')
+          });
+      },
+      () => { /* dismissed — no dispense */ }
+    );
   }
 
   cancelSale(): void {

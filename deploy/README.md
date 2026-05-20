@@ -35,6 +35,21 @@ Two robustness fixes so it works from a Windows machine:
 - **`.gitattributes`** pins the scripts to **LF** — `core.autocrlf=true` would
   otherwise rewrite them as CRLF and break the shebang on Linux.
 
+## Credentials & secrets
+
+- **AWS credentials (required):** `aws configure` once — the scripts read
+  `~/.aws/`; never put AWS keys in the repo. The identity needs EC2
+  create/destroy + `ssm:GetParameters` (simplest: `AmazonEC2FullAccess` +
+  `AmazonSSMReadOnlyAccess`).
+- **SSH key (`.pem`):** auto-created by `aws-up.sh` as `hmis-qa-key.pem` **in the
+  repo root** (`chmod 400`, gitignored). Leave it there — the scripts expect it
+  at the repo root. `aws-down.sh` deletes it.
+- **App secrets (optional):** `HMIS_SECURITY_JWT_SECRET` (≥ 32 chars) and
+  `HMIS_BOOTSTRAP_ROOT_PASSWORD` (default `QaRoot!123`) — pass as env to override.
+- **Not needed:** Docker-registry login or GitHub token.
+
+Full detail: the **Credentials & secrets** section of [`../DEPLOY_QA.md`](../DEPLOY_QA.md).
+
 ## Prerequisites
 
 AWS CLI v2 configured, plus `ssh` (Git Bash has it). The `.pem` key and

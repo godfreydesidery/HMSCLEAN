@@ -72,6 +72,60 @@ Windows with no extra tools).
 
 ---
 
+## 🔑 Credentials & secrets
+
+You need **AWS API credentials** (to run the scripts) plus a couple of **app
+secrets** (optional — they have defaults). No Docker-registry login and no GitHub
+token are needed (the scripts ship code over SSH, not `git clone`).
+
+### 1. AWS credentials — required
+An IAM identity for the AWS CLI. Configure it once; the scripts read it from
+`~/.aws/` — **never** put AWS keys in the repo or the scripts.
+
+```bash
+aws configure                 # or: aws configure sso
+aws sts get-caller-identity   # verify it works
+```
+
+That identity needs permission to create/destroy the QA resources:
+- **EC2**: `RunInstances`, `TerminateInstances`, `Describe*`, `CreateSecurityGroup`,
+  `DescribeSecurityGroups`, `AuthorizeSecurityGroupIngress`, `DeleteSecurityGroup`,
+  `CreateKeyPair`, `DeleteKeyPair`, `CreateTags`
+- **SSM**: `GetParameters` (the AMI is resolved via `resolve:ssm:` for the latest
+  Amazon Linux 2023)
+
+Simplest for a throwaway: attach **`AmazonEC2FullAccess`** + **`AmazonSSMReadOnlyAccess`**.
+Tighten with a least-privilege policy on a shared account.
+
+### 2. EC2 SSH key (`.pem`) — created for you, don't pre-make it
+`aws-up.sh` runs `create-key-pair` and saves **`hmis-qa-key.pem` in the repo root**
+(`d:\My_Works\HMS\HMSCLEAN\hmis-qa-key.pem`) with `chmod 400`. Leave it there — the
+other scripts look for `$KEY.pem` relative to the repo root, so moving it breaks
+SSH. It's **gitignored** (`*.pem`); treat it like a password. `aws-down.sh` deletes
+both the AWS key pair and the local file. If SSH ever complains about permissions,
+`chmod 400 hmis-qa-key.pem`.
+
+### 3. App secrets — optional, override the defaults via env
+| Env var | What | Default |
+|---|---|---|
+| `HMIS_SECURITY_JWT_SECRET` | JWT signing key, **≥ 32 chars** | placeholder — change it |
+| `HMIS_BOOTSTRAP_ROOT_PASSWORD` | initial `root` login password | `QaRoot!123` |
+
+```bash
+HMIS_SECURITY_JWT_SECRET='some-long-random-32+char-string' \
+HMIS_BOOTSTRAP_ROOT_PASSWORD='Secret!123' \
+bash deploy/aws-up.sh
+```
+
+The Postgres credentials (`hmis`/`hmis`) live **inside** the container and aren't
+something you supply.
+
+### Not needed
+- ❌ Docker Hub / ECR login — the image is built on the instance, never pushed.
+- ❌ GitHub token — code is synced over SSH (only needed if you switch step 2 to `git clone`).
+
+---
+
 ## 0. Prerequisites (on your laptop)
 
 - **AWS CLI v2** configured (`aws configure`) with rights to create EC2 instances,

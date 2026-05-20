@@ -3,6 +3,7 @@ package com.otapp.hmis.engine.encounter.labbatch.application;
 import com.otapp.hmis.engine.common.api.PageResponse;
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
+import com.otapp.hmis.engine.encounter.labbatch.application.LabBatchDtos.BatchableOrderDto;
 import com.otapp.hmis.engine.encounter.labbatch.application.LabBatchDtos.CancelLabBatchRequest;
 import com.otapp.hmis.engine.encounter.labbatch.application.LabBatchDtos.CreateLabBatchRequest;
 import com.otapp.hmis.engine.encounter.labbatch.application.LabBatchDtos.LabBatchDto;
@@ -15,9 +16,14 @@ import com.otapp.hmis.engine.encounter.labbatch.infrastructure.LabBatchNumberGen
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrder;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderKind;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderRepository;
+import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderStatus;
 import com.otapp.hmis.engine.masterdata.labtest.domain.LabTestType;
 import com.otapp.hmis.engine.masterdata.labtest.domain.LabTestTypeRepository;
+import com.otapp.hmis.engine.patient.domain.Patient;
+import com.otapp.hmis.engine.patient.domain.PatientRepository;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -32,6 +38,7 @@ public class LabBatchService {
     private final LabBatchMemberRepository memberRepository;
     private final ClinicalOrderRepository orderRepository;
     private final LabTestTypeRepository labTestTypeRepository;
+    private final PatientRepository patientRepository;
     private final LabBatchNumberGenerator numberGenerator;
 
     @Transactional
@@ -114,7 +121,47 @@ public class LabBatchService {
                         .map(this::toDto));
     }
 
+    /**
+     * LAB_TEST orders eligible to join a batch for {@code labTestTypeUid}:
+     * REQUESTED and not already a member of any batch. Backs the create-batch
+     * member picker so callers no longer paste raw order uids.
+     */
+    @Transactional(readOnly = true)
+    public List<BatchableOrderDto> listBatchable(String labTestTypeUid) {
+        LabTestType type = labTestTypeRepository.findByUid(labTestTypeUid)
+                .orElseThrow(() -> new NotFoundException("Lab test type not found: " + labTestTypeUid));
+
+        List<ClinicalOrder> requested = orderRepository
+                .findAllByKindAndServiceUidAndStatusOrderByRequestedAtAsc(
+                        ClinicalOrderKind.LAB_TEST, type.getUid(), ClinicalOrderStatus.REQUESTED);
+        if (requested.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> orderUids = requested.stream().map(ClinicalOrder::getUid).toList();
+        Set<String> alreadyBatched = memberRepository.findAllByOrderUidIn(orderUids).stream()
+                .map(LabBatchMember::getOrderUid)
+                .collect(Collectors.toSet());
+
+        return requested.stream()
+                .filter(o -> !alreadyBatched.contains(o.getUid()))
+                .map(this::toBatchableDto)
+                .toList();
+    }
+
     // ----- helpers -----------------------------------------------------------
+
+    private BatchableOrderDto toBatchableDto(ClinicalOrder o) {
+        Patient patient = patientRepository.findByUid(o.getPatientUid()).orElse(null);
+        return new BatchableOrderDto(
+                o.getUid(),
+                o.getOrderNo(),
+                o.getPatientUid(),
+                patient == null ? null : patient.getPatientNo(),
+                patient == null ? null : patient.fullName(),
+                o.getUrgency(),
+                o.getRequestedAt());
+    }
 
     private void attach(LabBatch batch, String requiredLabTestUid, String orderUid) {
         ClinicalOrder order = orderRepository.findByUid(orderUid)

@@ -2,6 +2,7 @@ package com.otapp.hmis.engine.encounter.labbatch.api;
 
 import com.otapp.hmis.engine.common.api.PageResponse;
 import com.otapp.hmis.engine.encounter.labbatch.application.LabBatchDtos.AddOrderRequest;
+import com.otapp.hmis.engine.encounter.labbatch.application.LabBatchDtos.BatchableOrderDto;
 import com.otapp.hmis.engine.encounter.labbatch.application.LabBatchDtos.CancelLabBatchRequest;
 import com.otapp.hmis.engine.encounter.labbatch.application.LabBatchDtos.CreateLabBatchRequest;
 import com.otapp.hmis.engine.encounter.labbatch.application.LabBatchDtos.LabBatchDto;
@@ -10,6 +11,7 @@ import com.otapp.hmis.engine.encounter.labbatch.domain.LabBatchStatus;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -52,6 +54,11 @@ public class LabBatchController {
     @GetMapping("/uid/{batchUid}")
     public ResponseEntity<LabBatchDto> findByUid(@PathVariable String batchUid) {
         return ResponseEntity.ok(labBatchService.findByUid(batchUid));
+    }
+
+    @GetMapping("/batchable-orders")
+    public ResponseEntity<List<BatchableOrderDto>> batchableOrders(@RequestParam String labTestTypeUid) {
+        return ResponseEntity.ok(labBatchService.listBatchable(labTestTypeUid));
     }
 
     @PostMapping("/uid/{batchUid}/orders")

@@ -18,6 +18,15 @@ public interface ClinicalOrderRepository extends JpaRepository<ClinicalOrder, Lo
     /** All orders for a patient — across consultations and outsider direct orders. */
     List<ClinicalOrder> findAllByPatientUidOrderByRequestedAtDesc(String patientUid);
 
+    /**
+     * Orders of one kind for a given service in a given status, oldest first.
+     * Backs the lab-batch member picker (LAB_TEST + REQUESTED) — the
+     * already-batched filter is applied in the service layer to keep this
+     * module free of any lab-batch dependency.
+     */
+    List<ClinicalOrder> findAllByKindAndServiceUidAndStatusOrderByRequestedAtAsc(
+            ClinicalOrderKind kind, String serviceUid, ClinicalOrderStatus status);
+
     /** Orders raised directly on a patient (consultation_uid IS NULL — the OUTSIDER pathway). */
     List<ClinicalOrder> findAllByPatientUidAndConsultationUidIsNullOrderByRequestedAtDesc(String patientUid);
 

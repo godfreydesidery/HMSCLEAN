@@ -5,7 +5,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { PageResponse } from '../../../core/http/page.types';
 import {
-  CancelLabBatchRequest, CreateLabBatchRequest, LabBatch, LabBatchSearchParams
+  BatchableOrder, CancelLabBatchRequest, CreateLabBatchRequest, LabBatch, LabBatchSearchParams
 } from './lab-batch.types';
 
 @Injectable({ providedIn: 'root' })
@@ -25,6 +25,12 @@ export class LabBatchService {
 
   findByUid(uid: string): Observable<LabBatch> {
     return this.http.get<LabBatch>(`${this.base}/uid/${uid}`);
+  }
+
+  /** LAB_TEST orders eligible to join a batch for the given test type (REQUESTED, unbatched). */
+  listBatchable(labTestTypeUid: string): Observable<BatchableOrder[]> {
+    const p = new HttpParams().set('labTestTypeUid', labTestTypeUid);
+    return this.http.get<BatchableOrder[]>(`${this.base}/batchable-orders`, { params: p });
   }
 
   create(req: CreateLabBatchRequest): Observable<LabBatch> {

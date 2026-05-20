@@ -48,6 +48,20 @@ export interface CreateLabBatchRequest {
 export interface AddOrderRequest { orderUid: string; }
 export interface CancelLabBatchRequest { reason?: string | null; }
 
+/**
+ * A LAB_TEST order eligible to join a batch — REQUESTED and not yet a member
+ * of any batch. Mirrors backend `LabBatchDtos.BatchableOrderDto`.
+ */
+export interface BatchableOrder {
+  orderUid: string;
+  orderNo: string;
+  patientUid: string;
+  patientNo: string | null;
+  patientName: string | null;
+  urgency: 'NORMAL' | 'URGENT' | 'STAT';
+  requestedAt: string;
+}
+
 export interface LabBatchSearchParams {
   status?: LabBatchStatus;
   labTestTypeUid?: string;

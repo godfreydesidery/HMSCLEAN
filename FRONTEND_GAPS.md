@@ -229,7 +229,34 @@ Hard parity gaps (A1–A3) and all polish (B1–B5) are done. Remaining order:
 
 ---
 
-## E. Out of scope (do not implement here)
+## E. Formerly out-of-scope — revisited 2026-05-20
 
-- **Statutory tax tables / allowance auto-prefill / worked-time auto-prefill on payroll** — deliberately deferred to a dedicated HR/finance product (Phase 47 decision)
-- **Insurance-specific per-service price lists** — backend ships cross-cutting `ServicePrice` instead of legacy per-service tables (PROCESS.md ⚠️ row, accepted design simplification)
+The user asked to revisit both E items. Findings + decisions:
+
+- **Insurance-specific per-service price lists — ALREADY DELIVERED (no work).** The cross-cutting `ServicePrice(planUid, kind, serviceUid)` matrix covers all 7 priced kinds with a pricing UI at [masterdata/pricing/](hmis-engine-web/src/app/features/masterdata/pricing/), marked ✅ in PROCESS.md (lines 633/698/734). The original "out of scope" only meant *not* recreating the legacy's six separate `*InsurancePlan` tables — that single-table approach is a deliberate design-flaw fix ([[process-fidelity]]), and recreating the legacy tables would be a regression. **Decision: leave as-is.**
+
+- **Payroll statutory tax tables / allowance + worked-time auto-prefill — BUILT this session (configurable, data-driven).** Legacy payroll is manual entry (no PAYE computation), so hard-coding statutory rates would both invent a flow and bake in rules I don't have. Instead built a **configurable band-table** model: `PayrollComponent` (EARNING/DEDUCTION × FIXED/PERCENT/BAND, base BASIC/GROSS) + `PayrollComponentBand` (progressive bands), a CRUD masterdata UI, and a stateless **compute** endpoint that auto-prefills a payroll item's gross/deductions from the active components for a given basic salary (with optional worked-days proration). Rates/bands are entered by HR — no statutory values are hard-coded. See §F.
+
+---
+
+## F. Configurable payroll components (built 2026-05-20)
+
+**Status:** DONE · **Type:** feature (E-item 2) · **Effort:** L (full-stack)
+
+A data-driven replacement for the deferred "statutory auto-prefill" cut. HR defines reusable earning/deduction rules; the payroll item form computes gross + deductions from them. **No statutory rates are in code — everything is data the hospital enters.**
+
+**Model (no new migration — folded into `V48__hr_payroll.sql`, DB not yet created):**
+- `PayrollComponent` — `code`, `name`, `type` (EARNING | DEDUCTION), `method` (FIXED | PERCENT | BAND), `base` (BASIC | GROSS), `fixedAmount`, `percentRate` (fraction), `active`, `sortOrder`.
+- `PayrollComponentBand` — progressive rows (`fromAmount`, `toAmount` nullable = open top, `rate`) for `method = BAND`.
+
+**Compute semantics** (`PayrollComponentService.compute`): basic → optional worked/period-day proration → earnings (on basic) → gross = basic + earnings → deductions (on basic or gross per component) → net. Each band's rate applies only to its slice of the base (standard progressive PAYE). FIXED amounts are flat (not pro-rated).
+
+**Endpoints** (all `HR_ACCESS`):
+- `GET/POST /hr/payroll/components`, `GET/PUT/DELETE /hr/payroll/components/uid/{uid}`, `PUT …/active`
+- `POST /hr/payroll/compute` → `{ effectiveBasic, totalEarnings, grossPay, totalDeductions, netPay, lines[] }` (stateless; touches no payroll item)
+
+**Frontend:**
+- `features/hr/payroll/payroll-component-{list,form}.component.ts` (form has a FormArray band editor; rates entered as %). Nav: "Payroll setup" → `/hr/payroll/components`.
+- Payroll-detail gains an "Auto-prefill from components" panel: enter basic (+ optional worked/period days) → Compute → breakdown shown and gross/deductions copied into the item form (still editable before save).
+
+**Test:** `PayrollComponentIT.configuredComponentsDriveAutoPrefillCompute` — configures a FIXED allowance + PERCENT-of-gross + progressive BAND, asserts full-month and 15/30-day-prorated compute totals. Green. `mvn compile`/`ng build` green.

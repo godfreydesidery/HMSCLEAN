@@ -60,6 +60,7 @@ export class ShellComponent {
         { label: 'Employees',      path: '/hr/employees', icon: 'bi-people',       privileges: ['HR_ACCESS'] },
         { label: 'Asset register', path: '/hr/assets', icon: 'bi-archive',         privileges: ['HR_ACCESS'] },
         { label: 'Payroll',     path: '/hr/payroll',  icon: 'bi-cash-stack',       privileges: ['HR_ACCESS'] },
+        { label: 'Payroll setup', path: '/hr/payroll/components', icon: 'bi-sliders', privileges: ['HR_ACCESS'] },
         { label: 'Reports',     path: '/reporting',   icon: 'bi-bar-chart-line',  privileges: ['REPORTING_ACCESS'] }
       ]
     },

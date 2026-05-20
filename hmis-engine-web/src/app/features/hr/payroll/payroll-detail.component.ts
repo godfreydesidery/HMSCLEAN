@@ -5,6 +5,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 
 import { EmployeeService } from '../employee/employee.service';
+import { PayrollComponentService } from './payroll-component.service';
+import { ComputedPayroll } from './payroll-component.types';
 import { PayrollService } from './payroll.service';
 import {
   EmployeeSummary, PAYROLL_PERIOD_STATUSES, PayrollItem, PayrollPeriod, PayrollPeriodStatus
@@ -22,6 +24,7 @@ export class PayrollDetailComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly payrollService = inject(PayrollService);
   private readonly employeeService = inject(EmployeeService);
+  private readonly componentService = inject(PayrollComponentService);
 
   readonly statuses = PAYROLL_PERIOD_STATUSES;
 
@@ -32,6 +35,15 @@ export class PayrollDetailComponent implements OnInit {
   readonly loading = signal(true);
   readonly busy = signal(false);
   readonly errorMessage = signal<string | null>(null);
+
+  // Auto-prefill from configurable components.
+  readonly computed = signal<ComputedPayroll | null>(null);
+  readonly computing = signal(false);
+  readonly computeForm = this.fb.nonNullable.group({
+    basicSalary: ['0.00', [Validators.required, Validators.pattern(/^\d+(\.\d{1,2})?$/)]],
+    workedDays:  [null as number | null],
+    periodDays:  [null as number | null]
+  });
 
   readonly isDraft = computed(() => this.period()?.status === 'DRAFT');
   readonly canApprove = computed(() => this.period()?.status === 'DRAFT');
@@ -65,9 +77,36 @@ export class PayrollDetailComponent implements OnInit {
     this.payrollService.findByUid(uid)
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
-        next: (res) => { this.period.set(res.period); this.items.set(res.items); },
+        next: (res) => {
+          this.period.set(res.period);
+          this.items.set(res.items);
+          this.computeForm.controls.periodDays.setValue(periodLengthDays(res.period));
+        },
         error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load period.')
       });
+  }
+
+  /** Compute gross + deductions from the active components and prefill the item form. */
+  computePrefill(): void {
+    if (this.computing()) return;
+    if (this.computeForm.controls.basicSalary.invalid) { this.computeForm.markAllAsTouched(); return; }
+    const raw = this.computeForm.getRawValue();
+    this.computing.set(true);
+    this.errorMessage.set(null);
+    this.componentService.compute({
+      basicSalary: raw.basicSalary,
+      workedDays:  raw.workedDays ?? null,
+      periodDays:  raw.periodDays ?? null
+    }).pipe(finalize(() => this.computing.set(false))).subscribe({
+      next: (res) => {
+        this.computed.set(res);
+        this.itemForm.patchValue({
+          grossPay: String(res.grossPay),
+          totalDeductions: String(res.totalDeductions)
+        });
+      },
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not compute pay.')
+    });
   }
 
   upsertItem(): void {
@@ -85,7 +124,7 @@ export class PayrollDetailComponent implements OnInit {
       paymentReference: raw.paymentReference?.trim() || null,
       note:             raw.note?.trim() || null
     }).pipe(finalize(() => this.busy.set(false))).subscribe({
-      next: () => { this.itemForm.reset({ employeeUid: '', grossPay: '0.00', totalDeductions: '0.00', paymentMethod: '', paymentReference: '', note: '' }); this.load(p.uid); },
+      next: () => { this.itemForm.reset({ employeeUid: '', grossPay: '0.00', totalDeductions: '0.00', paymentMethod: '', paymentReference: '', note: '' }); this.computed.set(null); this.load(p.uid); },
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not save item.')
     });
   }
@@ -144,4 +183,13 @@ export class PayrollDetailComponent implements OnInit {
   statusLabel(s: PayrollPeriodStatus): string {
     return this.statuses.find((x) => x.value === s)?.label ?? s;
   }
+}
+
+/** Inclusive day count of a period, used to default worked-time proration. */
+function periodLengthDays(p: PayrollPeriod): number | null {
+  if (!p.startDate || !p.endDate) return null;
+  const start = Date.parse(p.startDate);
+  const end = Date.parse(p.endDate);
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return null;
+  return Math.round((end - start) / 86_400_000) + 1;
 }

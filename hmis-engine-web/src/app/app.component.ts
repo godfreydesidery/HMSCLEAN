@@ -41,9 +41,17 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   }
 
   private disableAutofill(root: Document | Element): void {
-    if (root instanceof Element && root.matches?.(NO_AUTOFILL)) {
-      root.setAttribute('autocomplete', 'off');
-    }
-    root.querySelectorAll?.(NO_AUTOFILL).forEach((el) => el.setAttribute('autocomplete', 'off'));
+    if (root instanceof Element && root.matches?.(NO_AUTOFILL)) this.tag(root);
+    root.querySelectorAll?.(NO_AUTOFILL).forEach((el) => this.tag(el));
+  }
+
+  /**
+   * Chrome ignores autocomplete="off" for fields it reads as name/email/phone/
+   * address and still shows saved-profile autofill. A unique token it can't map
+   * to any data category suppresses that. Forms keep plain "off" (enough for
+   * Firefox form history); password fields are excluded by the selector.
+   */
+  private tag(el: Element): void {
+    el.setAttribute('autocomplete', el.tagName === 'FORM' ? 'off' : `off-${Math.random().toString(36).slice(2, 10)}`);
   }
 }

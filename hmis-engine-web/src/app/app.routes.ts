@@ -54,7 +54,7 @@ export const routes: Routes = [
       },
       {
         path: 'orders',
-        canActivate: [hasPrivilegeGuard('ORDERS_ACCESS')],
+        canActivate: [hasPrivilegeGuard('ENCOUNTER_ACCESS')],
         loadChildren: () =>
           import('./features/orders/orders.routes').then((m) => m.ORDERS_ROUTES)
       },

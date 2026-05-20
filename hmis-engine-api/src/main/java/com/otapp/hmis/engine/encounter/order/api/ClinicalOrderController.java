@@ -1,15 +1,20 @@
 package com.otapp.hmis.engine.encounter.order.api;
 
+import com.otapp.hmis.engine.common.api.PageResponse;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.CancelOrderRequest;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.ClinicalOrderDto;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.CompleteOrderRequest;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.CreateOrderRequest;
+import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.OrderWorklistDto;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.ScheduleOrderRequest;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderService;
+import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderKind;
+import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderStatus;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +27,14 @@ import org.springframework.web.bind.annotation.*;
 public class ClinicalOrderController {
 
     private final ClinicalOrderService orderService;
+
+    @GetMapping("/encounters/orders")
+    public ResponseEntity<PageResponse<OrderWorklistDto>> worklist(
+            @RequestParam(required = false) ClinicalOrderKind kind,
+            @RequestParam(required = false) ClinicalOrderStatus status,
+            Pageable pageable) {
+        return ResponseEntity.ok(orderService.searchWorklist(kind, status, pageable));
+    }
 
     @GetMapping("/encounters/consultations/uid/{consultationUid}/orders")
     public ResponseEntity<List<ClinicalOrderDto>> list(@PathVariable String consultationUid) {

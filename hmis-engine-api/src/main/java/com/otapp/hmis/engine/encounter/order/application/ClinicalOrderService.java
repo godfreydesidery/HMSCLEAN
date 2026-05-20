@@ -1,5 +1,6 @@
 package com.otapp.hmis.engine.encounter.order.application;
 
+import com.otapp.hmis.engine.common.api.PageResponse;
 import com.otapp.hmis.engine.common.error.NotFoundException;
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
@@ -11,10 +12,12 @@ import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.Cance
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.ClinicalOrderDto;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.CompleteOrderRequest;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.CreateOrderRequest;
+import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.OrderWorklistDto;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.ScheduleOrderRequest;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrder;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderKind;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderRepository;
+import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderStatus;
 import com.otapp.hmis.engine.encounter.order.infrastructure.OrderNumberGenerator;
 import com.otapp.hmis.engine.masterdata.labtest.domain.LabTestType;
 import com.otapp.hmis.engine.masterdata.labtest.domain.LabTestTypeRepository;
@@ -26,6 +29,9 @@ import com.otapp.hmis.engine.masterdata.theatre.domain.Theatre;
 import com.otapp.hmis.engine.masterdata.theatre.domain.TheatreRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -146,6 +152,34 @@ public class ClinicalOrderService {
         return orderRepository.findAllByPatientUidAndConsultationUidIsNullOrderByRequestedAtDesc(patientUid).stream()
                 .map(this::toDto)
                 .toList();
+    }
+
+    /** Cross-patient worklist for the Orders &amp; Results module (kind / status filters). */
+    @Transactional(readOnly = true)
+    public PageResponse<OrderWorklistDto> searchWorklist(ClinicalOrderKind kind, ClinicalOrderStatus status, Pageable pageable) {
+        Pageable effective = pageable.getSort().isSorted()
+                ? pageable
+                : PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.DESC, "requestedAt"));
+        return PageResponse.from(orderRepository.searchWorklist(kind, status, effective).map(this::toWorklistDto));
+    }
+
+    private OrderWorklistDto toWorklistDto(ClinicalOrder o) {
+        ServiceDescriptor s = resolveServiceQuietly(o.getKind(), o.getServiceUid());
+        Patient p = patientRepository.findByUid(o.getPatientUid()).orElse(null);
+        return new OrderWorklistDto(
+                o.getUid(),
+                o.getOrderNo(),
+                o.getKind(),
+                s.code(),
+                s.name(),
+                o.getStatus(),
+                o.getUrgency(),
+                o.getRequestedAt(),
+                o.getCompletedAt(),
+                o.getPatientUid(),
+                p == null ? null : p.getPatientNo(),
+                p == null ? null : p.fullName(),
+                o.getConsultationUid());
     }
 
     private ClinicalOrder loadOrThrow(String uid) {

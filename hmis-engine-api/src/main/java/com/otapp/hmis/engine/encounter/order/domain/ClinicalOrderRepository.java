@@ -3,6 +3,8 @@ package com.otapp.hmis.engine.encounter.order.domain;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,6 +12,20 @@ import org.springframework.data.repository.query.Param;
 public interface ClinicalOrderRepository extends JpaRepository<ClinicalOrder, Long> {
 
     Optional<ClinicalOrder> findByUid(String uid);
+
+    /**
+     * Cross-patient worklist for the Orders &amp; Results module — optional
+     * kind / status filters. Sort comes from the {@link Pageable} (the service
+     * defaults it to requestedAt desc) so no ORDER BY is baked in here.
+     */
+    @Query("""
+            SELECT o FROM ClinicalOrder o
+            WHERE (:kind   IS NULL OR o.kind = :kind)
+              AND (:status IS NULL OR o.status = :status)
+            """)
+    Page<ClinicalOrder> searchWorklist(@Param("kind") ClinicalOrderKind kind,
+                                       @Param("status") ClinicalOrderStatus status,
+                                       Pageable pageable);
 
     List<ClinicalOrder> findAllByConsultationUidOrderByRequestedAtDesc(String consultationUid);
 

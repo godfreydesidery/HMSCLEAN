@@ -51,7 +51,11 @@ class OutsiderPathwayIT extends AuthenticatedIntegrationTest {
         assertThat(order.get("consultationUid")).isNull();
         assertThat(order.get("patientUid")).isEqualTo(patientUid);
 
-        // 3. Mark it COMPLETED so it becomes billable.
+        // 3. Walk the lab gate: ACCEPTED (specimen collected) → IN_PROGRESS → COMPLETED.
+        assertThat(expectOk(post("/encounters/orders/uid/" + orderUid + "/accept", null, Map.class))
+                .get("status")).isEqualTo("ACCEPTED");
+        assertThat(expectOk(post("/encounters/orders/uid/" + orderUid + "/start", null, Map.class))
+                .get("status")).isEqualTo("IN_PROGRESS");
         Map completed = expectOk(post(
                 "/encounters/orders/uid/" + orderUid + "/complete",
                 Map.of("result", "WBC 5.6, HGB 14.1, PLT 220 — within range"),

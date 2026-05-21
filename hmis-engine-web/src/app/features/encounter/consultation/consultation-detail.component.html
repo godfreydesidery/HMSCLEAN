@@ -372,9 +372,10 @@
                             <button type="button" class="btn btn-sm btn-light border" ngbDropdownToggle aria-label="Actions"><i class="bi bi-three-dots"></i></button>
                             <div ngbDropdownMenu class="shadow-sm">
                               @if (o.status === 'REQUESTED') {
-                                <button type="button" ngbDropdownItem (click)="startOrder(o)"><i class="bi bi-play-fill me-2"></i>Start</button>
+                                <button type="button" ngbDropdownItem (click)="passOrderGate(o)"><i class="bi bi-check2-circle me-2"></i>{{ orderGateLabel(o) }}</button>
+                                <button type="button" ngbDropdownItem class="text-danger" (click)="cancelOrder(o)"><i class="bi bi-x-circle me-2"></i>Cancel</button>
                               }
-                              @if (o.status === 'REQUESTED' || o.status === 'IN_PROGRESS') {
+                              @if (o.status === 'ACCEPTED' || o.status === 'APPROVED' || o.status === 'IN_PROGRESS') {
                                 <button type="button" ngbDropdownItem (click)="enterResult(o)"><i class="bi bi-clipboard2-data me-2"></i>Enter result / Complete</button>
                                 <button type="button" ngbDropdownItem class="text-danger" (click)="cancelOrder(o)"><i class="bi bi-x-circle me-2"></i>Cancel</button>
                               }

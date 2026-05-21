@@ -43,8 +43,14 @@ public class OrderResultService {
                 })
                 .orElseGet(() -> resultRepository.save(new OrderResult(orderUid, order.getKind(), narrative, impression)));
 
-        // Move REQUESTED -> IN_PROGRESS the moment a result entry begins.
+        // The order must have passed its accept/approve gate before results can
+        // be recorded; the first result entry moves it ACCEPTED/APPROVED -> IN_PROGRESS.
         if (order.getStatus() == ClinicalOrderStatus.REQUESTED) {
+            throw new BusinessRuleException(
+                    "Accept (lab / radiology) or approve (procedure) the order before recording a result");
+        }
+        if (order.getStatus() == ClinicalOrderStatus.ACCEPTED
+                || order.getStatus() == ClinicalOrderStatus.APPROVED) {
             order.markInProgress();
         }
         return toDto(result);

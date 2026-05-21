@@ -7,6 +7,7 @@ import {
   CLINICAL_ORDER_KINDS, CLINICAL_ORDER_STATUSES, ClinicalOrder, ClinicalOrderKind,
   ClinicalOrderStatus, ORDER_URGENCIES, OrderUrgency
 } from '../encounter/order/clinical-order.types';
+import { ClinicalOrderService } from '../encounter/order/clinical-order.service';
 import { EnterResultComponent } from '../encounter/order/enter-result.component';
 import {
   PATIENT_CLASS_SCOPES, PatientClassScope, patientClassBadgeClass, patientClassLabel
@@ -22,6 +23,7 @@ import { OrderWorklistRow } from './order-worklist.types';
 })
 export class OrderWorklistComponent implements OnInit {
   private readonly service = inject(OrderWorklistService);
+  private readonly orderService = inject(ClinicalOrderService);
   private readonly modal = inject(NgbModal);
 
   readonly kinds = CLINICAL_ORDER_KINDS;
@@ -41,6 +43,7 @@ export class OrderWorklistComponent implements OnInit {
   readonly kindFilter = signal<ClinicalOrderKind | ''>('');
   readonly statusFilter = signal<ClinicalOrderStatus | ''>('');
   readonly classFilter = signal<PatientClassScope | ''>('');
+  readonly busyUid = signal<string | null>(null);
 
   private readonly size = 20;
 
@@ -80,7 +83,26 @@ export class OrderWorklistComponent implements OnInit {
     ref.result.then(() => this.load(), () => { /* dismissed */ });
   }
 
-  canEnterResult(s: ClinicalOrderStatus): boolean { return s === 'REQUESTED' || s === 'IN_PROGRESS'; }
+  /** The accept (lab/radiology) or approve (procedure) gate that must clear before result entry. */
+  needsGate(s: ClinicalOrderStatus): boolean { return s === 'REQUESTED'; }
+  gateLabel(k: ClinicalOrderKind): string { return k === 'PROCEDURE' ? 'Approve' : 'Accept'; }
+
+  passGate(row: OrderWorklistRow): void {
+    if (this.busyUid()) return;
+    this.busyUid.set(row.uid);
+    this.errorMessage.set(null);
+    const op = row.kind === 'PROCEDURE'
+      ? this.orderService.approve(row.uid)
+      : this.orderService.accept(row.uid);
+    op.pipe(finalize(() => this.busyUid.set(null))).subscribe({
+      next: () => this.load(),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not advance the order.')
+    });
+  }
+
+  canEnterResult(s: ClinicalOrderStatus): boolean {
+    return s === 'ACCEPTED' || s === 'APPROVED' || s === 'IN_PROGRESS';
+  }
 
   kindLabel(k: ClinicalOrderKind): string { return this.kinds.find((x) => x.value === k)?.label ?? k; }
   kindIcon(k: ClinicalOrderKind): string { return this.kinds.find((x) => x.value === k)?.icon ?? 'bi-card-list'; }

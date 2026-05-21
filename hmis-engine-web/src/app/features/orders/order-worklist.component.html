@@ -59,7 +59,14 @@
               <td><span [class]="statusBadgeClass(o.status)">{{ statusLabel(o.status) }}</span></td>
               <td class="hmis-muted small">{{ o.requestedAt | date:'short' }}</td>
               <td class="text-end">
-                @if (canEnterResult(o.status)) {
+                @if (needsGate(o.status)) {
+                  <button type="button" class="btn btn-sm btn-outline-primary" (click)="passGate(o)" [disabled]="busyUid() === o.uid">
+                    @if (busyUid() === o.uid) {
+                      <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Working</span></output>
+                    } @else { <i class="bi bi-check2-circle me-1"></i> }
+                    {{ gateLabel(o.kind) }}
+                  </button>
+                } @else if (canEnterResult(o.status)) {
                   <button type="button" class="btn btn-sm btn-primary" (click)="openResult(o)"><i class="bi bi-pencil-square me-1"></i> Enter result</button>
                 } @else if (o.status === 'COMPLETED') {
                   <button type="button" class="btn btn-sm btn-light border" (click)="openResult(o)"><i class="bi bi-file-earmark-text me-1"></i> View result</button>

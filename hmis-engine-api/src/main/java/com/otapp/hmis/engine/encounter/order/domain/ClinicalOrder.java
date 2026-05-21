@@ -66,6 +66,9 @@ public class ClinicalOrder extends AuditableEntity {
     @Setter @Column(name = "settled_at") private Instant settledAt;
 
     @Column(name = "requested_at", nullable = false) private Instant requestedAt;
+    @Setter @Column(name = "accepted_at") private Instant acceptedAt;
+    @Setter @Column(name = "approved_at") private Instant approvedAt;
+    @Setter @Column(name = "approved_by_username", length = 64) private String approvedByUsername;
     @Setter @Column(name = "completed_at") private Instant completedAt;
 
     @Setter @Column(name = "instructions", length = 1000) private String instructions;
@@ -115,16 +118,53 @@ public class ClinicalOrder extends AuditableEntity {
         }
     }
 
-    public void markInProgress() {
+    /**
+     * Lab / radiology acceptance gate: REQUESTED → ACCEPTED (specimen collected
+     * or study scheduled and accepted). Procedures use {@link #approve} instead.
+     */
+    public void accept() {
+        if (kind == ClinicalOrderKind.PROCEDURE) {
+            throw new BusinessRuleException("Procedures are signed off via approve(), not accept()");
+        }
         if (status != ClinicalOrderStatus.REQUESTED) {
-            throw new BusinessRuleException("Only REQUESTED orders can be started (current: " + status + ")");
+            throw new BusinessRuleException("Only REQUESTED orders can be accepted (current: " + status + ")");
+        }
+        status = ClinicalOrderStatus.ACCEPTED;
+        acceptedAt = Instant.now();
+    }
+
+    /**
+     * Procedure approval gate: REQUESTED → APPROVED (surgeon / anaesthetist
+     * sign-off). Only valid for PROCEDURE orders.
+     */
+    public void approve(String approverUsername) {
+        if (kind != ClinicalOrderKind.PROCEDURE) {
+            throw new BusinessRuleException("Only procedures require approval (kind: " + kind + ")");
+        }
+        if (status != ClinicalOrderStatus.REQUESTED) {
+            throw new BusinessRuleException("Only REQUESTED procedures can be approved (current: " + status + ")");
+        }
+        status = ClinicalOrderStatus.APPROVED;
+        approvedAt = Instant.now();
+        approvedByUsername = approverUsername;
+    }
+
+    public void markInProgress() {
+        boolean gatePassed = (kind == ClinicalOrderKind.PROCEDURE)
+                ? status == ClinicalOrderStatus.APPROVED
+                : status == ClinicalOrderStatus.ACCEPTED;
+        if (!gatePassed) {
+            String gate = kind == ClinicalOrderKind.PROCEDURE ? "APPROVED" : "ACCEPTED";
+            throw new BusinessRuleException(
+                    "Order must be " + gate + " before work begins (current: " + status + ")");
         }
         status = ClinicalOrderStatus.IN_PROGRESS;
     }
 
     public void complete(String result) {
-        if (status != ClinicalOrderStatus.REQUESTED && status != ClinicalOrderStatus.IN_PROGRESS) {
-            throw new BusinessRuleException("Order cannot be completed from " + status);
+        if (status != ClinicalOrderStatus.IN_PROGRESS) {
+            throw new BusinessRuleException(
+                    "Only IN_PROGRESS orders can be completed (current: " + status + ")");
         }
         status = ClinicalOrderStatus.COMPLETED;
         this.result = result;

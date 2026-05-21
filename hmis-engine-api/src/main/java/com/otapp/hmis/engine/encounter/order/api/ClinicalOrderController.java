@@ -61,6 +61,16 @@ public class ClinicalOrderController {
         return ResponseEntity.ok(orderService.requestForOutsider(patientUid, request));
     }
 
+    @PostMapping("/encounters/orders/uid/{orderUid}/accept")
+    public ResponseEntity<ClinicalOrderDto> accept(@PathVariable String orderUid) {
+        return ResponseEntity.ok(orderService.accept(orderUid));
+    }
+
+    @PostMapping("/encounters/orders/uid/{orderUid}/approve")
+    public ResponseEntity<ClinicalOrderDto> approve(@PathVariable String orderUid) {
+        return ResponseEntity.ok(orderService.approve(orderUid));
+    }
+
     @PostMapping("/encounters/orders/uid/{orderUid}/start")
     public ResponseEntity<ClinicalOrderDto> markInProgress(@PathVariable String orderUid) {
         return ResponseEntity.ok(orderService.markInProgress(orderUid));

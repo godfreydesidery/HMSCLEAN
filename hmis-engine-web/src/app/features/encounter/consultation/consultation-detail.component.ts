@@ -270,10 +270,14 @@ export class ConsultationDetailComponent {
     ref.closed.subscribe(() => this.refreshOrders());
   }
 
-  startOrder(o: ClinicalOrder): void {
-    this.orderService.start(o.uid).subscribe({
+  /** The accept (lab/radiology) or approve (procedure) gate before the order can be worked. */
+  orderGateLabel(o: ClinicalOrder): string { return o.kind === 'PROCEDURE' ? 'Approve' : 'Accept'; }
+
+  passOrderGate(o: ClinicalOrder): void {
+    const op = o.kind === 'PROCEDURE' ? this.orderService.approve(o.uid) : this.orderService.accept(o.uid);
+    op.subscribe({
       next: () => this.refreshOrders(),
-      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not start order.')
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not advance order.')
     });
   }
 

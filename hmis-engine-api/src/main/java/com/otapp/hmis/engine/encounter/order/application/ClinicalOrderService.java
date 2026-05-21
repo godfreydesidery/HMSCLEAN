@@ -106,6 +106,22 @@ public class ClinicalOrderService {
         return toDto(order, descriptor);
     }
 
+    /** Lab / radiology acceptance gate (specimen collected / study accepted): REQUESTED → ACCEPTED. */
+    @Transactional
+    public ClinicalOrderDto accept(String uid) {
+        ClinicalOrder order = loadOrThrow(uid);
+        order.accept();
+        return toDto(order);
+    }
+
+    /** Procedure approval gate (surgeon / anaesthetist sign-off): REQUESTED → APPROVED. */
+    @Transactional
+    public ClinicalOrderDto approve(String uid) {
+        ClinicalOrder order = loadOrThrow(uid);
+        order.approve(currentUsername());
+        return toDto(order);
+    }
+
     @Transactional
     public ClinicalOrderDto markInProgress(String uid) {
         ClinicalOrder order = loadOrThrow(uid);

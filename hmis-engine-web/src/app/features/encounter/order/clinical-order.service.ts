@@ -26,6 +26,14 @@ export class ClinicalOrderService {
     return this.http.post<ClinicalOrder>(`${this.apiBase}/patients/uid/${patientUid}/outsider-orders`, req);
   }
 
+  accept(orderUid: string): Observable<ClinicalOrder> {
+    return this.http.post<ClinicalOrder>(`${this.apiBase}/orders/uid/${orderUid}/accept`, {});
+  }
+
+  approve(orderUid: string): Observable<ClinicalOrder> {
+    return this.http.post<ClinicalOrder>(`${this.apiBase}/orders/uid/${orderUid}/approve`, {});
+  }
+
   start(orderUid: string): Observable<ClinicalOrder> {
     return this.http.post<ClinicalOrder>(`${this.apiBase}/orders/uid/${orderUid}/start`, {});
   }

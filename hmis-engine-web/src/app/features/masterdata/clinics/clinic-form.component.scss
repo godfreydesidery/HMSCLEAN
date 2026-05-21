@@ -1,10 +1,10 @@
 .modal-header,
 .modal-footer {
-  background: #fff;
+  background: var(--hmis-surface);
 }
 
 .modal-title i {
-  color: #2563eb;
+  color: var(--hmis-accent);
 }
 
 textarea.form-control {

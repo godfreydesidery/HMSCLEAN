@@ -4,6 +4,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 
 import { AuthService } from '../../core/auth/auth.service';
+import { ThemeService } from '../../core/theme/theme.service';
 
 interface NavItem {
   label: string;
@@ -26,9 +27,21 @@ interface NavGroup {
 })
 export class ShellComponent {
   private readonly auth = inject(AuthService);
+  private readonly theme = inject(ThemeService);
 
   readonly user = this.auth.user;
   readonly sidebarCollapsed = signal(false);
+
+  readonly themes = this.theme.themes;
+  readonly currentTheme = this.theme.current;
+
+  constructor() {
+    this.theme.init();
+  }
+
+  selectTheme(id: string): void {
+    this.theme.select(id);
+  }
 
   private readonly allGroups: NavGroup[] = [
     {

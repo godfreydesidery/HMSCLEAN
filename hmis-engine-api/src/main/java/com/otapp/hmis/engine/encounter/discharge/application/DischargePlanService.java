@@ -3,6 +3,8 @@ package com.otapp.hmis.engine.encounter.discharge.application;
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.error.ConflictException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
+import com.otapp.hmis.engine.encounter.admission.application.AdmissionDtos.DischargeRequest;
+import com.otapp.hmis.engine.encounter.admission.application.AdmissionService;
 import com.otapp.hmis.engine.encounter.admission.domain.Admission;
 import com.otapp.hmis.engine.encounter.admission.domain.AdmissionRepository;
 import com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus;
@@ -32,6 +34,7 @@ public class DischargePlanService {
 
     private final DischargePlanRepository planRepository;
     private final AdmissionRepository admissionRepository;
+    private final AdmissionService admissionService;
 
     @Transactional
     public DischargePlanDto create(String admissionUid, CreatePlanRequest request) {
@@ -84,16 +87,17 @@ public class DischargePlanService {
 
         plan.approve(currentUsername());
 
-        // Drive the admission closure. The structured fields stay on the
-        // plan; the admission's free-text dischargeSummary is set to a
-        // short pointer so casual lookups make sense.
-        String pointer = "See discharge plan " + plan.getUid();
+        // Drive the admission closure through AdmissionService so the closure
+        // gate (which now requires this APPROVED plan) and bed release run in
+        // one place. The structured fields stay on the plan; the admission's
+        // free-text dischargeSummary is set to a short pointer.
+        DischargeRequest pointer = new DischargeRequest("See discharge plan " + plan.getUid());
         switch (plan.getKind()) {
-            case DISCHARGE -> admission.discharge(pointer);
-            case DECEASED -> admission.markDeceased(pointer);
-            case REFERRAL -> admission.transferOut(pointer);
+            case DISCHARGE -> admissionService.discharge(admissionUid, pointer);
+            case DECEASED -> admissionService.markDeceased(admissionUid, pointer);
+            case REFERRAL -> admissionService.transferOut(admissionUid, pointer);
         }
-        return toDto(plan, admission);
+        return toDto(plan, loadAdmission(admissionUid));
     }
 
     @Transactional

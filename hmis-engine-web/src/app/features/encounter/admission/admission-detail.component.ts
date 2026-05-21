@@ -16,6 +16,8 @@ import { Ward } from '../../masterdata/wards/ward.types';
 import { PAYMENT_TYPES, PaymentType } from '../../patient/patient.types';
 import { AdmissionService } from './admission.service';
 import { ADMISSION_STATUSES, Admission, AdmissionStatus } from './admission.types';
+import { DischargePlanModalComponent } from './discharge-plan-modal.component';
+import { DischargePlan } from './discharge-plan.types';
 import { ProgressNoteService } from './progress-note.service';
 import { PROGRESS_NOTE_KINDS, ProgressNote, ProgressNoteKind } from './progress-note.types';
 
@@ -63,9 +65,6 @@ export class AdmissionDetailComponent {
   readonly transferForm = this.fb.nonNullable.group({
     wardUid: ['', [Validators.required]],
     bedLabel: ['', [Validators.maxLength(32)]]
-  });
-  readonly dischargeForm = this.fb.nonNullable.group({
-    summary: ['', [Validators.maxLength(1000)]]
   });
   readonly cancelForm = this.fb.nonNullable.group({
     reason: ['', [Validators.maxLength(255)]]
@@ -146,24 +145,24 @@ export class AdmissionDetailComponent {
       });
   }
 
-  openDischarge(content: unknown, kind: 'discharge' | 'deceased' | 'transferOut'): void {
+  /**
+   * Discharge / deceased / referral all go through the structured discharge
+   * plan (PROCESS_MISMATCHES.md M17): author the plan, then a different user
+   * approves it — approval is what closes the admission. The direct
+   * discharge endpoints are gated server-side on an APPROVED plan.
+   */
+  openDischargePlan(): void {
     const a = this.admission(); if (!a) return;
-    this.dischargeForm.reset({ summary: a.dischargeSummary ?? '' });
-    this.modal.open(content, { centered: true }).result.then((action) => {
-      if (action === kind) this.confirmDischarge(a, kind);
-    }, () => {});
-  }
-
-  private confirmDischarge(a: Admission, kind: 'discharge' | 'deceased' | 'transferOut'): void {
-    if (this.dischargeForm.invalid) return;
-    const summary = this.dischargeForm.controls.summary.value.trim() || null;
-    this.busy.set(true);
-    const obs = kind === 'discharge' ? this.admissionService.discharge(a.uid, summary)
-              : kind === 'deceased' ? this.admissionService.markDeceased(a.uid, summary)
-              : this.admissionService.transferOut(a.uid, summary);
-    obs.pipe(finalize(() => this.busy.set(false))).subscribe({
-      next: (updated) => { this.admission.set(updated); this.actionMessage.set('Admission closed.'); },
-      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Action failed.')
+    const ref = this.modal.open(DischargePlanModalComponent, { size: 'lg', backdrop: 'static', scrollable: true });
+    (ref.componentInstance as DischargePlanModalComponent).admissionUid = a.uid;
+    ref.closed.subscribe((plan: DischargePlan | undefined) => {
+      if (!plan) return;
+      // Approval closed the admission — refresh the view.
+      this.actionMessage.set('Discharge plan approved — admission closed.');
+      this.admissionService.findByUid(a.uid).subscribe({
+        next: (updated) => this.admission.set(updated),
+        error: () => { /* keep previous */ }
+      });
     });
   }
 

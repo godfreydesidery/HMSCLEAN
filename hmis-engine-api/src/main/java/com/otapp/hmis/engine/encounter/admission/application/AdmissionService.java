@@ -15,6 +15,10 @@ import com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus;
 import com.otapp.hmis.engine.encounter.admission.infrastructure.AdmissionNumberGenerator;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
+import com.otapp.hmis.engine.encounter.discharge.domain.DischargePlan;
+import com.otapp.hmis.engine.encounter.discharge.domain.DischargePlanKind;
+import com.otapp.hmis.engine.encounter.discharge.domain.DischargePlanRepository;
+import com.otapp.hmis.engine.encounter.discharge.domain.DischargePlanStatus;
 import com.otapp.hmis.engine.iam.domain.User;
 import com.otapp.hmis.engine.iam.domain.UserRepository;
 import com.otapp.hmis.engine.masterdata.bed.domain.Bed;
@@ -44,6 +48,7 @@ public class AdmissionService {
     private final InsurancePlanRepository insurancePlanRepository;
     private final UserRepository userRepository;
     private final ConsultationRepository consultationRepository;
+    private final DischargePlanRepository dischargePlanRepository;
     private final AdmissionNumberGenerator numberGenerator;
 
     @Transactional
@@ -138,6 +143,7 @@ public class AdmissionService {
     @Transactional
     public AdmissionDto discharge(String uid, DischargeRequest request) {
         Admission admission = loadOrThrow(uid);
+        requireApprovedPlan(uid, DischargePlanKind.DISCHARGE);
         admission.discharge(emptyToNull(request == null ? null : request.summary()));
         releaseCurrentBed(admission);
         return toDto(admission);
@@ -146,6 +152,7 @@ public class AdmissionService {
     @Transactional
     public AdmissionDto markDeceased(String uid, DischargeRequest request) {
         Admission admission = loadOrThrow(uid);
+        requireApprovedPlan(uid, DischargePlanKind.DECEASED);
         admission.markDeceased(emptyToNull(request == null ? null : request.summary()));
         releaseCurrentBed(admission);
         return toDto(admission);
@@ -154,9 +161,24 @@ public class AdmissionService {
     @Transactional
     public AdmissionDto transferOut(String uid, DischargeRequest request) {
         Admission admission = loadOrThrow(uid);
+        requireApprovedPlan(uid, DischargePlanKind.REFERRAL);
         admission.transferOut(emptyToNull(request == null ? null : request.summary()));
         releaseCurrentBed(admission);
         return toDto(admission);
+    }
+
+    /**
+     * Legacy gate (PROCESS_MISMATCHES.md M17): an admission may only be closed
+     * once a discharge plan of the matching kind has been APPROVED by the ward
+     * administrator. The discharge-plan approval path drives closure through
+     * here, so the plan is APPROVED by the time this runs.
+     */
+    private void requireApprovedPlan(String admissionUid, DischargePlanKind kind) {
+        DischargePlan plan = dischargePlanRepository.findByAdmissionUid(admissionUid).orElse(null);
+        if (plan == null || plan.getStatus() != DischargePlanStatus.APPROVED || plan.getKind() != kind) {
+            throw new BusinessRuleException(
+                    "An APPROVED " + kind + " discharge plan is required before closing the admission");
+        }
     }
 
     @Transactional

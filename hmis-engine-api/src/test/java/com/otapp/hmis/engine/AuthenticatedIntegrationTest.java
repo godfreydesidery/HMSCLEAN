@@ -49,6 +49,44 @@ public abstract class AuthenticatedIntegrationTest extends AbstractIntegrationTe
         return h;
     }
 
+    /**
+     * Provisions a fresh, uniquely-named user with the ROOT role (so it carries
+     * every privilege) and returns an access token for it. Useful for workflows
+     * that enforce segregation of duties — e.g. a discharge plan must be
+     * approved by someone other than its author. The shared test container is
+     * JVM-lifetime, so the username is made unique per call.
+     */
+    protected String secondUserToken() {
+        String username = "approver" + Long.toString(System.nanoTime(), 36);
+        ResponseEntity<Object> created = post(
+                "/iam/users",
+                java.util.Map.of(
+                        "username", username,
+                        "password", "Approver!123",
+                        "firstName", "Test",
+                        "lastName", "Approver",
+                        "email", username + "@test.local",
+                        "roles", java.util.Set.of("ROOT")),
+                Object.class);
+        if (!created.getStatusCode().is2xxSuccessful()) {
+            throw new IllegalStateException("Failed to provision second user: " + created.getStatusCode());
+        }
+        LoginResponse login = rest.postForObject(
+                "/auth/login", new LoginRequest(username, "Approver!123"), LoginResponse.class);
+        if (login == null || login.tokens() == null) {
+            throw new IllegalStateException("Second-user login failed for " + username);
+        }
+        return login.tokens().accessToken();
+    }
+
+    /** POST as a specific bearer token (not the default ROOT). */
+    protected <T> ResponseEntity<T> postAs(String token, String path, Object body, Class<T> type) {
+        HttpHeaders h = new HttpHeaders();
+        h.setBearerAuth(token);
+        h.setContentType(MediaType.APPLICATION_JSON);
+        return rest.exchange(path, HttpMethod.POST, new HttpEntity<>(body, h), type);
+    }
+
     protected <T> ResponseEntity<T> post(String path, Object body, Class<T> type) {
         return rest.exchange(path, HttpMethod.POST, new HttpEntity<>(body, authHeaders()), type);
     }

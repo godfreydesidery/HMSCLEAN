@@ -40,9 +40,19 @@ class NurseWorklistIT extends AuthenticatedIntegrationTest {
         assertThat(nurseWorklistContains(admissionUid, null)).isTrue();
         assertThat(nurseWorklistContains(admissionUid, GENERAL_WARD_UID)).isTrue();
 
-        // Discharge → no longer on the worklist.
-        expectOk(post("/encounters/admissions/uid/" + admissionUid + "/discharge",
-                Map.of("summary", "stable"), Map.class));
+        // Discharge goes through an APPROVED discharge plan (legacy gate, M17):
+        // create the plan with the required fields, then approve it as a
+        // different user (segregation of duties) — approval closes the admission.
+        expectOk(post("/encounters/admissions/uid/" + admissionUid + "/discharge-plan",
+                Map.of("kind", "DISCHARGE",
+                        "history", "admitted for observation",
+                        "management", "supportive care",
+                        "recommendations", "rest, follow up in 1 week"),
+                Map.class));
+        expectOk(postAs(secondUserToken(),
+                "/encounters/admissions/uid/" + admissionUid + "/discharge-plan/approve",
+                null, Map.class));
+
         assertThat(nurseWorklistContains(admissionUid, null))
                 .as("Discharged admission must drop off the nurse worklist").isFalse();
     }

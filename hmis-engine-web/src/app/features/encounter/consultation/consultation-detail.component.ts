@@ -111,6 +111,14 @@ export class ConsultationDetailComponent {
   readonly workingDiagnoses = computed(() => this.diagnoses().filter((d) => d.kind === 'WORKING'));
   readonly finalDiagnoses = computed(() => this.diagnoses().filter((d) => d.kind === 'FINAL'));
 
+  /** Clinical orders grouped into a separate table per kind (lab / radiology / procedure). */
+  readonly orderGroups = computed(() => {
+    const all = this.orders();
+    return this.orderKinds
+      .map((k) => ({ kind: k.value, label: k.label, icon: k.icon, rows: all.filter((o) => o.kind === k.value) }))
+      .filter((g) => g.rows.length > 0);
+  });
+
   constructor() {
     const uid = this.route.snapshot.paramMap.get('uid');
     if (!uid) {

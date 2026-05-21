@@ -67,3 +67,32 @@ refused for a CASH patient until the consultation fee is settled.
 - **Documented:** M11 (Visit), M12 (NonConsultation).
 
 Tick items here as they land; mirror the result into `PROCESS.md` §17.
+
+---
+
+## Second pass — system-wide audit (2026-05-21)
+
+A wider sweep (clinical orders, nursing, pharmacy/store, billing, procurement, HR)
+beyond the registration→consultation→queue handoffs. Verdicts below were spot-checked
+against current code. The headline is **M13**: the legacy "pay before the service is
+rendered" rule for CASH patients is not enforced anywhere — the deeper non-adherence.
+
+| # | Legacy behavior (proven) | As-built divergence | Severity | Status |
+|---|---|---|---|---|
+| **M13** | **Payment before service for CASH:** each lab/radiology/procedure order and each prescription gets an UNPAID bill at order time; the tech/pharmacist **cannot process or dispense** until it is PAID/COVERED | **No gate.** `StockService.dispense()` checks only `APPROVED` + stock; `ClinicalOrder.markInProgress/complete` have no payment check. A CASH patient's labs/meds can be delivered unpaid (revenue leak). The `settled` flag (Phase 1) only *filters* queues, it doesn't *block*. | **High** | ⬜ needs decision (billing-model change: bill at order time vs at point-of-service) |
+| **M14** | **Procedure approval gate:** PENDING → APPROVED (surgeon/anaesthetist sign-off) → COMPLETED | `ClinicalOrderStatus` has no `APPROVED`; any user can move a procedure REQUESTED → IN_PROGRESS → COMPLETED. Operative record is a sibling aggregate that doesn't gate completion. | **High** | ⬜ planned |
+| **M15** | **Nursing drug administration (MAR):** nurse records actual dose given + time + patient response per administration (`PatientPrescriptionChart`) | No equivalent entity. Only pharmacy `dispensedAt` exists; the actual bedside administration is untracked. | **High** | ⬜ planned |
+| **M16** | **Lab/radiology accept step:** PENDING → ACCEPTED (specimen collected / study scheduled+accepted) → COMPLETED | Single coarse lifecycle (REQUESTED → IN_PROGRESS → COMPLETED) and `complete()` allows REQUESTED → COMPLETED directly — the specimen-custody / schedule-accept marker is lost. | Medium | ⬜ planned |
+| **M17** | **Discharge requires an APPROVED discharge plan** before the admission can close | `DischargePlan` has the PENDING → APPROVED gate, but `AdmissionService.discharge()` doesn't require an approved plan — it's bypassable by calling discharge directly. | Medium | ⬜ planned |
+| **M18** | Procurement segregation of duties: VERIFY (manager) vs APPROVE (director) | LPO/GRN keep both states, but every endpoint is gated by one `PROCUREMENT_ACCESS` privilege — no role split. (Legacy also used a broad privilege, so this is a control *enhancement* opportunity.) | Medium | 📝 decision (beyond strict legacy parity) |
+| **M19** | Payroll DRAFT → VERIFIED → APPROVED → PAID | Current is DRAFT → APPROVED → PAID — the VERIFIED checkpoint is collapsed. | Medium | ⬜ planned |
+| **M20** | Conversion coefficients applied on **every** stock movement | Applied on receive/adjust/write-off/GRN, but **not** on transfer-issue or dispense (those assume base units). Known follow-up. | Medium | ⬜ planned |
+| **M21** | RO/TO/RN: stock moves **only when the RN is COMPLETED** | Current decrements at TO-issue (TRANSFER_OUT) and credits at RN (TRANSFER_IN). Audit trail intact, narrower in-transit window. | Low | 📝 acceptable simplification |
+| **M22** | Insurance: per-service plan pricing **plus** claim submission / pre-auth / COVERED routing | Pricing only (`ServicePrice` matrix). No claim entity, pre-auth, or claims reconciliation lane. | Medium | 📝 scope decision (claims may be out-of-HMS) |
+| **M23** | Ward-day charge accrues daily (interim billing point mid-stay) | Computed on-demand at invoice generation; equivalent only if regenerated regularly — no scheduled mid-stay accrual. | Low | 📝 tie to M13 |
+| **M24** | Payroll `PayrollDetail` itemises tax/insurance/loan deductions | Snapshot gross/deductions/net only; `PayrollComponent`/`Band` tables exist but aren't wired into the period flow. | Medium | 📝 partly deliberate (payroll is a skeleton) |
+| **M25** | `ClinicianPerformance` persisted + feeds incentive calculations | Computed on-demand (read-only); not persisted, not linked to payroll incentives. | Low | 📝 partly deliberate |
+
+**Confirmed MATCH / acceptable (not gaps):** prescription state machine (full PENDING→SOLD chain enforced), retail sale-order lifecycle, multi-pharmacy issue/sales split, FEFO batch+expiry+wastage, central store + RO/TO/RN three docs, three-way match (PO/GRN/supplier invoice), supplier price list, GRN per-line batch (denormalised), credit notes/refunds (richer than legacy), cashier-shift reconciliation, bed model, dosage/route/frequency picklists, masterdata coverage, nursing vitals/care-plan/progress-notes/consumable-chart/dressing-chart, deceased/referral notes.
+
+**Recommended fix order:** clinical control gates first (M14 procedure approval, M16 order lifecycle, M17 discharge enforcement, M15 MAR), then the revenue gate (M13, with its billing-model decision), then finance/procurement controls (M19, M18, M24, M25). M20–M25 marked 📝 are scope/judgement calls to confirm before building.

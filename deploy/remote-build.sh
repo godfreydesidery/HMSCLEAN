@@ -4,11 +4,18 @@
 set -euo pipefail
 cd ~/hmis
 
-# Host deps (idempotent).
+# Host deps (idempotent). Package manager differs by AMI: dnf (Amazon Linux), apt (Ubuntu).
 if ! command -v docker >/dev/null 2>&1; then
-  sudo dnf install -y docker
+  if command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y docker
+  elif command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get update -y
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io
+  else
+    echo "No supported package manager (dnf/apt-get) found" >&2; exit 1
+  fi
   sudo systemctl enable --now docker
-  sudo usermod -aG docker ec2-user || true
+  sudo usermod -aG docker "$(whoami)" || true
 fi
 if ! sudo swapon --show 2>/dev/null | grep -q /swapfile; then
   sudo dd if=/dev/zero of=/swapfile bs=1M count=2048

@@ -10,6 +10,7 @@ import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineUnit;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineUnitRepository;
 import com.otapp.hmis.engine.masterdata.pharmacy.domain.Pharmacy;
 import com.otapp.hmis.engine.masterdata.pharmacy.domain.PharmacyRepository;
+import com.otapp.hmis.engine.masterdata.store.application.StoreStaffService;
 import com.otapp.hmis.engine.masterdata.store.domain.Store;
 import com.otapp.hmis.engine.masterdata.store.domain.StoreRepository;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockService;
@@ -54,6 +55,7 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -84,6 +86,7 @@ public class PharmacyStoreTransferService {
 
     private final StoreStockService storeStockService;
     private final StockService pharmacyStockService;
+    private final StoreStaffService storeStaffService;
 
     private final PharmacyToStoreRONumberGenerator roNumberGenerator;
     private final StoreToPharmacyTONumberGenerator toNumberGenerator;
@@ -238,6 +241,7 @@ public class PharmacyStoreTransferService {
     @Transactional
     public TODto issueTO(String toUid) {
         StoreToPharmacyTO to = loadTO(toUid);
+        requireStoreMembership(to.getStoreUid());
         PharmacyToStoreRO ro = loadRO(to.getRoUid());
 
         List<StoreToPharmacyTOLine> lines = toLineRepository.findAllByToUidOrderByCreatedAtAsc(to.getUid());
@@ -413,6 +417,26 @@ public class PharmacyStoreTransferService {
     // ========================================================================
     // Loaders + mapping
     // ========================================================================
+
+    /**
+     * Legacy fidelity gate: only a store keeper affiliated with the source
+     * store may issue goods out of it ({@code StorePerson.stores}).
+     */
+    private void requireStoreMembership(String storeUid) {
+        String username = currentUsername();
+        if (!storeStaffService.isAssigned(storeUid, username)) {
+            throw new BusinessRuleException(
+                    "User " + username + " is not assigned to store " + storeUid);
+        }
+    }
+
+    private static String currentUsername() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null) {
+            throw new BusinessRuleException("Authenticated user required");
+        }
+        return auth.getName();
+    }
 
     private PharmacyToStoreRO loadRO(String uid) {
         return roRepository.findByUid(uid)

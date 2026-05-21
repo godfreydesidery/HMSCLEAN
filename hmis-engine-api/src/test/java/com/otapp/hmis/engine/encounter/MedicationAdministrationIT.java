@@ -36,7 +36,8 @@ class MedicationAdministrationIT extends AuthenticatedIntegrationTest {
         String consultationUid = stringField(expectOk(post(
                 "/encounters/consultations",
                 Map.of("patientUid", patientUid, "clinicUid", OPD_CLINIC_UID,
-                        "clinicianUsername", "root", "paymentType", "CASH", "reason", "infection"),
+                        "clinicianUsername", clinicianAffiliatedWith(OPD_CLINIC_UID),
+                        "paymentType", "CASH", "reason", "infection"),
                 Map.class)), "uid");
 
         String prescriptionUid = stringField(expectOk(post(

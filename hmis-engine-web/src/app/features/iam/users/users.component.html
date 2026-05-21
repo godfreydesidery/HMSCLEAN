@@ -89,6 +89,9 @@
                   <button type="button" class="btn btn-sm btn-light border" ngbDropdownToggle aria-label="Actions"><i class="bi bi-three-dots"></i></button>
                   <div ngbDropdownMenu class="shadow-sm">
                     <button type="button" ngbDropdownItem (click)="openRoles(u)"><i class="bi bi-shield-lock me-2"></i>Assign roles</button>
+                    @if (isClinician(u)) {
+                      <button type="button" ngbDropdownItem (click)="openProviderProfile(u)"><i class="bi bi-person-vcard me-2"></i>Provider profile</button>
+                    }
                     <button type="button" ngbDropdownItem (click)="openReset(u)"><i class="bi bi-key me-2 text-danger"></i>Reset password</button>
                     @if (u.locked) {
                       <button type="button" ngbDropdownItem (click)="unlock(u)"><i class="bi bi-unlock me-2 text-warning"></i>Unlock</button>

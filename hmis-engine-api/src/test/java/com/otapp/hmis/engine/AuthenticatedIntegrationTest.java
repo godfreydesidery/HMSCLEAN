@@ -60,6 +60,47 @@ public abstract class AuthenticatedIntegrationTest extends AbstractIntegrationTe
         return tokenForRoles("approver", java.util.Set.of("ROOT"));
     }
 
+    private String sharedClinicianUsername;
+    private String sharedClinicianUid;
+
+    /**
+     * Provisions a CLINICIAN (once per test instance) and affiliates it with the
+     * given clinic, returning its username. Booking a consultation now requires
+     * the clinician to hold the CLINICIAN role and be assigned to the clinic, so
+     * tests use this instead of the bootstrap ROOT user. Idempotent and
+     * multi-clinic — call it per clinic the same clinician should serve.
+     */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    protected String clinicianAffiliatedWith(String clinicUid) {
+        if (sharedClinicianUsername == null) {
+            String username = "clin" + Long.toString(System.nanoTime(), 36);
+            ResponseEntity<java.util.Map> created = post(
+                    "/iam/users",
+                    java.util.Map.of(
+                            "username", username,
+                            "password", "Clinician!123",
+                            "firstName", "Test",
+                            "lastName", "Clinician",
+                            "email", username + "@test.local",
+                            "roles", java.util.Set.of("CLINICIAN")),
+                    java.util.Map.class);
+            if (!created.getStatusCode().is2xxSuccessful()) {
+                throw new IllegalStateException("Failed to provision clinician: " + created.getStatusCode());
+            }
+            sharedClinicianUsername = username;
+            sharedClinicianUid = (String) created.getBody().get("uid");
+        }
+        ResponseEntity<java.util.Map> assigned = post(
+                "/masterdata/clinics/uid/" + clinicUid + "/clinicians",
+                java.util.Map.of("userUid", sharedClinicianUid),
+                java.util.Map.class);
+        if (!assigned.getStatusCode().is2xxSuccessful()) {
+            throw new IllegalStateException("Failed to affiliate clinician with clinic " + clinicUid
+                    + ": " + assigned.getStatusCode());
+        }
+        return sharedClinicianUsername;
+    }
+
     /** Provision a fresh, uniquely-named user with the given roles and return its access token. */
     protected String tokenForRoles(String prefix, java.util.Set<String> roles) {
         String username = prefix + Long.toString(System.nanoTime(), 36);

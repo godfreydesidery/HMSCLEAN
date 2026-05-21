@@ -1,11 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize, forkJoin } from 'rxjs';
 
-import { StaffDirectoryService, StaffOption } from '../../../core/directory/staff-directory.service';
 import { PatientSearchComponent } from '../../../shared/patient-search/patient-search.component';
+import { ClinicCliniciansService } from '../../masterdata/clinics/clinic-clinicians.service';
+import { ClinicClinician } from '../../masterdata/clinics/clinic-clinicians.types';
 import { ClinicService } from '../../masterdata/clinics/clinic.service';
 import { Clinic } from '../../masterdata/clinics/clinic.types';
 import { InsurancePlanService } from '../../masterdata/insurance-plans/insurance-plan.service';
@@ -29,14 +31,16 @@ export class StartConsultationComponent {
   private readonly consultationService = inject(ConsultationService);
   private readonly clinicService = inject(ClinicService);
   private readonly planService = inject(InsurancePlanService);
-  private readonly staffService = inject(StaffDirectoryService);
+  private readonly clinicCliniciansService = inject(ClinicCliniciansService);
   private readonly invoiceService = inject(InvoiceService);
 
   readonly paymentTypes = PAYMENT_TYPES;
 
   readonly patient = signal<Patient | null>(null);
   readonly clinics = signal<Clinic[]>([]);
-  readonly clinicians = signal<StaffOption[]>([]);
+  /** Clinicians affiliated with the currently-selected clinic. */
+  readonly clinicians = signal<ClinicClinician[]>([]);
+  readonly loadingClinicians = signal(false);
   readonly plans = signal<InsurancePlan[]>([]);
   /** Prior COMPLETED consultations for the selected patient (most recent first, top 10). */
   readonly followUpCandidates = signal<ConsultationSummary[]>([]);
@@ -65,21 +69,37 @@ export class StartConsultationComponent {
   constructor() {
     forkJoin({
       clinics: this.clinicService.search({ active: true, size: 200, sort: 'name,asc' }),
-      clinicians: this.staffService.byRole('CLINICIAN'),
       plans: this.planService.search({ active: true, size: 200, sort: 'name,asc' })
     }).pipe(finalize(() => this.loadingLookups.set(false))).subscribe({
-      next: ({ clinics, clinicians, plans }) => {
+      next: ({ clinics, plans }) => {
         this.clinics.set(clinics.content);
-        this.clinicians.set(clinicians);
         this.plans.set(plans.content);
       },
       error: () => this.errorMessage.set('Could not load lookups.')
     });
 
+    // Dependent dropdown: only offer clinicians who work at the chosen clinic.
+    this.form.controls.clinicUid.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe((clinicUid) => this.loadClinicians(clinicUid));
+
     const followUpOf = this.route.snapshot.queryParamMap.get('followUpOf');
     if (followUpOf) {
       this.form.controls.followUpOfConsultationUid.setValue(followUpOf);
     }
+  }
+
+  private loadClinicians(clinicUid: string): void {
+    this.form.controls.clinicianUsername.setValue('');
+    this.clinicians.set([]);
+    if (!clinicUid) { return; }
+    this.loadingClinicians.set(true);
+    this.clinicCliniciansService.list(clinicUid)
+      .pipe(finalize(() => this.loadingClinicians.set(false)))
+      .subscribe({
+        next: (rows) => this.clinicians.set(rows),
+        error: () => this.errorMessage.set('Could not load clinicians for the selected clinic.')
+      });
   }
 
   /** Patient chosen via the search typeahead (or preloaded from the deep-link). */

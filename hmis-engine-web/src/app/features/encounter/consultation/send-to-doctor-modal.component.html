@@ -28,12 +28,13 @@
 
       <div class="col-md-6">
         <label class="form-label" for="std-clinician">Clinician <span class="text-danger">*</span></label>
-        <select id="std-clinician" name="clinicianUsername" class="form-select" formControlName="clinicianUsername">
-          <option value="" disabled>{{ loadingLookups() ? 'Loading…' : '— Select a clinician —' }}</option>
-          @for (c of clinicians(); track c.username) { <option [value]="c.username">{{ c.fullName }} ({{ c.username }})</option> }
+        <select id="std-clinician" name="clinicianUsername" class="form-select" formControlName="clinicianUsername"
+                [attr.disabled]="!form.controls.clinicUid.value ? '' : null">
+          <option value="" disabled>{{ loadingClinicians() ? 'Loading…' : (form.controls.clinicUid.value ? '— Select a clinician —' : '— Select a clinic first —') }}</option>
+          @for (c of clinicians(); track c.username) { <option [value]="c.username">{{ c.fullName }}{{ c.specialty ? ' — ' + c.specialty : '' }} ({{ c.username }})</option> }
         </select>
-        @if (!loadingLookups() && clinicians().length === 0) {
-          <div class="form-text text-warning">No users with the CLINICIAN role are enabled.</div>
+        @if (form.controls.clinicUid.value && !loadingClinicians() && clinicians().length === 0) {
+          <div class="form-text text-warning">No clinicians are assigned to this clinic.</div>
         }
       </div>
 

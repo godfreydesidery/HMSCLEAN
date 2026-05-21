@@ -6,6 +6,7 @@ import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
 import { StoreFormComponent } from './store-form.component';
+import { StoreKeepersComponent } from './store-keepers.component';
 import { StoreService } from './store.service';
 import { Store } from './store.types';
 
@@ -72,6 +73,7 @@ export class StoreListComponent {
 
   openCreate(): void { const r = this.modal.open(StoreFormComponent, { size: 'lg', backdrop: 'static' }); r.closed.subscribe(() => this.refresh$.next()); }
   openEdit(s: Store): void { const r = this.modal.open(StoreFormComponent, { size: 'lg', backdrop: 'static' }); (r.componentInstance as StoreFormComponent).existing = s; r.closed.subscribe(() => this.refresh$.next()); }
+  openKeepers(s: Store): void { const r = this.modal.open(StoreKeepersComponent, { size: 'lg', backdrop: 'static' }); (r.componentInstance as StoreKeepersComponent).store = s; }
 
   toggleActive(s: Store): void {
     this.storeService.setActive(s.uid, !s.active).subscribe({

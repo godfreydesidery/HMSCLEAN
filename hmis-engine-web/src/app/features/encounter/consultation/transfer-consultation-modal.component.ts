@@ -1,10 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
 
-import { StaffDirectoryService, StaffOption } from '../../../core/directory/staff-directory.service';
+import { ClinicCliniciansService } from '../../masterdata/clinics/clinic-clinicians.service';
+import { ClinicClinician } from '../../masterdata/clinics/clinic-clinicians.types';
 import { ClinicService } from '../../masterdata/clinics/clinic.service';
 import { Clinic } from '../../masterdata/clinics/clinic.types';
 import { ConsultationService } from './consultation.service';
@@ -22,11 +24,13 @@ export class TransferConsultationModalComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly consultationService = inject(ConsultationService);
   private readonly clinicService = inject(ClinicService);
-  private readonly staffService = inject(StaffDirectoryService);
+  private readonly clinicCliniciansService = inject(ClinicCliniciansService);
   protected readonly activeModal = inject(NgbActiveModal);
 
   readonly clinics = signal<Clinic[]>([]);
-  readonly clinicians = signal<StaffOption[]>([]);
+  /** Clinicians affiliated with the chosen target clinic. */
+  readonly clinicians = signal<ClinicClinician[]>([]);
+  readonly loadingClinicians = signal(false);
   readonly submitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
@@ -39,8 +43,24 @@ export class TransferConsultationModalComponent implements OnInit {
   ngOnInit(): void {
     this.clinicService.search({ active: true, size: 200, sort: 'name,asc' })
       .subscribe({ next: (r) => this.clinics.set(r.content), error: () => { /* dropdown stays empty */ } });
-    this.staffService.byRole('CLINICIAN')
-      .subscribe({ next: (rows) => this.clinicians.set(rows), error: () => { /* */ } });
+
+    // The transfer gate only accepts a clinician who works at the target clinic.
+    this.form.controls.targetClinicUid.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe((clinicUid) => this.loadClinicians(clinicUid));
+  }
+
+  private loadClinicians(clinicUid: string): void {
+    this.form.controls.targetClinicianUsername.setValue('');
+    this.clinicians.set([]);
+    if (!clinicUid) { return; }
+    this.loadingClinicians.set(true);
+    this.clinicCliniciansService.list(clinicUid)
+      .pipe(finalize(() => this.loadingClinicians.set(false)))
+      .subscribe({
+        next: (rows) => this.clinicians.set(rows),
+        error: () => this.errorMessage.set('Could not load clinicians for the selected clinic.')
+      });
   }
 
   submit(): void {

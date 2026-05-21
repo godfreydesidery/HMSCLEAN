@@ -5,6 +5,7 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
+import { ClinicCliniciansComponent } from './clinic-clinicians.component';
 import { ClinicFormComponent } from './clinic-form.component';
 import { ClinicService } from './clinic.service';
 import { CLINIC_TYPES, Clinic, ClinicType } from './clinic.types';
@@ -135,6 +136,11 @@ export class ClinicListComponent {
     const ref = this.modal.open(ClinicFormComponent, { size: 'lg', backdrop: 'static' });
     (ref.componentInstance as ClinicFormComponent).existing = clinic;
     ref.closed.subscribe(() => this.refresh$.next());
+  }
+
+  openClinicians(clinic: Clinic): void {
+    const ref = this.modal.open(ClinicCliniciansComponent, { size: 'lg', backdrop: 'static' });
+    (ref.componentInstance as ClinicCliniciansComponent).clinic = clinic;
   }
 
   toggleActive(clinic: Clinic): void {

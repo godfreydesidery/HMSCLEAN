@@ -11,6 +11,8 @@ source "$STATE"
 
 ROOT_PW="${HMIS_BOOTSTRAP_ROOT_PASSWORD:-QaRoot!123}"
 JWT="${HMIS_SECURITY_JWT_SECRET:-qa-please-change-this-32char-minimum!!}"
+# Login user differs by AMI: ec2-user (Amazon Linux), ubuntu (Ubuntu). Set in .qa-state.
+SSH_USER="${SSH_USER:-ec2-user}"
 SSH="ssh -i $KEY.pem -o StrictHostKeyChecking=accept-new"
 
 echo "==> Syncing source to $PUBDNS …"
@@ -18,16 +20,16 @@ if command -v rsync >/dev/null 2>&1; then
   rsync -az --delete -e "$SSH" \
     --exclude '.git' --exclude 'node_modules' --exclude 'target' \
     --exclude 'dist' --exclude '*.pem' --exclude 'deploy/.qa-state' \
-    ./ ec2-user@"$PUBDNS":~/hmis/
+    ./ "$SSH_USER"@"$PUBDNS":~/hmis/
 else
   # rsync-free fallback (works in Git Bash on Windows): tar over SSH
   tar czf - --exclude=.git --exclude=node_modules --exclude=target \
             --exclude=dist --exclude='*.pem' --exclude=deploy/.qa-state . \
-    | $SSH ec2-user@"$PUBDNS" 'rm -rf ~/hmis && mkdir -p ~/hmis && tar xzf - -C ~/hmis'
+    | $SSH "$SSH_USER"@"$PUBDNS" 'rm -rf ~/hmis && mkdir -p ~/hmis && tar xzf - -C ~/hmis'
 fi
 
 echo "==> Building & running the container on the instance …"
-$SSH ec2-user@"$PUBDNS" "ROOT_PW='$ROOT_PW' JWT='$JWT' bash ~/hmis/deploy/remote-build.sh"
+$SSH "$SSH_USER"@"$PUBDNS" "ROOT_PW='$ROOT_PW' JWT='$JWT' bash ~/hmis/deploy/remote-build.sh"
 
 echo
 echo "============================================================"

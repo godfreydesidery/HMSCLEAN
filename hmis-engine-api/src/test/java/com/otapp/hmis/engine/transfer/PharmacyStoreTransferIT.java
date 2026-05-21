@@ -3,9 +3,12 @@ package com.otapp.hmis.engine.transfer;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.otapp.hmis.engine.AuthenticatedIntegrationTest;
+import com.otapp.hmis.engine.iam.application.dto.LoginRequest;
+import com.otapp.hmis.engine.iam.application.dto.LoginResponse;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -76,7 +79,13 @@ class PharmacyStoreTransferIT extends AuthenticatedIntegrationTest {
 
         expectOk(post("/transfers/pharmacy-store/to/uid/" + toUid + "/verify",  null, Map.class));
         expectOk(post("/transfers/pharmacy-store/to/uid/" + toUid + "/approve", null, Map.class));
-        Map issuedTo = expectOk(post("/transfers/pharmacy-store/to/uid/" + toUid + "/issue", null, Map.class));
+
+        // Issuing goods is gated on store membership (legacy StorePerson.stores):
+        // provision a STORE_PERSON, affiliate them with the source store, and
+        // issue the TO as that keeper.
+        String keeperToken = issueAsAffiliatedKeeper(MAIN_STORE_UID);
+        Map issuedTo = expectOk(postAs(keeperToken,
+                "/transfers/pharmacy-store/to/uid/" + toUid + "/issue", null, Map.class));
         assertThat(issuedTo.get("status")).isEqualTo("GOODS_ISSUED");
 
         // TO line should now show 60 issued + at least one batch pick.
@@ -112,6 +121,26 @@ class PharmacyStoreTransferIT extends AuthenticatedIntegrationTest {
         // RO should have rolled forward to COMPLETED as well.
         Map roAfter = expectOk(get("/transfers/pharmacy-store/ro/uid/" + roUid, Map.class));
         assertThat(roAfter.get("status")).isEqualTo("COMPLETED");
+    }
+
+    /** Provision a STORE_PERSON, affiliate them with the store, and return their access token. */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private String issueAsAffiliatedKeeper(String storeUid) {
+        String username = "keeper" + Long.toString(System.nanoTime(), 36);
+        Map created = expectOk(post("/iam/users",
+                Map.of("username", username, "password", "Keeper!123",
+                        "firstName", "Store", "lastName", "Keeper",
+                        "email", username + "@test.local", "roles", Set.of("STORE_PERSON")),
+                Map.class));
+        String userUid = (String) created.get("uid");
+        expectOk(post("/masterdata/stores/uid/" + storeUid + "/staff",
+                Map.of("userUid", userUid), Map.class));
+        LoginResponse login = rest.postForObject(
+                "/auth/login", new LoginRequest(username, "Keeper!123"), LoginResponse.class);
+        if (login == null || login.tokens() == null) {
+            throw new IllegalStateException("Login failed for store keeper " + username);
+        }
+        return login.tokens().accessToken();
     }
 
     private static <T> T expectOk(org.springframework.http.ResponseEntity<T> response) {

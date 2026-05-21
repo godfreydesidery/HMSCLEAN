@@ -57,7 +57,7 @@ class ConsultationTransferIT extends AuthenticatedIntegrationTest {
                 Map.of(
                         "patientUid",         patientUid,
                         "clinicUid",          OPD_CLINIC_UID,
-                        "clinicianUsername",  "root",
+                        "clinicianUsername",  clinicianAffiliatedWith(OPD_CLINIC_UID),
                         "paymentType",        "CASH",
                         "reason",             "fever"),
                 Map.class));
@@ -69,7 +69,7 @@ class ConsultationTransferIT extends AuthenticatedIntegrationTest {
                 Map.of(
                         "patientUid",                 patientUid,
                         "clinicUid",                  OPD_CLINIC_UID,
-                        "clinicianUsername",          "root",
+                        "clinicianUsername",          clinicianAffiliatedWith(OPD_CLINIC_UID),
                         "paymentType",                "CASH",
                         "reason",                     "follow-up",
                         "followUpOfConsultationUid",  firstUid),
@@ -81,7 +81,7 @@ class ConsultationTransferIT extends AuthenticatedIntegrationTest {
                 "/encounters/consultations/uid/" + firstUid + "/transfer",
                 Map.of(
                         "targetClinicUid",         PED_CLINIC_UID,
-                        "targetClinicianUsername", "root",
+                        "targetClinicianUsername", clinicianAffiliatedWith(PED_CLINIC_UID),
                         "reason",                  "Better suited to pediatrics"),
                 Map.class));
         String receiverUid = (String) receiver.get("uid");
@@ -102,7 +102,7 @@ class ConsultationTransferIT extends AuthenticatedIntegrationTest {
                 "/encounters/consultations/uid/" + firstUid + "/transfer",
                 Map.of(
                         "targetClinicUid",         PED_CLINIC_UID,
-                        "targetClinicianUsername", "root"),
+                        "targetClinicianUsername", clinicianAffiliatedWith(PED_CLINIC_UID)),
                 Map.class);
         assertThat(denied.getStatusCode().is4xxClientError())
                 .as("TRANSFERRED is terminal — re-transfer should be refused")

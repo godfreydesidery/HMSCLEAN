@@ -41,7 +41,8 @@ class PayBeforeServiceIT extends AuthenticatedIntegrationTest {
         String consultationUid = stringField(expectOk(post(
                 "/encounters/consultations",
                 Map.of("patientUid", patientUid, "clinicUid", OPD_CLINIC_UID,
-                        "clinicianUsername", "root", "paymentType", "CASH", "reason", "fever"),
+                        "clinicianUsername", clinicianAffiliatedWith(OPD_CLINIC_UID),
+                        "paymentType", "CASH", "reason", "fever"),
                 Map.class)), "uid");
 
         // Doctor raises a lab order → billed onto the consultation invoice up front.

@@ -12,10 +12,12 @@ import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationStatus;
 import com.otapp.hmis.engine.encounter.consultation.infrastructure.ConsultationNumberGenerator;
+import com.otapp.hmis.engine.iam.application.StaffDirectoryService;
 import com.otapp.hmis.engine.iam.domain.User;
 import com.otapp.hmis.engine.iam.domain.UserRepository;
 import com.otapp.hmis.engine.masterdata.clinic.domain.Clinic;
 import com.otapp.hmis.engine.masterdata.clinic.domain.ClinicRepository;
+import com.otapp.hmis.engine.masterdata.clinicstaff.application.ClinicStaffService;
 import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlan;
 import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlanRepository;
 import com.otapp.hmis.engine.patient.application.PatientService;
@@ -40,8 +42,12 @@ public class ConsultationService {
     private final ClinicRepository clinicRepository;
     private final InsurancePlanRepository insurancePlanRepository;
     private final UserRepository userRepository;
+    private final ClinicStaffService clinicStaffService;
+    private final StaffDirectoryService staffDirectoryService;
     private final ConsultationNumberGenerator numberGenerator;
     private final ApplicationEventPublisher eventPublisher;
+
+    private static final String CLINICIAN_ROLE = "CLINICIAN";
 
     @Transactional
     public ConsultationDto book(StartConsultationRequest request) {
@@ -64,6 +70,7 @@ public class ConsultationService {
         if (!clinician.isEnabled()) {
             throw new BusinessRuleException("Clinician account is disabled");
         }
+        requireClinicianOfClinic(clinician, clinic);
 
         boolean needsPlan = request.paymentType() == PaymentType.INSURANCE
                 || request.paymentType() == PaymentType.MIXED;
@@ -126,6 +133,7 @@ public class ConsultationService {
         if (!targetClinician.isEnabled()) {
             throw new BusinessRuleException("Target clinician account is disabled");
         }
+        requireClinicianOfClinic(targetClinician, targetClinic);
 
         Consultation receiver = new Consultation(
                 numberGenerator.next(),
@@ -224,6 +232,22 @@ public class ConsultationService {
     private Consultation loadOrThrow(String uid) {
         return consultationRepository.findByUid(uid)
                 .orElseThrow(() -> new NotFoundException("Consultation not found: " + uid));
+    }
+
+    /**
+     * Legacy fidelity gate: a consultation may only be routed to a clinician
+     * who holds the {@code CLINICIAN} role <em>and</em> is affiliated with the
+     * chosen clinic ({@code Clinician.clinics}). Defense-in-depth + the
+     * enforceable booking rule.
+     */
+    private void requireClinicianOfClinic(User clinician, Clinic clinic) {
+        if (!staffDirectoryService.isUserInRole(clinician.getUsername(), CLINICIAN_ROLE)) {
+            throw new BusinessRuleException("User " + clinician.getUsername() + " is not a clinician");
+        }
+        if (!clinicStaffService.isAssigned(clinic.getUid(), clinician.getUsername())) {
+            throw new BusinessRuleException(
+                    "Clinician " + clinician.getUsername() + " is not assigned to clinic " + clinic.getName());
+        }
     }
 
     private static String currentUsername() {

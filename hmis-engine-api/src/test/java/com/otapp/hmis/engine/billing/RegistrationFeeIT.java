@@ -61,7 +61,7 @@ class RegistrationFeeIT extends AuthenticatedIntegrationTest {
                 Map.of(
                         "patientUid",         patientUid,
                         "clinicUid",          OPD_CLINIC_UID,
-                        "clinicianUsername",  "root",
+                        "clinicianUsername",  clinicianAffiliatedWith(OPD_CLINIC_UID),
                         "paymentType",        "CASH",
                         "reason",             "fever"),
                 Map.class));
@@ -100,7 +100,7 @@ class RegistrationFeeIT extends AuthenticatedIntegrationTest {
                 Map.of(
                         "patientUid",         patientUid,
                         "clinicUid",          OPD_CLINIC_UID,
-                        "clinicianUsername",  "root",
+                        "clinicianUsername",  clinicianAffiliatedWith(OPD_CLINIC_UID),
                         "paymentType",        "INSURANCE",
                         "insurancePlanUid",   NHIF_PLAN_UID,
                         "reason",             "annual check-up"),

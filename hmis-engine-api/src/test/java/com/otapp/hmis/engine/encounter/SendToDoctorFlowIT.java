@@ -146,7 +146,7 @@ class SendToDoctorFlowIT extends AuthenticatedIntegrationTest {
         var body = new java.util.HashMap<String, Object>();
         body.put("patientUid", patientUid);
         body.put("clinicUid", OPD_CLINIC_UID);
-        body.put("clinicianUsername", "root");
+        body.put("clinicianUsername", clinicianAffiliatedWith(OPD_CLINIC_UID));
         body.put("paymentType", paymentType);
         if (planUid != null) body.put("insurancePlanUid", planUid);
         if (followUpOf != null) body.put("followUpOfConsultationUid", followUpOf);

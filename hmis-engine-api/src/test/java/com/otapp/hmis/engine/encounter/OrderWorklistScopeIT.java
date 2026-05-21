@@ -28,7 +28,8 @@ class OrderWorklistScopeIT extends AuthenticatedIntegrationTest {
         String consultationUid = stringField(expectOk(post(
                 "/encounters/consultations",
                 Map.of("patientUid", patientUid, "clinicUid", OPD_CLINIC_UID,
-                        "clinicianUsername", "root", "paymentType", "CASH", "reason", "screen"),
+                        "clinicianUsername", clinicianAffiliatedWith(OPD_CLINIC_UID),
+                        "paymentType", "CASH", "reason", "screen"),
                 Map.class)), "uid");
         String orderUid = stringField(expectOk(post(
                 "/encounters/consultations/uid/" + consultationUid + "/orders",

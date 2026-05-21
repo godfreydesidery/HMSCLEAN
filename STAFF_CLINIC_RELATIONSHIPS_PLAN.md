@@ -1,8 +1,21 @@
 # Plan: Staff ↔ Clinic relationships (clinician affiliation & consultation routing)
 
-> **Status: PLAN ONLY — do not execute yet.** This document records the legacy
-> model, the current gap, and a phased, modulith-aware design. Execute in a later
-> session. Companion to `PROCESS_MISMATCHES.md` and `PROCESS.md`.
+> **Status: IMPLEMENTED (2026-05-21).** Clinician⇄Clinic (Phases 1–3), the
+> consultation booking/transfer hard gate, StorePerson⇄Store (Phase 4a), and the
+> clinician provider profile (Phase 4b) are all built. Radiology/lab/theatre were
+> verified to be role-scoped in *both* the legacy and the rewrite, so they were
+> intentionally left unchanged (see R-table). Integration tests are written but
+> require Docker (Testcontainers) to run; backend compiles and the modulith
+> boundary check passes; the frontend builds. Companion to `PROCESS_MISMATCHES.md`
+> and `PROCESS.md`.
+
+> **Verified finding (radiology/lab/theatre):** neither the legacy nor the rewrite
+> affiliated radiographers / lab techs / theatre staff to a facility. Legacy
+> `Radiology`, `LabTest`, `Procedure` carried only an *optional ordering-clinician*
+> FK; `Theatre` was a bare room entity. The rewrite already routes these by
+> role-scoped worklist (`RADIOGRAPHER`, `LABORATORIST`) and binds procedures to a
+> `theatreUid`. The only legacy facility↔staff M:Ns were Clinician⇄Clinic and
+> StorePerson⇄Store — both now restored.
 
 ## Goal
 
@@ -62,13 +75,13 @@ Backend: `hmis-engine-api/.../com/otapp/hmis/engine/`
 
 | # | Legacy behavior | Current behavior | Disposition |
 |---|---|---|---|
-| R1 | Clinician affiliated to one/more clinics (`Clinician.clinics` M:N) | No affiliation; any clinician usable at any clinic | **Phase 1** |
-| R2 | Booking offers only the clinic's clinicians | Dropdowns independent; all clinicians always offered | **Phase 3** |
-| R3 | Booking stores clinician FK validated against the clinic | `clinicianUsername` free string, only exists+enabled checked | **Phase 2** |
-| R4 | Clinician auto-provisioned/affiliated via role | Only a `User`+role; no place to record affiliation | **Phase 1 + 3** |
-| R5 | `StorePerson` ⇄ `Store` M:N | No store affiliation | **Phase 4 (optional)** |
-| R6 | `Clinician.type` (specialization), `code` | none on user | **Phase 4 (optional)** |
-| — | Nurse/Pharmacist/Cashier facility-wide; lab/radiology role-scoped worklists | same (role-scoped) | **No change — already faithful** |
+| R1 | Clinician affiliated to one/more clinics (`Clinician.clinics` M:N) | `ClinicClinician` (`md_clinic_clinician`) M:N affiliation | ✅ **Done (Phase 1)** |
+| R2 | Booking offers only the clinic's clinicians | Dependent dropdowns load the clinic's clinicians | ✅ **Done (Phase 3)** |
+| R3 | Booking stores clinician FK validated against the clinic | `book()`/`transfer()` assert role + clinic membership (hard gate) | ✅ **Done (Phase 2)** |
+| R4 | Clinician auto-provisioned/affiliated via role | Affiliation managed on the Clinic "Clinicians" panel | ✅ **Done (Phase 1 + 3)** |
+| R5 | `StorePerson` ⇄ `Store` M:N | `StoreStaff` (`md_store_staff`) M:N; `issueTO` gated by membership | ✅ **Done (Phase 4a)** |
+| R6 | `Clinician.type` (specialization), `code` | `ProviderProfile` (`iam_provider_profile`): specialty/registration/licence | ✅ **Done (Phase 4b)** |
+| — | Nurse/Pharmacist/Cashier facility-wide; lab/radiology/theatre role-scoped | same (role-scoped) | ✅ **No change — verified faithful** |
 
 ---
 

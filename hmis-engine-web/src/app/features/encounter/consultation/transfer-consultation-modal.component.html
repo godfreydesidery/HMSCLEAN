@@ -28,12 +28,17 @@
 
     <div class="mb-3">
       <label for="targetClinicianUsername" class="form-label">Target clinician <span class="text-danger">*</span></label>
-      <select id="targetClinicianUsername" name="targetClinicianUsername" class="form-select" formControlName="targetClinicianUsername" [class.is-invalid]="form.controls.targetClinicianUsername.invalid && form.controls.targetClinicianUsername.touched">
-        <option value="" disabled>— pick a clinician —</option>
+      <select id="targetClinicianUsername" name="targetClinicianUsername" class="form-select" formControlName="targetClinicianUsername"
+              [attr.disabled]="!form.controls.targetClinicUid.value ? '' : null"
+              [class.is-invalid]="form.controls.targetClinicianUsername.invalid && form.controls.targetClinicianUsername.touched">
+        <option value="" disabled>{{ loadingClinicians() ? 'Loading…' : (form.controls.targetClinicUid.value ? '— pick a clinician —' : '— pick a clinic first —') }}</option>
         @for (cl of clinicians(); track cl.username) {
-          <option [value]="cl.username">{{ cl.fullName }} ({{ cl.username }})</option>
+          <option [value]="cl.username">{{ cl.fullName }}{{ cl.specialty ? ' — ' + cl.specialty : '' }} ({{ cl.username }})</option>
         }
       </select>
+      @if (form.controls.targetClinicUid.value && !loadingClinicians() && clinicians().length === 0) {
+        <div class="form-text text-warning">No clinicians are assigned to this clinic.</div>
+      }
       @if (form.controls.targetClinicianUsername.invalid && form.controls.targetClinicianUsername.touched) {
         <div class="invalid-feedback">Pick a target clinician.</div>
       }

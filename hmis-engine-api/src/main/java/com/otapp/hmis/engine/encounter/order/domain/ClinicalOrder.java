@@ -166,6 +166,13 @@ public class ClinicalOrder extends AuditableEntity {
             throw new BusinessRuleException(
                     "Only IN_PROGRESS orders can be completed (current: " + status + ")");
         }
+        // Pay-before-service gate (M13): a consultation-bound order's bill must be
+        // settled before its result is released. Non-CASH / zero-price orders are
+        // settled at billing; outsider-direct orders (no consultation) are exempt.
+        if (consultationUid != null && !settled) {
+            throw new BusinessRuleException(
+                    "The order's bill must be settled before it can be completed (collect payment first)");
+        }
         status = ClinicalOrderStatus.COMPLETED;
         this.result = result;
         completedAt = Instant.now();

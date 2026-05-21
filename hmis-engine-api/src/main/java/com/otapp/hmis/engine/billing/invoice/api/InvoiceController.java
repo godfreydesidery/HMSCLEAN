@@ -7,6 +7,7 @@ import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.RecordPayme
 import com.otapp.hmis.engine.billing.invoice.application.ConsultationFeeService;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceService;
 import com.otapp.hmis.engine.billing.invoice.application.RegistrationFeeService;
+import com.otapp.hmis.engine.billing.invoice.application.ServiceChargeService;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceStatus;
 import com.otapp.hmis.engine.common.api.PageResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,6 +28,7 @@ public class InvoiceController {
     private final InvoiceService invoiceService;
     private final RegistrationFeeService registrationFeeService;
     private final ConsultationFeeService consultationFeeService;
+    private final ServiceChargeService serviceChargeService;
 
     @GetMapping("/billing/invoices")
     public ResponseEntity<PageResponse<InvoiceSummary>> search(
@@ -57,6 +59,20 @@ public class InvoiceController {
     @PostMapping("/billing/consultations/uid/{consultationUid}/consultation-fee")
     public ResponseEntity<InvoiceDto> ensureConsultationFee(@PathVariable String consultationUid) {
         return ResponseEntity.ok(consultationFeeService.ensureFor(consultationUid));
+    }
+
+    /** Idempotent recovery: bill a consultation order onto its invoice if the raise listener missed it (M13). */
+    @PostMapping("/billing/orders/uid/{orderUid}/charge")
+    public ResponseEntity<Void> chargeOrder(@PathVariable String orderUid) {
+        serviceChargeService.billOrder(orderUid);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Idempotent recovery: bill a consultation prescription onto its invoice if the raise listener missed it (M13). */
+    @PostMapping("/billing/prescriptions/uid/{prescriptionUid}/charge")
+    public ResponseEntity<Void> chargePrescription(@PathVariable String prescriptionUid) {
+        serviceChargeService.billPrescription(prescriptionUid);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/billing/admissions/uid/{admissionUid}/invoice")

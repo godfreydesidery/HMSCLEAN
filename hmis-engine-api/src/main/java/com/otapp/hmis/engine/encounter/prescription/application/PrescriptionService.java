@@ -27,8 +27,10 @@ import com.otapp.hmis.engine.masterdata.dosingfrequency.domain.DosingFrequency;
 import com.otapp.hmis.engine.masterdata.dosingfrequency.domain.DosingFrequencyRepository;
 import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineRepository;
+import com.otapp.hmis.engine.encounter.prescription.application.event.PrescriptionRaisedEvent;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +52,7 @@ public class PrescriptionService {
     private final AdministrationRouteRepository routeRepository;
     private final DosingFrequencyRepository frequencyRepository;
     private final PrescriptionNumberGenerator numberGenerator;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public PrescriptionDto prescribe(String consultationUid, CreatePrescriptionRequest request) {
@@ -70,6 +73,9 @@ public class PrescriptionService {
                 emptyToNull(request.instructions()));
         applyPicklists(prescription, picks);
         prescriptionRepository.save(prescription);
+        // Bill the medicine onto the consultation invoice up front so a CASH
+        // patient pays before it is dispensed (M13).
+        eventPublisher.publishEvent(new PrescriptionRaisedEvent(prescription.getUid()));
         return toDto(prescription, medicine);
     }
 

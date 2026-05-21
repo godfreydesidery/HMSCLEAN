@@ -17,6 +17,7 @@ import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.Compl
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.CreateOrderRequest;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.OrderWorklistDto;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.ScheduleOrderRequest;
+import com.otapp.hmis.engine.encounter.order.application.event.ClinicalOrderRaisedEvent;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrder;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderKind;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderRepository;
@@ -32,6 +33,7 @@ import com.otapp.hmis.engine.masterdata.theatre.domain.Theatre;
 import com.otapp.hmis.engine.masterdata.theatre.domain.TheatreRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -52,6 +54,7 @@ public class ClinicalOrderService {
     private final ProcedureTypeRepository procedureTypeRepository;
     private final TheatreRepository theatreRepository;
     private final OrderNumberGenerator orderNumberGenerator;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public ClinicalOrderDto request(String consultationUid, CreateOrderRequest request) {
@@ -71,6 +74,9 @@ public class ClinicalOrderService {
                 emptyToNull(request.instructions()));
         orderRepository.save(order);
 
+        // Bill the order onto the consultation invoice up front so a CASH
+        // patient pays before the service is rendered (M13).
+        eventPublisher.publishEvent(new ClinicalOrderRaisedEvent(order.getUid()));
         return toDto(order, descriptor);
     }
 

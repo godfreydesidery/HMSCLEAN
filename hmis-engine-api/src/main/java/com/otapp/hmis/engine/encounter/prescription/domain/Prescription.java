@@ -153,6 +153,14 @@ public class Prescription extends AuditableEntity {
         if (status != PrescriptionStatus.APPROVED) {
             throw new BusinessRuleException("Only APPROVED prescriptions can be sold (current: " + status + ")");
         }
+        // Pay-before-dispense gate (M13, legacy "won't SOLD if UNPAID"): a
+        // consultation-bound prescription's bill must be settled before dispense.
+        // Non-CASH / zero-price are settled at billing; outsider retail (no
+        // consultation) bills via the outsider invoice and is exempt here.
+        if (consultationUid != null && !settled) {
+            throw new BusinessRuleException(
+                    "The prescription's bill must be settled before dispensing (collect payment first)");
+        }
         status = PrescriptionStatus.SOLD;
         dispensedAt = Instant.now();
     }

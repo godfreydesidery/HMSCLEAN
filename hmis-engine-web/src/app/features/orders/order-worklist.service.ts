@@ -15,6 +15,8 @@ export class OrderWorklistService {
     let p = new HttpParams();
     if (params.kind) p = p.set('kind', params.kind);
     if (params.status) p = p.set('status', params.status);
+    if (params.patientClass) p = p.set('patientClass', params.patientClass);
+    if (params.settledOnly !== undefined) p = p.set('settledOnly', String(params.settledOnly));
     if (params.page !== undefined) p = p.set('page', String(params.page));
     if (params.size !== undefined) p = p.set('size', String(params.size));
     if (params.sort) p = p.set('sort', params.sort);

@@ -628,6 +628,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Process | Status | Notes |
 |---|---|---|
 | Order acceptance + result entry | ✅ | Phase 5 via OrderResult. |
+| Role + patient-class worklists (lab / radiology / procedure × outpatient / inpatient / outsider) | ✅ | **Fidelity fix (PROCESS_MISMATCHES.md M8):** `GET /encounters/orders` scopes by `kind` (role lens) + `patientClass` (OUTPATIENT/INPATIENT/OUTSIDER) + `settledOnly`. `ClinicalOrder.settled` (V51) is flipped by the billing `SettlementDispatcher`. UI: patient-class filter chips on the Orders & Results worklist. |
 | Status flow (PENDING / ACCEPTED / COMPLETED / CANCELLED) | ✅ | Aligned with legacy. |
 | Result attachments (files / images) | ✅ | Phase 39 — `OrderAttachment` aggregate + filesystem-backed `AttachmentStorage` (root configurable via `hmis.attachments.dir`). Multipart upload at `POST /encounters/orders/uid/{uid}/attachments`, list / download / delete under `/encounters/attachments/uid/{uid}/...`. 25 MiB per-file cap; filename sanitised; per-order subdirectory keyed by attachment uid. |
 | Batch processing for high-volume tests | ✅ | Phase 45 — `LabBatch` aggregate groups N same-`labTestTypeUid` LAB_TEST orders for a single bench run (OPEN → PROCESSING → COMPLETED). `LabBatchMember` enforces at-most-one-batch-per-order. CRUD + transitions under `/encounters/lab-batches`. Purely organisational — individual order statuses are unchanged by batch transitions. |

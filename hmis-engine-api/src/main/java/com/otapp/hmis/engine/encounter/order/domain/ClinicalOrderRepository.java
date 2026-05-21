@@ -15,16 +15,36 @@ public interface ClinicalOrderRepository extends JpaRepository<ClinicalOrder, Lo
 
     /**
      * Cross-patient worklist for the Orders &amp; Results module — optional
-     * kind / status filters. Sort comes from the {@link Pageable} (the service
-     * defaults it to requestedAt desc) so no ORDER BY is baked in here.
+     * kind / status / patient-class / settled filters. {@code scope} is passed
+     * as a String ('OUTPATIENT' / 'INPATIENT' / 'OUTSIDER') to avoid Hibernate's
+     * enum value-mapping inference failure on literal-only comparisons. Sort
+     * comes from the {@link Pageable}.
      */
     @Query("""
             SELECT o FROM ClinicalOrder o
             WHERE (:kind   IS NULL OR o.kind = :kind)
               AND (:status IS NULL OR o.status = :status)
+              AND (:settledOnly = false OR o.settled = true)
+              AND (
+                    :scope IS NULL
+                 OR (:scope = 'OUTSIDER'
+                     AND o.consultationUid IS NULL)
+                 OR (:scope = 'INPATIENT'
+                     AND o.consultationUid IS NOT NULL
+                     AND EXISTS (SELECT 1 FROM com.otapp.hmis.engine.encounter.admission.domain.Admission a
+                                 WHERE a.patientUid = o.patientUid
+                                   AND a.status = com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.ADMITTED))
+                 OR (:scope = 'OUTPATIENT'
+                     AND o.consultationUid IS NOT NULL
+                     AND NOT EXISTS (SELECT 1 FROM com.otapp.hmis.engine.encounter.admission.domain.Admission a
+                                     WHERE a.patientUid = o.patientUid
+                                       AND a.status = com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.ADMITTED))
+              )
             """)
     Page<ClinicalOrder> searchWorklist(@Param("kind") ClinicalOrderKind kind,
                                        @Param("status") ClinicalOrderStatus status,
+                                       @Param("scope") String scope,
+                                       @Param("settledOnly") boolean settledOnly,
                                        Pageable pageable);
 
     List<ClinicalOrder> findAllByConsultationUidOrderByRequestedAtDesc(String consultationUid);

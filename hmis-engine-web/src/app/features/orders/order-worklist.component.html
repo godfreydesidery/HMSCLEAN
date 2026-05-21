@@ -1,7 +1,7 @@
 <div class="hmis-page-header">
   <div>
     <h1 class="hmis-page-title">Orders &amp; Results</h1>
-    <p class="hmis-muted mb-0 small">Lab, radiology and procedure orders across all patients. Process and report results here.</p>
+    <p class="hmis-muted mb-0 small">Lab, radiology and procedure orders. Filter by type and patient class to focus your queue, then process and report results.</p>
   </div>
 </div>
 
@@ -25,6 +25,12 @@
         <button type="button" class="btn btn-outline-secondary" [class.active]="statusFilter() === s.value" (click)="setStatus(s.value)">{{ s.label }}</button>
       }
     </div>
+    <div class="btn-group btn-group-sm">
+      <button type="button" class="btn btn-outline-secondary" [class.active]="classFilter() === ''" (click)="setClass('')">All patients</button>
+      @for (c of classes; track c.value) {
+        <button type="button" class="btn btn-outline-secondary" [class.active]="classFilter() === c.value" (click)="setClass(c.value)">{{ c.label }}</button>
+      }
+    </div>
     <span class="hmis-muted small ms-auto">{{ totalElements() }} order(s)</span>
   </div>
 </div>
@@ -32,12 +38,12 @@
 <div class="card">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0 hmis-table">
-      <thead><tr><th>Order</th><th>Type</th><th>Patient</th><th>Service</th><th>Urgency</th><th>Status</th><th class="hmis-muted small">Requested</th><th class="text-end"></th></tr></thead>
+      <thead><tr><th>Order</th><th>Type</th><th>Patient</th><th>Class</th><th>Service</th><th>Urgency</th><th>Status</th><th class="hmis-muted small">Requested</th><th class="text-end"></th></tr></thead>
       <tbody>
         @if (loading()) {
-          <tr><td colspan="8"><div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div></td></tr>
+          <tr><td colspan="9"><div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div></td></tr>
         } @else if (rows().length === 0) {
-          <tr><td colspan="8"><div class="hmis-empty"><i class="bi bi-card-list"></i><div class="fw-semibold mb-1">No orders</div><div class="small">Nothing matches the current filters.</div></div></td></tr>
+          <tr><td colspan="9"><div class="hmis-empty"><i class="bi bi-card-list"></i><div class="fw-semibold mb-1">No orders</div><div class="small">Nothing matches the current filters.</div></div></td></tr>
         } @else {
           @for (o of rows(); track o.uid) {
             <tr>
@@ -47,6 +53,7 @@
                 <div class="fw-semibold">{{ o.patientName || '—' }}</div>
                 @if (o.patientNo) { <div class="hmis-muted small hmis-code">{{ o.patientNo }}</div> }
               </td>
+              <td><span [class]="classBadge(o.patientClass)">{{ classLabel(o.patientClass) }}</span></td>
               <td>{{ o.serviceName || o.serviceCode || '—' }}</td>
               <td><span [class]="urgencyBadgeClass(o.urgency)">{{ o.urgency }}</span></td>
               <td><span [class]="statusBadgeClass(o.status)">{{ statusLabel(o.status) }}</span></td>

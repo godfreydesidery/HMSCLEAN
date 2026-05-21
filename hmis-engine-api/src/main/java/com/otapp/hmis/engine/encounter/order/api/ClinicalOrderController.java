@@ -10,6 +10,7 @@ import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.Sched
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderService;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderKind;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderStatus;
+import com.otapp.hmis.engine.patient.domain.PatientClassScope;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -32,8 +33,10 @@ public class ClinicalOrderController {
     public ResponseEntity<PageResponse<OrderWorklistDto>> worklist(
             @RequestParam(required = false) ClinicalOrderKind kind,
             @RequestParam(required = false) ClinicalOrderStatus status,
+            @RequestParam(required = false) PatientClassScope patientClass,
+            @RequestParam(defaultValue = "false") boolean settledOnly,
             Pageable pageable) {
-        return ResponseEntity.ok(orderService.searchWorklist(kind, status, pageable));
+        return ResponseEntity.ok(orderService.searchWorklist(kind, status, patientClass, settledOnly, pageable));
     }
 
     @GetMapping("/encounters/consultations/uid/{consultationUid}/orders")

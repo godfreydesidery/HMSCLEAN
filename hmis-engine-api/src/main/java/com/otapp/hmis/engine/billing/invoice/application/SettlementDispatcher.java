@@ -2,11 +2,11 @@ package com.otapp.hmis.engine.billing.invoice.application;
 
 import com.otapp.hmis.engine.billing.invoice.domain.Invoice;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLine;
-import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLineKind;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLineRepository;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceScope;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceStatus;
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationService;
+import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderService;
 import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -27,6 +27,7 @@ public class SettlementDispatcher {
     private final InvoiceLineRepository invoiceLineRepository;
     private final ConsultationService consultationService;
     private final PrescriptionService prescriptionService;
+    private final ClinicalOrderService clinicalOrderService;
 
     /**
      * Dispatch settlement signals for a fully-settled invoice. No-op if the
@@ -46,8 +47,11 @@ public class SettlementDispatcher {
             consultationService.markFeeSettled(invoice.getConsultationUid());
         }
         for (InvoiceLine line : invoiceLineRepository.findAllByInvoiceUidOrderByCreatedAtAsc(invoice.getUid())) {
-            if (line.getKind() == InvoiceLineKind.MEDICINE && line.getReferenceUid() != null) {
-                prescriptionService.markSettled(line.getReferenceUid());
+            if (line.getReferenceUid() == null) continue;
+            switch (line.getKind()) {
+                case MEDICINE -> prescriptionService.markSettled(line.getReferenceUid());
+                case LAB_TEST, RADIOLOGY, PROCEDURE -> clinicalOrderService.markSettled(line.getReferenceUid());
+                default -> { /* CONSULTATION / WARD / REGISTRATION / CONSUMABLE — no order-level flag */ }
             }
         }
     }

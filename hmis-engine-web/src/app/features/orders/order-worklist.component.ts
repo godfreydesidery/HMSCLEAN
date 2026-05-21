@@ -8,6 +8,9 @@ import {
   ClinicalOrderStatus, ORDER_URGENCIES, OrderUrgency
 } from '../encounter/order/clinical-order.types';
 import { EnterResultComponent } from '../encounter/order/enter-result.component';
+import {
+  PATIENT_CLASS_SCOPES, PatientClassScope, patientClassBadgeClass, patientClassLabel
+} from '../../shared/patient-class/patient-class';
 import { OrderWorklistService } from './order-worklist.service';
 import { OrderWorklistRow } from './order-worklist.types';
 
@@ -23,6 +26,9 @@ export class OrderWorklistComponent implements OnInit {
 
   readonly kinds = CLINICAL_ORDER_KINDS;
   readonly statuses = CLINICAL_ORDER_STATUSES;
+  readonly classes = PATIENT_CLASS_SCOPES;
+  readonly classLabel = patientClassLabel;
+  readonly classBadge = patientClassBadgeClass;
   private readonly urgencies = ORDER_URGENCIES;
 
   readonly rows = signal<OrderWorklistRow[]>([]);
@@ -34,6 +40,7 @@ export class OrderWorklistComponent implements OnInit {
 
   readonly kindFilter = signal<ClinicalOrderKind | ''>('');
   readonly statusFilter = signal<ClinicalOrderStatus | ''>('');
+  readonly classFilter = signal<PatientClassScope | ''>('');
 
   private readonly size = 20;
 
@@ -45,6 +52,7 @@ export class OrderWorklistComponent implements OnInit {
     this.service.search({
       kind: this.kindFilter() || undefined,
       status: this.statusFilter() || undefined,
+      patientClass: this.classFilter() || undefined,
       page: this.page(),
       size: this.size
     }).pipe(finalize(() => this.loading.set(false))).subscribe({
@@ -59,6 +67,7 @@ export class OrderWorklistComponent implements OnInit {
 
   setKind(k: ClinicalOrderKind | ''): void { this.kindFilter.set(k); this.page.set(0); this.load(); }
   setStatus(s: ClinicalOrderStatus | ''): void { this.statusFilter.set(s); this.page.set(0); this.load(); }
+  setClass(c: PatientClassScope | ''): void { this.classFilter.set(c); this.page.set(0); this.load(); }
 
   prev(): void { if (this.page() > 0) { this.page.update((p) => p - 1); this.load(); } }
   next(): void { if (this.page() < this.totalPages() - 1) { this.page.update((p) => p + 1); this.load(); } }

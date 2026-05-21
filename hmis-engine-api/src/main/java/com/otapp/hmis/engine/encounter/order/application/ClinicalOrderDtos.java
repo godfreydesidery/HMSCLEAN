@@ -53,6 +53,8 @@ public final class ClinicalOrderDtos {
             String patientUid,
             String patientNo,
             String patientName,
+            com.otapp.hmis.engine.patient.domain.PatientClassScope patientClass,
+            boolean settled,
             String consultationUid) {}
 
     public record CreateOrderRequest(

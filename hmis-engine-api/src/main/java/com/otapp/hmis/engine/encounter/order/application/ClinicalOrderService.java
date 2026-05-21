@@ -3,9 +3,12 @@ package com.otapp.hmis.engine.encounter.order.application;
 import com.otapp.hmis.engine.common.api.PageResponse;
 import com.otapp.hmis.engine.common.error.NotFoundException;
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
+import com.otapp.hmis.engine.encounter.admission.domain.AdmissionRepository;
+import com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
 import com.otapp.hmis.engine.patient.domain.Patient;
+import com.otapp.hmis.engine.patient.domain.PatientClassScope;
 import com.otapp.hmis.engine.patient.domain.PatientRepository;
 import com.otapp.hmis.engine.patient.domain.PatientType;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.CancelOrderRequest;
@@ -42,6 +45,7 @@ public class ClinicalOrderService {
 
     private final ClinicalOrderRepository orderRepository;
     private final ConsultationRepository consultationRepository;
+    private final AdmissionRepository admissionRepository;
     private final PatientRepository patientRepository;
     private final LabTestTypeRepository labTestTypeRepository;
     private final RadiologyTypeRepository radiologyTypeRepository;
@@ -154,13 +158,28 @@ public class ClinicalOrderService {
                 .toList();
     }
 
-    /** Cross-patient worklist for the Orders &amp; Results module (kind / status filters). */
+    /**
+     * Cross-patient worklist for the Orders &amp; Results module — kind (the
+     * per-role lens), status, patient-class, and settled filters. OUTSIDER =
+     * raised directly on the patient; INPATIENT = consultation-bound for a
+     * patient with an active admission; OUTPATIENT = consultation-bound, no
+     * active admission.
+     */
     @Transactional(readOnly = true)
-    public PageResponse<OrderWorklistDto> searchWorklist(ClinicalOrderKind kind, ClinicalOrderStatus status, Pageable pageable) {
+    public PageResponse<OrderWorklistDto> searchWorklist(ClinicalOrderKind kind, ClinicalOrderStatus status,
+                                                         PatientClassScope scope, boolean settledOnly, Pageable pageable) {
         Pageable effective = pageable.getSort().isSorted()
                 ? pageable
                 : PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.DESC, "requestedAt"));
-        return PageResponse.from(orderRepository.searchWorklist(kind, status, effective).map(this::toWorklistDto));
+        return PageResponse.from(orderRepository
+                .searchWorklist(kind, status, scope == null ? null : scope.name(), settledOnly, effective)
+                .map(this::toWorklistDto));
+    }
+
+    /** Idempotent — flips this order's settled flag. Called by the billing settlement dispatcher. */
+    @Transactional
+    public void markSettled(String orderUid) {
+        orderRepository.findByUid(orderUid).ifPresent(ClinicalOrder::markSettled);
     }
 
     private OrderWorklistDto toWorklistDto(ClinicalOrder o) {
@@ -179,7 +198,18 @@ public class ClinicalOrderService {
                 o.getPatientUid(),
                 p == null ? null : p.getPatientNo(),
                 p == null ? null : p.fullName(),
+                resolvePatientClass(o),
+                o.isSettled(),
                 o.getConsultationUid());
+    }
+
+    private PatientClassScope resolvePatientClass(ClinicalOrder o) {
+        if (o.getConsultationUid() == null) {
+            return PatientClassScope.OUTSIDER;
+        }
+        return admissionRepository.existsByPatientUidAndStatus(o.getPatientUid(), AdmissionStatus.ADMITTED)
+                ? PatientClassScope.INPATIENT
+                : PatientClassScope.OUTPATIENT;
     }
 
     private ClinicalOrder loadOrThrow(String uid) {

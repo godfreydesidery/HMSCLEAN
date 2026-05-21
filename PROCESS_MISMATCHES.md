@@ -24,11 +24,11 @@ search-and-paste steps.
 | M1 | Receptionist "Send to doctor" **auto-creates** the consultation (PENDING) + consultation bill | Consultation is a separate manual screen; receptionist must re-search the patient, pick clinic+clinician; nothing auto-created | High | ✅ Phase 1A — "Send to doctor" modal on the patient + `ConsultationBookedEvent` → consultation-fee invoice |
 | M2 | Doctor works a **"from reception" queue** of their PENDING consultations | No reception queue; only a generic consultation list with an optional clinician filter | High | ✅ Phase 1C — `GET /encounters/consultations/reception-queue` + `ReceptionQueueComponent` |
 | M3 | Consultation bill created at send-to-doctor; doctor sees/opens only when **PAID/COVERED** | No consultation-fee invoice at booking; opening was ungated; the only gate sat on the *registration* fee at *booking* time | High | ✅ Phase 1B/1C — `ConsultationFeeService` seeds an ISSUED invoice; `Consultation.feeSettled` gate on `start()`; registration booking-block removed |
-| M4 | ~12 **role + patient-class + payment-gated** work queues (each = "my work, paid") | Collapsed into one generic `/encounters/orders` list (kind+status only) | High | 🚧 Phase 1 done (reception + pharmacy + nurse); ⬜ Phase 2 (lab/radiology/procedure) |
+| M4 | ~12 **role + patient-class + payment-gated** work queues (each = "my work, paid") | Collapsed into one generic `/encounters/orders` list (kind+status only) | High | ✅ Phase 1 (reception + pharmacy + nurse) + Phase 2 (lab/radiology/procedure scoped by `kind` + `patientClass`) |
 | M5 | Doctor's prescription lands in a **pharmacy dispensing queue** | No pharmacy queue endpoint existed; the dispense modal had to be handed a prescription | High | ✅ Phase 1D — `GET /encounters/prescriptions/worklist` + `DispenseWorklistComponent` feeding the dispense modal |
 | M6 | Admission auto-routes to a **nurse queue**; admission linked to its consultation | No nurse queue; `admission.consultationUid` optional; nursing screens reached only by manual lookup | High | ✅ Phase 1E — `GET /encounters/admissions/nurse-worklist` + `NurseQueueComponent` |
 | M7 | **PatientType drives routing/filtering** everywhere | Stored + shown as a badge, but never used to filter/route (only to gate outsider-direct orders) | Medium | ✅ Phase 1F — `PatientClassScope` (OUTPATIENT/INPATIENT/OUTSIDER) drives the new queues; inpatient = active admission |
-| M8 | Lab/Radiology/Procedure each have outpatient/inpatient/outsider queues, payment-gated | Single generic worklist, no patient-class scope, no payment gate | Medium | ⬜ Phase 2 |
+| M8 | Lab/Radiology/Procedure each have outpatient/inpatient/outsider queues, payment-gated | Single generic worklist, no patient-class scope, no payment gate | Medium | ✅ Phase 2 — `/encounters/orders` now takes `kind` (role lens) + `patientClass` + `settledOnly`; `ClinicalOrder.settled` (V51) flipped by `SettlementDispatcher`; UI patient-class filter |
 | M9 | Follow-up consultation bill = **NONE** (waived/free) | Follow-up flag existed; no fee waiver wired | Medium | ✅ Phase 1B — `ConsultationFeeService` waives the fee (zero) for follow-ups, settled at booking |
 | M10 | Insurance consultation = **COVERED** at creation (doctor opens immediately) | No COVERED concept | Medium | ✅ Phase 1B — non-CASH treated as settled by the queue + gate |
 | M11 | Legacy `Visit` parent groups same-day consultations/non-consultations | No `Visit` concept (consultation stands alone) | Low | 📝 deferred — assess need before reintroducing |
@@ -60,9 +60,10 @@ refused for a CASH patient until the consultation fee is settled.
   register→send-to-doctor→reception-queue flow with the consultation-fee gate,
   plus the pharmacy dispensing queue and nurse admission queue, on a shared
   patient-class scope.
-- **Phase 2:** M8 — evolve the generic `/encounters/orders` worklist into
-  role + patient-class scoped lab/radiology/procedure queues reusing the same
-  pattern.
+- **Phase 2 (done):** M8 — the generic `/encounters/orders` worklist now scopes
+  by `kind` (the per-role lens) + `patientClass` + `settledOnly`, reusing the
+  `settled`-flag + `PatientClassScope` pattern. `ClinicalOrder.settled` (V51) is
+  flipped by the same `SettlementDispatcher`.
 - **Documented:** M11 (Visit), M12 (NonConsultation).
 
 Tick items here as they land; mirror the result into `PROCESS.md` §17.

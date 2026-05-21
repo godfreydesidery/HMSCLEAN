@@ -56,6 +56,15 @@ public class ClinicalOrder extends AuditableEntity {
     @Column(nullable = false, length = 16)
     private OrderUrgency urgency = OrderUrgency.NORMAL;
 
+    /**
+     * Denormalised payment flag set by the billing settlement dispatcher when
+     * the invoice carrying this order's line is paid. Surfaced on the role
+     * worklists so a technician can scope to settled work (the encounter module
+     * never reads billing).
+     */
+    @Column(name = "settled", nullable = false) private boolean settled = false;
+    @Setter @Column(name = "settled_at") private Instant settledAt;
+
     @Column(name = "requested_at", nullable = false) private Instant requestedAt;
     @Setter @Column(name = "completed_at") private Instant completedAt;
 
@@ -96,6 +105,14 @@ public class ClinicalOrder extends AuditableEntity {
         this.theatreUid = theatreUid;
         this.scheduledAt = scheduledAt;
         this.scheduledByUsername = scheduledByUsername;
+    }
+
+    /** Idempotent — flags this order's charge as settled. */
+    public void markSettled() {
+        if (!settled) {
+            settled = true;
+            settledAt = Instant.now();
+        }
     }
 
     public void markInProgress() {

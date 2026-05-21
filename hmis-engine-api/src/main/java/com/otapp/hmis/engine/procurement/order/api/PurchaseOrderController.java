@@ -72,11 +72,13 @@ public class PurchaseOrderController {
     }
 
     @PostMapping("/uid/{purchaseOrderUid}/verify")
+    @PreAuthorize("hasAuthority('PROCUREMENT_VERIFY')")
     public ResponseEntity<PurchaseOrderDto> verify(@PathVariable String purchaseOrderUid) {
         return ResponseEntity.ok(purchaseOrderService.verifyOrder(purchaseOrderUid));
     }
 
     @PostMapping("/uid/{purchaseOrderUid}/approve")
+    @PreAuthorize("hasAuthority('PROCUREMENT_APPROVE')")
     public ResponseEntity<PurchaseOrderDto> approve(@PathVariable String purchaseOrderUid) {
         return ResponseEntity.ok(purchaseOrderService.approveOrder(purchaseOrderUid));
     }

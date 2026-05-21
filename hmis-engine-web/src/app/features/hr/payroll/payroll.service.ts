@@ -41,6 +41,10 @@ export class PayrollService {
     );
   }
 
+  verify(periodUid: string): Observable<PayrollPeriod> {
+    return this.http.post<PayrollPeriod>(`${this.base}/periods/uid/${periodUid}/verify`, {});
+  }
+
   approve(periodUid: string): Observable<PayrollPeriod> {
     return this.http.post<PayrollPeriod>(`${this.base}/periods/uid/${periodUid}/approve`, {});
   }

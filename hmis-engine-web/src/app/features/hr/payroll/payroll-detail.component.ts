@@ -46,11 +46,12 @@ export class PayrollDetailComponent implements OnInit {
   });
 
   readonly isDraft = computed(() => this.period()?.status === 'DRAFT');
-  readonly canApprove = computed(() => this.period()?.status === 'DRAFT');
+  readonly canVerify = computed(() => this.period()?.status === 'DRAFT');
+  readonly canApprove = computed(() => this.period()?.status === 'VERIFIED');
   readonly canPay = computed(() => this.period()?.status === 'APPROVED');
   readonly canCancel = computed(() => {
     const s = this.period()?.status;
-    return s === 'DRAFT' || s === 'APPROVED';
+    return s === 'DRAFT' || s === 'VERIFIED' || s === 'APPROVED';
   });
 
   readonly itemForm = this.fb.nonNullable.group({
@@ -142,15 +143,18 @@ export class PayrollDetailComponent implements OnInit {
       });
   }
 
+  verify(): void { this.transition('verify'); }
   approve(): void { this.transition('approve'); }
   pay(): void { this.transition('pay'); }
 
-  private transition(action: 'approve' | 'pay'): void {
+  private transition(action: 'verify' | 'approve' | 'pay'): void {
     const p = this.period();
     if (!p || this.busy()) return;
     this.busy.set(true);
     this.errorMessage.set(null);
-    const req$ = action === 'approve' ? this.payrollService.approve(p.uid) : this.payrollService.markPaid(p.uid);
+    const req$ = action === 'verify' ? this.payrollService.verify(p.uid)
+               : action === 'approve' ? this.payrollService.approve(p.uid)
+               : this.payrollService.markPaid(p.uid);
     req$.pipe(finalize(() => this.busy.set(false))).subscribe({
       next: (updated) => this.period.set(updated),
       error: (err) => this.errorMessage.set(err?.error?.message ?? `Could not ${action} period.`)

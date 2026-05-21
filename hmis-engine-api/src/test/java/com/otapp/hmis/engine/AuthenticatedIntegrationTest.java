@@ -57,24 +57,29 @@ public abstract class AuthenticatedIntegrationTest extends AbstractIntegrationTe
      * JVM-lifetime, so the username is made unique per call.
      */
     protected String secondUserToken() {
-        String username = "approver" + Long.toString(System.nanoTime(), 36);
+        return tokenForRoles("approver", java.util.Set.of("ROOT"));
+    }
+
+    /** Provision a fresh, uniquely-named user with the given roles and return its access token. */
+    protected String tokenForRoles(String prefix, java.util.Set<String> roles) {
+        String username = prefix + Long.toString(System.nanoTime(), 36);
         ResponseEntity<Object> created = post(
                 "/iam/users",
                 java.util.Map.of(
                         "username", username,
-                        "password", "Approver!123",
+                        "password", "Secondary!123",
                         "firstName", "Test",
-                        "lastName", "Approver",
+                        "lastName", prefix,
                         "email", username + "@test.local",
-                        "roles", java.util.Set.of("ROOT")),
+                        "roles", roles),
                 Object.class);
         if (!created.getStatusCode().is2xxSuccessful()) {
-            throw new IllegalStateException("Failed to provision second user: " + created.getStatusCode());
+            throw new IllegalStateException("Failed to provision user: " + created.getStatusCode());
         }
         LoginResponse login = rest.postForObject(
-                "/auth/login", new LoginRequest(username, "Approver!123"), LoginResponse.class);
+                "/auth/login", new LoginRequest(username, "Secondary!123"), LoginResponse.class);
         if (login == null || login.tokens() == null) {
-            throw new IllegalStateException("Second-user login failed for " + username);
+            throw new IllegalStateException("Login failed for " + username);
         }
         return login.tokens().accessToken();
     }

@@ -83,7 +83,16 @@ class PayrollIT extends AuthenticatedIntegrationTest {
                 .as("900,000 + 700,000")
                 .isEqualByComparingTo("1600000.00");
 
-        // 6. Approve.
+        // 6a. Approve before verify is refused (two-step sign-off, M19).
+        ResponseEntity<Map> tooEarly = post("/hr/payroll/periods/uid/" + periodUid + "/approve", null, Map.class);
+        assertThat(tooEarly.getStatusCode().is4xxClientError())
+                .as("A DRAFT period cannot be approved before it is verified").isTrue();
+
+        // 6b. Verify (manager) → approve (director).
+        Map verified = expectOk(post("/hr/payroll/periods/uid/" + periodUid + "/verify", null, Map.class));
+        assertThat(verified.get("status")).isEqualTo("VERIFIED");
+        assertThat(verified.get("verifiedByUsername")).isEqualTo("root");
+
         Map approved = expectOk(post("/hr/payroll/periods/uid/" + periodUid + "/approve", null, Map.class));
         assertThat(approved.get("status")).isEqualTo("APPROVED");
         assertThat(approved.get("approvedByUsername")).isEqualTo("root");

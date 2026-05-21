@@ -80,11 +80,18 @@ public class PayrollService {
     }
 
     @Transactional
-    public PayrollPeriodDto approve(String periodUid) {
+    public PayrollPeriodDto verify(String periodUid) {
         PayrollPeriod period = loadPeriodOrThrow(periodUid);
         if (itemRepository.findAllByPeriodUidOrderByCreatedAtAsc(period.getUid()).isEmpty()) {
-            throw new BusinessRuleException("Cannot approve an empty payroll period");
+            throw new BusinessRuleException("Cannot verify an empty payroll period");
         }
+        period.verify(currentUsername());
+        return toDto(period);
+    }
+
+    @Transactional
+    public PayrollPeriodDto approve(String periodUid) {
+        PayrollPeriod period = loadPeriodOrThrow(periodUid);
         period.approve(currentUsername());
         return toDto(period);
     }
@@ -136,6 +143,8 @@ public class PayrollService {
                 p.getCurrency(),
                 p.getStatus(),
                 p.getNote(),
+                p.getVerifiedAt(),
+                p.getVerifiedByUsername(),
                 p.getApprovedAt(),
                 p.getApprovedByUsername(),
                 p.getPaidAt(),

@@ -67,6 +67,11 @@ public class PayrollController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/periods/uid/{periodUid}/verify")
+    public ResponseEntity<PayrollPeriodDto> verify(@PathVariable String periodUid) {
+        return ResponseEntity.ok(payrollService.verify(periodUid));
+    }
+
     @PostMapping("/periods/uid/{periodUid}/approve")
     public ResponseEntity<PayrollPeriodDto> approve(@PathVariable String periodUid) {
         return ResponseEntity.ok(payrollService.approve(periodUid));

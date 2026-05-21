@@ -55,6 +55,8 @@ public class PayrollPeriod extends AuditableEntity {
 
     @Setter @Column(length = 500) private String note;
 
+    @Setter @Column(name = "verified_at")   private Instant verifiedAt;
+    @Setter @Column(name = "verified_by_username", length = 64) private String verifiedByUsername;
     @Setter @Column(name = "approved_at")   private Instant approvedAt;
     @Setter @Column(name = "approved_by_username", length = 64) private String approvedByUsername;
     @Setter @Column(name = "paid_at")       private Instant paidAt;
@@ -81,9 +83,19 @@ public class PayrollPeriod extends AuditableEntity {
         return status == PayrollPeriodStatus.DRAFT;
     }
 
-    public void approve(String username) {
+    /** Manager checkpoint: DRAFT → VERIFIED. Locks the items for director review. */
+    public void verify(String username) {
         if (status != PayrollPeriodStatus.DRAFT) {
-            throw new BusinessRuleException("Only DRAFT periods can be approved (current: " + status + ")");
+            throw new BusinessRuleException("Only DRAFT periods can be verified (current: " + status + ")");
+        }
+        status = PayrollPeriodStatus.VERIFIED;
+        verifiedAt = Instant.now();
+        verifiedByUsername = username;
+    }
+
+    public void approve(String username) {
+        if (status != PayrollPeriodStatus.VERIFIED) {
+            throw new BusinessRuleException("Only VERIFIED periods can be approved (current: " + status + ")");
         }
         status = PayrollPeriodStatus.APPROVED;
         approvedAt = Instant.now();

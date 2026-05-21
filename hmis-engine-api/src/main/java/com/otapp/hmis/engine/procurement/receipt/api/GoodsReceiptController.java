@@ -37,11 +37,13 @@ public class GoodsReceiptController {
     }
 
     @PostMapping("/procurement/goods-receipts/uid/{receiptUid}/verify")
+    @PreAuthorize("hasAuthority('PROCUREMENT_VERIFY')")
     public ResponseEntity<GoodsReceiptDto> verify(@PathVariable String receiptUid) {
         return ResponseEntity.ok(receiptService.verify(receiptUid));
     }
 
     @PostMapping("/procurement/goods-receipts/uid/{receiptUid}/approve")
+    @PreAuthorize("hasAuthority('PROCUREMENT_APPROVE')")
     public ResponseEntity<GoodsReceiptDto> approve(@PathVariable String receiptUid) {
         return ResponseEntity.ok(receiptService.approve(receiptUid));
     }

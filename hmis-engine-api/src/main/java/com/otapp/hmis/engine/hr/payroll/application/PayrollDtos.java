@@ -24,6 +24,8 @@ public final class PayrollDtos {
             String currency,
             PayrollPeriodStatus status,
             String note,
+            Instant verifiedAt,
+            String verifiedByUsername,
             Instant approvedAt,
             String approvedByUsername,
             Instant paidAt,

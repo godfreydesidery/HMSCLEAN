@@ -1,6 +1,6 @@
 /** Mirrors backend `com.otapp.hmis.engine.hr.payroll.*` DTOs (Phase 47). */
 
-export type PayrollPeriodStatus = 'DRAFT' | 'APPROVED' | 'PAID' | 'CANCELLED';
+export type PayrollPeriodStatus = 'DRAFT' | 'VERIFIED' | 'APPROVED' | 'PAID' | 'CANCELLED';
 
 export interface PayrollPeriodStatusOption {
   readonly value: PayrollPeriodStatus;
@@ -10,6 +10,7 @@ export interface PayrollPeriodStatusOption {
 
 export const PAYROLL_PERIOD_STATUSES: readonly PayrollPeriodStatusOption[] = [
   { value: 'DRAFT',     label: 'Draft',     badgeClass: 'bg-secondary' },
+  { value: 'VERIFIED',  label: 'Verified',  badgeClass: 'bg-primary' },
   { value: 'APPROVED',  label: 'Approved',  badgeClass: 'bg-info text-dark' },
   { value: 'PAID',      label: 'Paid',      badgeClass: 'bg-success' },
   { value: 'CANCELLED', label: 'Cancelled', badgeClass: 'bg-dark' }
@@ -24,6 +25,8 @@ export interface PayrollPeriod {
   currency: string;
   status: PayrollPeriodStatus;
   note: string | null;
+  verifiedAt: string | null;
+  verifiedByUsername: string | null;
   approvedAt: string | null;
   approvedByUsername: string | null;
   paidAt: string | null;

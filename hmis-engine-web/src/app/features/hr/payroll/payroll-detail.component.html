@@ -73,6 +73,20 @@
                         }
                       </td>
                     </tr>
+                    @if (item.lines && item.lines.length > 0) {
+                      <tr>
+                        <td colspan="6" class="bg-light">
+                          <div class="d-flex flex-wrap gap-2 small">
+                            <span class="hmis-muted">Breakdown:</span>
+                            @for (l of item.lines; track l.uid) {
+                              <span class="badge" [class.text-bg-success-subtle]="l.type === 'EARNING'" [class.text-bg-danger-subtle]="l.type === 'DEDUCTION'">
+                                {{ l.name }}: {{ l.amount | number:'1.2-2' }}
+                              </span>
+                            }
+                          </div>
+                        </td>
+                      </tr>
+                    }
                   }
                 }
               </tbody>

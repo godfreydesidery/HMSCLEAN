@@ -38,6 +38,15 @@ export interface PayrollPeriod {
   updatedAt: string;
 }
 
+export interface PayrollItemLine {
+  uid: string;
+  code: string | null;
+  name: string;
+  type: 'EARNING' | 'DEDUCTION';
+  amount: string;
+  sortOrder: number;
+}
+
 export interface PayrollItem {
   uid: string;
   periodUid: string;
@@ -50,6 +59,7 @@ export interface PayrollItem {
   paymentMethod: string | null;
   paymentReference: string | null;
   note: string | null;
+  lines: PayrollItemLine[];
   createdAt: string;
   updatedAt: string;
 }
@@ -68,6 +78,13 @@ export interface CreatePayrollPeriodRequest {
   note?: string | null;
 }
 
+export interface UpsertPayrollItemLineRequest {
+  code?: string | null;
+  name: string;
+  type: 'EARNING' | 'DEDUCTION';
+  amount: string;
+}
+
 export interface UpsertPayrollItemRequest {
   employeeUid: string;
   grossPay: string;
@@ -75,6 +92,7 @@ export interface UpsertPayrollItemRequest {
   paymentMethod?: string | null;
   paymentReference?: string | null;
   note?: string | null;
+  lines?: UpsertPayrollItemLineRequest[];
 }
 
 export interface PayrollSearchParams {

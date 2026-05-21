@@ -117,13 +117,23 @@ export class PayrollDetailComponent implements OnInit {
     this.busy.set(true);
     this.errorMessage.set(null);
     const raw = this.itemForm.getRawValue();
+    // Carry the computed breakdown (basic + earnings + deductions) through as the
+    // item's itemised lines, so the payslip detail is persisted (M24).
+    const c = this.computed();
+    const lines = c
+      ? [
+          { code: 'BASIC', name: 'Basic pay', type: 'EARNING' as const, amount: String(c.effectiveBasic) },
+          ...c.lines.map((l) => ({ code: l.code, name: l.name, type: l.type, amount: String(l.amount) }))
+        ]
+      : undefined;
     this.payrollService.upsertItem(p.uid, {
       employeeUid:      raw.employeeUid,
       grossPay:         raw.grossPay,
       totalDeductions:  raw.totalDeductions,
       paymentMethod:    raw.paymentMethod?.trim() || null,
       paymentReference: raw.paymentReference?.trim() || null,
-      note:             raw.note?.trim() || null
+      note:             raw.note?.trim() || null,
+      lines
     }).pipe(finalize(() => this.busy.set(false))).subscribe({
       next: () => { this.itemForm.reset({ employeeUid: '', grossPay: '0.00', totalDeductions: '0.00', paymentMethod: '', paymentReference: '', note: '' }); this.computed.set(null); this.load(p.uid); },
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not save item.')

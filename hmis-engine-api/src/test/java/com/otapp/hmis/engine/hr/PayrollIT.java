@@ -61,17 +61,24 @@ class PayrollIT extends AuthenticatedIntegrationTest {
                         "totalDeductions", "100000.00"),
                 Map.class));
 
-        // 4. Upsert again — same (period, employee) updates the row.
+        // 4. Upsert again — same (period, employee) updates the row, now with an
+        //    itemised breakdown (M24).
         Map item1updated = expectOk(post(
                 "/hr/payroll/periods/uid/" + periodUid + "/items",
                 Map.of(
                         "employeeUid",     emp1,
                         "grossPay",        "1100000.00",
-                        "totalDeductions", "200000.00"),
+                        "totalDeductions", "200000.00",
+                        "lines", List.of(
+                                Map.of("code", "BASIC", "name", "Basic pay", "type", "EARNING",   "amount", "1100000.00"),
+                                Map.of("code", "PAYE",  "name", "PAYE",      "type", "DEDUCTION", "amount", "200000.00"))),
                 Map.class));
         assertThat(item1updated.get("uid")).isEqualTo(item1.get("uid"));
         assertThat(new BigDecimal(item1updated.get("netPay").toString()))
                 .isEqualByComparingTo("900000.00");
+        assertThat((List<?>) item1updated.get("lines"))
+                .as("Itemised breakdown is persisted on the payroll item")
+                .hasSize(2);
 
         // 5. View — period totals should reflect both items.
         Map view = expectOk(get("/hr/payroll/periods/uid/" + periodUid, Map.class));

@@ -8,10 +8,13 @@ import com.otapp.hmis.engine.hr.employee.domain.EmployeeRepository;
 import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.CancelPayrollPeriodRequest;
 import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.CreatePayrollPeriodRequest;
 import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.PayrollItemDto;
+import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.PayrollItemLineDto;
 import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.PayrollPeriodDto;
 import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.PayrollPeriodWithItemsDto;
 import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.UpsertPayrollItemRequest;
 import com.otapp.hmis.engine.hr.payroll.domain.PayrollItem;
+import com.otapp.hmis.engine.hr.payroll.domain.PayrollItemLine;
+import com.otapp.hmis.engine.hr.payroll.domain.PayrollItemLineRepository;
 import com.otapp.hmis.engine.hr.payroll.domain.PayrollItemRepository;
 import com.otapp.hmis.engine.hr.payroll.domain.PayrollPeriod;
 import com.otapp.hmis.engine.hr.payroll.domain.PayrollPeriodRepository;
@@ -30,6 +33,7 @@ public class PayrollService {
 
     private final PayrollPeriodRepository periodRepository;
     private final PayrollItemRepository itemRepository;
+    private final PayrollItemLineRepository itemLineRepository;
     private final EmployeeRepository employeeRepository;
 
     @Transactional
@@ -66,6 +70,17 @@ public class PayrollService {
         item.setPaymentMethod(emptyToNull(request.paymentMethod()));
         item.setPaymentReference(emptyToNull(request.paymentReference()));
         item.setNote(emptyToNull(request.note()));
+
+        // Replace the itemised breakdown (the legacy PayrollDetail) when provided.
+        if (request.lines() != null) {
+            itemLineRepository.deleteByItemUid(item.getUid());
+            int order = 0;
+            for (var line : request.lines()) {
+                itemLineRepository.save(new PayrollItemLine(
+                        item.getUid(), emptyToNull(line.code()), line.name().trim(),
+                        line.type(), line.amount(), order++));
+            }
+        }
         return toItemDto(item, employee);
     }
 
@@ -76,7 +91,10 @@ public class PayrollService {
             throw new BusinessRuleException("Payroll period is " + period.getStatus() + " and locked");
         }
         itemRepository.findByPeriodUidAndEmployeeUid(period.getUid(), employeeUid)
-                .ifPresent(itemRepository::delete);
+                .ifPresent(item -> {
+                    itemLineRepository.deleteByItemUid(item.getUid());
+                    itemRepository.delete(item);
+                });
     }
 
     @Transactional
@@ -161,7 +179,11 @@ public class PayrollService {
         return toItemDto(item, employee);
     }
 
-    private static PayrollItemDto toItemDto(PayrollItem item, Employee employee) {
+    private PayrollItemDto toItemDto(PayrollItem item, Employee employee) {
+        List<PayrollItemLineDto> lines = itemLineRepository.findAllByItemUidOrderBySortOrderAsc(item.getUid()).stream()
+                .map(l -> new PayrollItemLineDto(l.getUid(), l.getCode(), l.getName(), l.getType(),
+                        l.getAmount(), l.getSortOrder()))
+                .toList();
         return new PayrollItemDto(
                 item.getUid(),
                 item.getPeriodUid(),
@@ -174,6 +196,7 @@ public class PayrollService {
                 item.getPaymentMethod(),
                 item.getPaymentReference(),
                 item.getNote(),
+                lines,
                 item.getCreatedAt(),
                 item.getUpdatedAt());
     }

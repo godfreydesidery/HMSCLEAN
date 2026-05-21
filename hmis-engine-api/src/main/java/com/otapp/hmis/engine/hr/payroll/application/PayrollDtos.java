@@ -1,6 +1,8 @@
 package com.otapp.hmis.engine.hr.payroll.application;
 
+import com.otapp.hmis.engine.hr.payroll.domain.PayrollComponentType;
 import com.otapp.hmis.engine.hr.payroll.domain.PayrollPeriodStatus;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -36,6 +38,14 @@ public final class PayrollDtos {
             Instant createdAt,
             Instant updatedAt) {}
 
+    public record PayrollItemLineDto(
+            String uid,
+            String code,
+            String name,
+            PayrollComponentType type,
+            BigDecimal amount,
+            int sortOrder) {}
+
     public record PayrollItemDto(
             String uid,
             String periodUid,
@@ -48,6 +58,7 @@ public final class PayrollDtos {
             String paymentMethod,
             String paymentReference,
             String note,
+            List<PayrollItemLineDto> lines,
             Instant createdAt,
             Instant updatedAt) {}
 
@@ -59,13 +70,22 @@ public final class PayrollDtos {
             @Pattern(regexp = "^[A-Z]{3}$") String currency,
             @Size(max = 500) String note) {}
 
+    /** A single itemised line for the upsert — typically taken from the component compute. */
+    public record PayrollItemLineRequest(
+            @Size(max = 32)  String code,
+            @NotBlank @Size(max = 120) String name,
+            @NotNull PayrollComponentType type,
+            @NotNull @DecimalMin("0.00") BigDecimal amount) {}
+
     public record UpsertPayrollItemRequest(
             @NotBlank @Size(min = 26, max = 26) String employeeUid,
             @NotNull @DecimalMin("0.00") BigDecimal grossPay,
             @NotNull @DecimalMin("0.00") BigDecimal totalDeductions,
             @Size(max = 32)  String paymentMethod,
             @Size(max = 80)  String paymentReference,
-            @Size(max = 500) String note) {}
+            @Size(max = 500) String note,
+            /** Optional itemised breakdown (basic / allowances / PAYE / NHIF / loan …). */
+            @Valid List<PayrollItemLineRequest> lines) {}
 
     public record CancelPayrollPeriodRequest(@Size(max = 500) String reason) {}
 

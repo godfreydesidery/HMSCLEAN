@@ -8,8 +8,9 @@ import { InvoiceService } from '../billing/invoice.service';
 import { RecordPaymentComponent } from '../billing/record-payment.component';
 import { INVOICE_STATUSES, Invoice, InvoiceStatus } from '../billing/invoice.types';
 import { ConsultationService } from '../encounter/consultation/consultation.service';
+import { SendToDoctorModalComponent } from '../encounter/consultation/send-to-doctor-modal.component';
 import {
-  CONSULTATION_STATUSES, ConsultationStatus, ConsultationSummary
+  CONSULTATION_STATUSES, Consultation, ConsultationStatus, ConsultationSummary
 } from '../encounter/consultation/consultation.types';
 import { AddOrderComponent } from '../encounter/order/add-order.component';
 import { AddPrescriptionComponent } from '../encounter/prescription/add-prescription.component';
@@ -237,11 +238,23 @@ export class PatientDetailComponent {
     return this.invoiceStatuses.find((x) => x.value === s)?.label ?? s;
   }
 
-  startConsultation(): void {
+  /**
+   * "Send to doctor" — opens the clinic/clinician picker and auto-creates the
+   * consultation (legacy reception action). The doctor then picks it up from
+   * the reception queue. Only valid for OUTPATIENTs; OUTSIDERs use direct orders.
+   */
+  sendToDoctor(): void {
     const p = this.patient();
     if (!p) return;
-    void this.router.navigate(['/encounters', 'consultations', 'new'], {
-      queryParams: { patientUid: p.uid }
+    const ref = this.modal.open(SendToDoctorModalComponent, { size: 'lg', backdrop: 'static' });
+    (ref.componentInstance as SendToDoctorModalComponent).patient = p;
+    ref.closed.subscribe((created: Consultation | undefined) => {
+      if (!created) return;
+      this.actionMessage.set(`Consultation ${created.consultationNo} created — sent to ${created.clinicianName || created.clinicianUsername}.`);
+      this.consultationService.recentForPatient(p.uid).subscribe({
+        next: (recent) => this.recentConsultations.set(recent),
+        error: () => { /* keep previous */ }
+      });
     });
   }
 

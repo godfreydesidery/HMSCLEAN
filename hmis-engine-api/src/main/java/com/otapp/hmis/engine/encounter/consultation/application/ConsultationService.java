@@ -7,7 +7,7 @@ import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.ConsultationDto;
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.ConsultationSummary;
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.StartConsultationRequest;
-import com.otapp.hmis.engine.encounter.consultation.application.event.ConsultationBookingRequestedEvent;
+import com.otapp.hmis.engine.encounter.consultation.application.event.ConsultationBookedEvent;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationStatus;
@@ -26,6 +26,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,10 +77,6 @@ public class ConsultationService {
                     .orElseThrow(() -> new NotFoundException("Insurance plan not found: " + planUid));
         }
 
-        // Sync gate — any registered listener (billing) may throw to abort the booking
-        // (e.g. cash patient with an unpaid registration invoice).
-        eventPublisher.publishEvent(new ConsultationBookingRequestedEvent(patient.getUid(), request.paymentType()));
-
         // Optional follow-up linkage — must reference an existing consultation for the same patient.
         String followUpOf = emptyToNull(request.followUpOfConsultationUid());
         if (followUpOf != null) {
@@ -101,6 +98,12 @@ public class ConsultationService {
         consultation.setFollowUpOfConsultationUid(followUpOf);
         consultationRepository.save(consultation);
         patientService.touchLastVisit(patient.getUid());
+
+        // Hand off to billing (after-commit) to seed the consultation-fee invoice —
+        // the legacy "send to doctor creates the consultation bill" step.
+        eventPublisher.publishEvent(new ConsultationBookedEvent(
+                consultation.getUid(), patient.getUid(), consultation.getPaymentType(),
+                consultation.getInsurancePlanUid(), followUpOf != null));
         return toDto(consultation);
     }
 
@@ -133,6 +136,11 @@ public class ConsultationService {
                 source.getInsurancePlanUid(),
                 source.getReason());
         receiver.setTransferredFromConsultationUid(source.getUid());
+        // Inherit the fee-settled state — a transfer keeps the original
+        // consultation bill; the receiving clinic does not re-charge.
+        if (source.isFeeSettled()) {
+            receiver.markFeeSettled();
+        }
         consultationRepository.save(receiver);
 
         source.markTransferredTo(receiver.getUid(), emptyToNull(request.reason()));
@@ -142,8 +150,22 @@ public class ConsultationService {
     @Transactional
     public ConsultationDto start(String uid) {
         Consultation c = loadOrThrow(uid);
+        // Legacy gate: the doctor cannot open a CASH consultation until its
+        // fee is settled. Non-CASH (insurance / corporate) is treated as
+        // COVERED. Follow-up / plan-waived consultations are settled at booking.
+        if (c.getPaymentType() == PaymentType.CASH && !c.isFeeSettled()) {
+            throw new BusinessRuleException(
+                    "Consultation fee not settled — the cashier must collect the consultation fee "
+                    + "before the doctor can open this consultation");
+        }
         c.start();
         return toDto(c);
+    }
+
+    /** Idempotent — flips the consultation-fee gate. Called by the billing settlement dispatcher. */
+    @Transactional
+    public void markFeeSettled(String consultationUid) {
+        consultationRepository.findByUid(consultationUid).ifPresent(Consultation::markFeeSettled);
     }
 
     @Transactional
@@ -187,9 +209,29 @@ public class ConsultationService {
                         .map(this::toSummary));
     }
 
+    /**
+     * The doctor's "from reception" queue: their BOOKED consultations whose
+     * fee is settled (CASH paid, or non-CASH treated as COVERED), oldest
+     * first. Unpaid CASH consultations are hidden until the cashier collects.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<ConsultationSummary> receptionQueue(Pageable pageable) {
+        return PageResponse.from(
+                consultationRepository.findReceptionQueueFor(currentUsername(), pageable)
+                        .map(this::toSummary));
+    }
+
     private Consultation loadOrThrow(String uid) {
         return consultationRepository.findByUid(uid)
                 .orElseThrow(() -> new NotFoundException("Consultation not found: " + uid));
+    }
+
+    private static String currentUsername() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null) {
+            throw new BusinessRuleException("Authenticated user required");
+        }
+        return auth.getName();
     }
 
     // ----- mapping -----------------------------------------------------------
@@ -244,6 +286,8 @@ public class ConsultationService {
                 clinic == null ? null : clinic.getName(),
                 clinician == null ? null : clinician.getFirstName() + " " + clinician.getLastName(),
                 c.getStatus(),
+                c.getPaymentType(),
+                c.isFeeSettled(),
                 c.getBookedAt(),
                 c.getStartedAt());
     }

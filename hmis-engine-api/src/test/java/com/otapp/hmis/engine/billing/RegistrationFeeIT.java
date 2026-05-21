@@ -10,13 +10,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 
 /**
- * Phase 36: the registration-fee + consultation gate.
+ * Phase 36 + the consultation-fee gate move (PROCESS_MISMATCHES.md M3):
  *
  *   Registering a patient publishes {@code PatientRegisteredEvent}; billing
  *   listens after-commit and seeds an ISSUED registration invoice. The
- *   {@code ConsultationBookingRequestedEvent} fires synchronously when a
- *   consultation is booked — for CASH patients with an outstanding
- *   registration balance the listener throws and the booking is rejected.
+ *   registration fee is collected at the cashier but — legacy-faithfully —
+ *   no longer blocks consultation booking. The gate that matters now is the
+ *   consultation fee, enforced when the doctor opens the consultation
+ *   (see {@link com.otapp.hmis.engine.encounter.SendToDoctorFlowIT}).
  *
  * Uses the seeded General Outpatient clinic (V3) and the bootstrap ROOT
  * user as the clinician.
@@ -27,8 +28,8 @@ class RegistrationFeeIT extends AuthenticatedIntegrationTest {
     private static final String NHIF_PLAN_UID  = "01J5KQRPCD0000000000000IP1";
 
     @Test
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    void cashPatientCannotBookConsultationUntilRegistrationFeeIsPaid() {
+    @SuppressWarnings("unchecked")
+    void registrationInvoiceIsSeededAndDoesNotBlockBooking() {
         // 1. Register a CASH OUTPATIENT.
         Map<String, Object> patient = expectOk(post(
                 "/patients",
@@ -51,33 +52,10 @@ class RegistrationFeeIT extends AuthenticatedIntegrationTest {
         assertThat(new BigDecimal(regInvoice.get("subtotal").toString()))
                 .as("Registration fee picks up the V39-seeded cash price")
                 .isEqualByComparingTo("5000.00");
-        String invoiceUid = (String) regInvoice.get("uid");
 
-        // 3. Consultation booking refused — registration fee outstanding.
-        ResponseEntity<Map> denied = post(
-                "/encounters/consultations",
-                Map.of(
-                        "patientUid",         patientUid,
-                        "clinicUid",          OPD_CLINIC_UID,
-                        "clinicianUsername",  "root",
-                        "paymentType",        "CASH",
-                        "reason",             "fever"),
-                Map.class);
-        assertThat(denied.getStatusCode().is4xxClientError())
-                .as("Booking should fail while the registration fee is unpaid")
-                .isTrue();
-
-        // 4. Pay the registration fee in full.
-        Map<String, Object> paid = expectOk(post(
-                "/billing/invoices/uid/" + invoiceUid + "/payments",
-                Map.of(
-                        "method",   "CASH",
-                        "amount",   new BigDecimal("5000.00"),
-                        "currency", "TZS"),
-                Map.class));
-        assertThat(paid.get("status")).isEqualTo("PAID");
-
-        // 5. Now consultation booking succeeds.
+        // 3. Booking now succeeds even though the registration fee is unpaid —
+        //    the registration fee no longer gates the consultation. (The
+        //    consultation-fee gate is exercised in SendToDoctorFlowIT.)
         Map<String, Object> consultation = expectOk(post(
                 "/encounters/consultations",
                 Map.of(

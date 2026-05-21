@@ -79,6 +79,17 @@ public class Consultation extends AuditableEntity {
     @Setter @Column(name = "transfer_reason", length = 500) private String transferReason;
     @Setter @Column(name = "transferred_at")                private Instant transferredAt;
 
+    /**
+     * Denormalised payment gate: TRUE once the consultation fee is settled.
+     * Set by the billing-side settlement dispatcher (billing → encounter) when
+     * the CONSULTATION invoice is paid in full, or at booking when the invoice
+     * is zero-amount (follow-up / plan waiver). Non-CASH consultations are
+     * treated as settled by the reception queue / open gate regardless of this
+     * flag (legacy "COVERED"). The encounter module never reads billing.
+     */
+    @Column(name = "fee_settled", nullable = false) private boolean feeSettled = false;
+    @Setter @Column(name = "fee_settled_at") private Instant feeSettledAt;
+
     @Column(name = "booked_at",  nullable = false) private Instant bookedAt;
     @Setter @Column(name = "started_at")   private Instant startedAt;
     @Setter @Column(name = "completed_at") private Instant completedAt;
@@ -96,6 +107,14 @@ public class Consultation extends AuditableEntity {
         this.insurancePlanUid = insurancePlanUid;
         this.reason = reason;
         this.bookedAt = Instant.now();
+    }
+
+    /** Idempotent — flags the consultation fee as settled. Safe to call repeatedly. */
+    public void markFeeSettled() {
+        if (!feeSettled) {
+            feeSettled = true;
+            feeSettledAt = Instant.now();
+        }
     }
 
     public void start() {

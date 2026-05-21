@@ -42,4 +42,19 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Long
                               @Param("patientUid") String patientUid,
                               @Param("clinician")  String clinicianUsername,
                               Pageable pageable);
+
+    /**
+     * The doctor's "from reception" queue: BOOKED consultations assigned to the
+     * clinician whose fee is settled (CASH paid) or whose payment type is not
+     * CASH (legacy COVERED). Oldest first — first-come, first-served.
+     */
+    @Query("""
+            SELECT c FROM Consultation c
+            WHERE c.clinicianUsername = :clinician
+              AND c.status = com.otapp.hmis.engine.encounter.consultation.domain.ConsultationStatus.BOOKED
+              AND (c.feeSettled = true
+                   OR c.paymentType <> com.otapp.hmis.engine.patient.domain.PaymentType.CASH)
+            ORDER BY c.bookedAt ASC
+            """)
+    Page<Consultation> findReceptionQueueFor(@Param("clinician") String clinicianUsername, Pageable pageable);
 }

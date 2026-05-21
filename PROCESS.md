@@ -599,6 +599,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Process | Status | Notes |
 |---|---|---|
 | Consultation lifecycle | ✅ | New: BOOKED → IN_PROGRESS → COMPLETED / CANCELLED. Legacy: PENDING → IN_PROCESS → COMPLETED / CANCELLED. Equivalent semantics; rename internally is acceptable. |
+| Send-to-doctor + reception queue | ✅ | **Fidelity fix (PROCESS_MISMATCHES.md M1/M2):** a "Send to doctor" action on the patient (`SendToDoctorModalComponent`) auto-creates the consultation; the doctor picks it up from `GET /encounters/consultations/reception-queue` (`ReceptionQueueComponent`), which lists only their BOOKED, fee-settled consultations. |
 | Clinical notes (SOAP) | ✅ | Phase 1. |
 | Working + final diagnoses | ✅ | Phase 1 — uses kind = WORKING / FINAL. |
 | Lab / radiology / procedure orders | ✅ | Phase 2 — polymorphic ClinicalOrder. |
@@ -699,7 +700,7 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Credit note / write-off | ✅ | Phase 25 — `CreditNote` aggregate per invoice with `CreditNoteReason` (HARDSHIP / GOODWILL / ERROR_CORRECTION / SERVICE_NOT_RENDERED / ROUNDING / OTHER). Invoice gains `totalCredited`; `balance = subtotal - totalPaid - totalCredited`. POST `/billing/invoices/uid/{uid}/credit-notes`. |
 | Refunds | ✅ | Phase 25 — `Refund` aggregate per invoice with `RefundReason` (OVERPAYMENT / SERVICE_NOT_RENDERED / DOUBLE_PAYMENT / CANCELLATION / OTHER) + `PaymentMethod`. Reduces `totalPaid` and rolls invoice status back from PAID → PARTIALLY_PAID / ISSUED as needed. POST `/billing/invoices/uid/{uid}/refunds`. |
 | End-of-day cash collection vs. invoice reconciliation | ✅ | Phase 32 — `CashierShift` per cashier (OPEN → CLOSED). `POST /billing/cashier-shifts/open` and `/close`; close computes expected = openingFloat + sum(CASH payments where createdBy=user in window), records variance for audit. Partial unique index enforces at-most-one OPEN shift per user. |
-| Registration / consultation fee that gates clinical activity for cash patients | ✅ | Phase 36 — `ConsultationService.book` publishes `ConsultationBookingRequestedEvent`; billing's sync listener refuses booking for CASH patients with an outstanding REGISTRATION-scope invoice. Insurance/plan-waived (zero-balance) invoices do not block. |
+| Registration / consultation fee that gates clinical activity for cash patients | ✅ | **Fidelity fix (PROCESS_MISMATCHES.md M3):** the registration fee is collected at the cashier but no longer blocks booking. Booking publishes `ConsultationBookedEvent`; billing's `ConsultationFeeService` seeds an ISSUED CONSULTATION-scope invoice (waived to zero for follow-ups). The doctor's reception queue shows only fee-settled consultations, and `ConsultationService.start` refuses a CASH consultation until its fee is settled (`Consultation.feeSettled`, flipped by the billing `SettlementDispatcher`). Non-CASH is treated as COVERED. |
 
 ### 17.11 Human Resource
 

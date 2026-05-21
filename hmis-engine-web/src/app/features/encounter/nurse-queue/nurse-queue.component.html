@@ -1,0 +1,54 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">Nursing worklist</h1>
+    <p class="hmis-muted mb-0 small">Currently-admitted patients. Open one to chart vitals, nursing notes and consumables.</p>
+  </div>
+  <span class="hmis-muted small align-self-center">{{ totalElements() }} admitted</span>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 hmis-table">
+      <thead><tr><th>Admission</th><th>Patient</th><th>Ward</th><th>Bed</th><th>Clinician</th><th class="hmis-muted small">Admitted</th><th class="text-end"></th></tr></thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="7"><div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div></td></tr>
+        } @else if (rows().length === 0) {
+          <tr><td colspan="7"><div class="hmis-empty"><i class="bi bi-hospital"></i><div class="fw-semibold mb-1">No admitted patients</div><div class="small">The ward is empty right now.</div></div></td></tr>
+        } @else {
+          @for (a of rows(); track a.uid) {
+            <tr>
+              <td class="hmis-code">{{ a.admissionNo }}</td>
+              <td>
+                <div class="fw-semibold">{{ a.patientName || '—' }}</div>
+                @if (a.patientNo) { <div class="hmis-muted small hmis-code">{{ a.patientNo }}</div> }
+              </td>
+              <td>{{ a.wardName || '—' }}</td>
+              <td>{{ a.bedLabel || '—' }}</td>
+              <td>{{ a.admittingClinicianName || '—' }}</td>
+              <td class="hmis-muted small">{{ a.admittedAt | date:'short' }}</td>
+              <td class="text-end">
+                <button type="button" class="btn btn-sm btn-primary d-flex align-items-center gap-1 ms-auto" (click)="open(a)">
+                  <i class="bi bi-clipboard2-pulse"></i>Open chart
+                </button>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (totalPages() > 1) {
+    <div class="card-footer bg-white d-flex align-items-center justify-content-between">
+      <span class="hmis-muted small">Page {{ page() + 1 }} of {{ totalPages() }}</span>
+      <div class="btn-group btn-group-sm">
+        <button type="button" class="btn btn-light border" (click)="prev()" [disabled]="page() === 0"><i class="bi bi-chevron-left"></i> Prev</button>
+        <button type="button" class="btn btn-light border" (click)="next()" [disabled]="page() >= totalPages() - 1">Next <i class="bi bi-chevron-right"></i></button>
+      </div>
+    </div>
+  }
+</div>

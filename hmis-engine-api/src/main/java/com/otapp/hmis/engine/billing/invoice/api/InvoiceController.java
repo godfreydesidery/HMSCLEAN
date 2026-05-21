@@ -4,6 +4,7 @@ import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.CancelInvoi
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceDto;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceSummary;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.RecordPaymentRequest;
+import com.otapp.hmis.engine.billing.invoice.application.ConsultationFeeService;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceService;
 import com.otapp.hmis.engine.billing.invoice.application.RegistrationFeeService;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceStatus;
@@ -25,6 +26,7 @@ public class InvoiceController {
 
     private final InvoiceService invoiceService;
     private final RegistrationFeeService registrationFeeService;
+    private final ConsultationFeeService consultationFeeService;
 
     @GetMapping("/billing/invoices")
     public ResponseEntity<PageResponse<InvoiceSummary>> search(
@@ -49,6 +51,12 @@ public class InvoiceController {
     @PostMapping("/billing/consultations/uid/{consultationUid}/invoice")
     public ResponseEntity<InvoiceDto> generate(@PathVariable String consultationUid) {
         return ResponseEntity.ok(invoiceService.generateForConsultation(consultationUid));
+    }
+
+    /** Idempotent recovery: seed the up-front consultation-fee invoice if the booking listener missed it. */
+    @PostMapping("/billing/consultations/uid/{consultationUid}/consultation-fee")
+    public ResponseEntity<InvoiceDto> ensureConsultationFee(@PathVariable String consultationUid) {
+        return ResponseEntity.ok(consultationFeeService.ensureFor(consultationUid));
     }
 
     @GetMapping("/billing/admissions/uid/{admissionUid}/invoice")

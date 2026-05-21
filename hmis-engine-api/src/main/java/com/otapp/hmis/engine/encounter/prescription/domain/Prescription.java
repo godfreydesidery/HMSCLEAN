@@ -65,6 +65,16 @@ public class Prescription extends AuditableEntity {
     @Setter @Column(name = "issue_pharmacy_uid", length = 26) private String issuePharmacyUid;
     @Setter @Column(name = "sales_pharmacy_uid", length = 26) private String salesPharmacyUid;
 
+    /**
+     * Denormalised payment flag set by the billing settlement dispatcher when
+     * the invoice carrying this prescription's MEDICINE line is paid in full.
+     * The dispense worklist exposes it; it is not a hard pre-dispense gate
+     * because the rewrite bills medicines at point of dispense (SOLD), not
+     * before. The encounter module never reads billing.
+     */
+    @Column(name = "settled", nullable = false) private boolean settled = false;
+    @Setter @Column(name = "settled_at") private Instant settledAt;
+
     @Column(name = "requested_at", nullable = false) private Instant requestedAt;
     @Setter @Column(name = "accepted_at")  private Instant acceptedAt;
     @Setter @Column(name = "held_at")      private Instant heldAt;
@@ -88,6 +98,14 @@ public class Prescription extends AuditableEntity {
         this.quantity = quantity;
         this.instructions = instructions;
         this.requestedAt = Instant.now();
+    }
+
+    /** Idempotent — flags this prescription's charge as settled. */
+    public void markSettled() {
+        if (!settled) {
+            settled = true;
+            settledAt = Instant.now();
+        }
     }
 
     /** Pharmacist picks the Rx off the queue. PENDING → ACCEPTED. */

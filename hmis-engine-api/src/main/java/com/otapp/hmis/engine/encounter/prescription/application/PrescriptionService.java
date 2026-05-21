@@ -1,17 +1,23 @@
 package com.otapp.hmis.engine.encounter.prescription.application;
 
+import com.otapp.hmis.engine.common.api.PageResponse;
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
+import com.otapp.hmis.engine.encounter.admission.domain.AdmissionRepository;
+import com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
 import com.otapp.hmis.engine.patient.domain.Patient;
+import com.otapp.hmis.engine.patient.domain.PatientClassScope;
 import com.otapp.hmis.engine.patient.domain.PatientRepository;
 import com.otapp.hmis.engine.patient.domain.PatientType;
 import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos.CancelPrescriptionRequest;
 import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos.CreatePrescriptionRequest;
 import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos.PrescriptionDto;
+import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos.PrescriptionWorklistRow;
 import com.otapp.hmis.engine.encounter.prescription.domain.Prescription;
 import com.otapp.hmis.engine.encounter.prescription.domain.PrescriptionRepository;
+import com.otapp.hmis.engine.encounter.prescription.domain.PrescriptionStatus;
 import com.otapp.hmis.engine.encounter.prescription.infrastructure.PrescriptionNumberGenerator;
 import com.otapp.hmis.engine.masterdata.administrationroute.domain.AdministrationRoute;
 import com.otapp.hmis.engine.masterdata.administrationroute.domain.AdministrationRouteRepository;
@@ -23,6 +29,7 @@ import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,8 +37,13 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PrescriptionService {
 
+    private static final java.util.Set<PrescriptionStatus> ACTIVE_PHARMACY_STATES = java.util.EnumSet.of(
+            PrescriptionStatus.PENDING, PrescriptionStatus.ACCEPTED, PrescriptionStatus.HELD,
+            PrescriptionStatus.VERIFIED, PrescriptionStatus.APPROVED);
+
     private final PrescriptionRepository prescriptionRepository;
     private final ConsultationRepository consultationRepository;
+    private final AdmissionRepository admissionRepository;
     private final PatientRepository patientRepository;
     private final MedicineRepository medicineRepository;
     private final DosageRepository dosageRepository;
@@ -148,6 +160,57 @@ public class PrescriptionService {
         return prescriptionRepository.findAllByConsultationUidOrderByRequestedAtDesc(consultationUid).stream()
                 .map(this::toDto)
                 .toList();
+    }
+
+    /**
+     * The pharmacy dispensing queue — prescriptions awaiting pharmacy action,
+     * optionally scoped by patient class. When {@code status} is null the queue
+     * shows all active pharmacy states (PENDING…APPROVED). {@code settledOnly}
+     * defaults to false (medicines bill at point of dispense, not before).
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<PrescriptionWorklistRow> searchDispenseWorklist(
+            PrescriptionStatus status, PatientClassScope scope, boolean settledOnly, Pageable pageable) {
+        return PageResponse.from(
+                prescriptionRepository.searchDispenseWorklist(
+                                status, ACTIVE_PHARMACY_STATES, settledOnly,
+                                scope == null ? null : scope.name(), pageable)
+                        .map(this::toWorklistRow));
+    }
+
+    /** Idempotent — flips this prescription's settled flag. Called by the billing settlement dispatcher. */
+    @Transactional
+    public void markSettled(String prescriptionUid) {
+        prescriptionRepository.findByUid(prescriptionUid).ifPresent(Prescription::markSettled);
+    }
+
+    private PrescriptionWorklistRow toWorklistRow(Prescription p) {
+        Patient patient = patientRepository.findByUid(p.getPatientUid()).orElse(null);
+        Medicine medicine = medicineRepository.findByUid(p.getMedicineUid()).orElse(null);
+        return new PrescriptionWorklistRow(
+                p.getUid(),
+                p.getPrescriptionNo(),
+                p.getPatientUid(),
+                patient == null ? null : patient.getPatientNo(),
+                patient == null ? null : patient.fullName(),
+                resolvePatientClass(p),
+                p.getConsultationUid(),
+                medicine == null ? p.getMedicineUid() : medicine.getName(),
+                p.getDose(),
+                p.getFrequency(),
+                p.getQuantity(),
+                p.getStatus(),
+                p.isSettled(),
+                p.getRequestedAt());
+    }
+
+    private PatientClassScope resolvePatientClass(Prescription p) {
+        if (p.getConsultationUid() == null) {
+            return PatientClassScope.OUTSIDER;
+        }
+        return admissionRepository.existsByPatientUidAndStatus(p.getPatientUid(), AdmissionStatus.ADMITTED)
+                ? PatientClassScope.INPATIENT
+                : PatientClassScope.OUTPATIENT;
     }
 
     private Prescription loadOrThrow(String uid) {

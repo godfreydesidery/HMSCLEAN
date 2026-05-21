@@ -1,0 +1,87 @@
+<div class="modal-header">
+  <div>
+    <h5 class="modal-title">Send to doctor</h5>
+    <div class="hmis-muted small mt-1">
+      <span class="fw-semibold">{{ patient.firstName }} {{ patient.lastName }}</span>
+      <span class="hmis-code ms-2">{{ patient.patientNo }}</span>
+    </div>
+  </div>
+  <button type="button" class="btn-close" (click)="activeModal.dismiss()" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  }
+
+  <p class="hmis-muted small">Picks a clinic and clinician and creates the consultation. The doctor picks it up from their reception queue once the consultation fee is settled.</p>
+
+  <form [formGroup]="form" novalidate>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label" for="std-clinic">Clinic <span class="text-danger">*</span></label>
+        <select id="std-clinic" name="clinicUid" class="form-select" formControlName="clinicUid">
+          <option value="" disabled>{{ loadingLookups() ? 'Loading…' : '— Select a clinic —' }}</option>
+          @for (c of clinics(); track c.uid) { <option [value]="c.uid">{{ c.name }} ({{ c.code }})</option> }
+        </select>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label" for="std-clinician">Clinician <span class="text-danger">*</span></label>
+        <select id="std-clinician" name="clinicianUsername" class="form-select" formControlName="clinicianUsername">
+          <option value="" disabled>{{ loadingLookups() ? 'Loading…' : '— Select a clinician —' }}</option>
+          @for (c of clinicians(); track c.username) { <option [value]="c.username">{{ c.fullName }} ({{ c.username }})</option> }
+        </select>
+        @if (!loadingLookups() && clinicians().length === 0) {
+          <div class="form-text text-warning">No users with the CLINICIAN role are enabled.</div>
+        }
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label" for="std-payment">Payment type <span class="text-danger">*</span></label>
+        <select id="std-payment" name="paymentType" class="form-select" formControlName="paymentType">
+          @for (p of paymentTypes; track p.value) { <option [value]="p.value">{{ p.label }}</option> }
+        </select>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label" for="std-plan">
+          Insurance plan @if (insuranceRequired) { <span class="text-danger">*</span> }
+        </label>
+        <select id="std-plan" name="insurancePlanUid" class="form-select" formControlName="insurancePlanUid">
+          <option value="">— No plan —</option>
+          @for (pl of plans(); track pl.uid) { <option [value]="pl.uid">{{ pl.name }} ({{ pl.providerName || pl.code }})</option> }
+        </select>
+        @if (form.controls.insurancePlanUid.errors?.['required'] && form.controls.insurancePlanUid.touched) {
+          <div class="invalid-feedback d-block">An insurance plan is required for this payment type.</div>
+        }
+      </div>
+
+      <div class="col-12">
+        <label class="form-label" for="std-reason">Reason for visit</label>
+        <textarea id="std-reason" name="reason" rows="2" class="form-control" formControlName="reason" placeholder="Chief complaint, presenting symptoms…"></textarea>
+      </div>
+
+      @if (followUpCandidates().length > 0) {
+        <div class="col-12">
+          <label class="form-label" for="std-follow-up">Follow-up of (optional)</label>
+          <select id="std-follow-up" name="followUpOfConsultationUid" class="form-select" formControlName="followUpOfConsultationUid">
+            <option value="">— Not a follow-up —</option>
+            @for (c of followUpCandidates(); track c.uid) {
+              <option [value]="c.uid">{{ c.consultationNo }} · {{ c.clinicName || 'Clinic' }} · {{ c.bookedAt | date:'mediumDate' }}</option>
+            }
+          </select>
+          <div class="form-text">Links this visit to a prior completed consultation — the consultation fee is waived for a follow-up.</div>
+        </div>
+      }
+    </div>
+  </form>
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+  <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="submit()" [disabled]="submitting() || loadingLookups()">
+    @if (submitting()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }
+    <i class="bi bi-send"></i>Send to doctor
+  </button>
+</div>

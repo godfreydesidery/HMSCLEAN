@@ -58,3 +58,29 @@ export interface CreatePrescriptionRequest {
   quantity: number | null;
   instructions: string | null;
 }
+
+/** Mirrors backend `PrescriptionDtos.PrescriptionWorklistRow` — a pharmacy dispensing-queue row. */
+export interface PrescriptionWorklistRow {
+  uid: string;
+  prescriptionNo: string;
+  patientUid: string;
+  patientNo: string | null;
+  patientName: string | null;
+  patientClass: 'OUTPATIENT' | 'INPATIENT' | 'OUTSIDER';
+  consultationUid: string | null;
+  medicineName: string | null;
+  dose: string;
+  frequency: string;
+  quantity: number | null;
+  status: PrescriptionStatus;
+  settled: boolean;
+  requestedAt: string;
+}
+
+export interface DispenseWorklistParams {
+  status?: PrescriptionStatus;
+  patientClass?: 'OUTPATIENT' | 'INPATIENT' | 'OUTSIDER';
+  settledOnly?: boolean;
+  page?: number;
+  size?: number;
+}

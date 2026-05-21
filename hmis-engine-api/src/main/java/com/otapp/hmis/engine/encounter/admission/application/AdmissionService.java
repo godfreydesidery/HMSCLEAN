@@ -194,6 +194,17 @@ public class AdmissionService {
                 .toList();
     }
 
+    /**
+     * The nurse worklist: currently-ADMITTED patients (optionally filtered to a
+     * ward) whose nursing chart, vitals and consumables are open for entry.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<AdmissionSummary> nurseWorklist(String wardUid, Pageable pageable) {
+        return PageResponse.from(
+                admissionRepository.nurseWorklist(emptyToNull(wardUid), pageable)
+                        .map(this::toSummary));
+    }
+
     @Transactional(readOnly = true)
     public PageResponse<AdmissionSummary> search(String query, AdmissionStatus status,
                                                  String wardUid, String patientUid, Pageable pageable) {

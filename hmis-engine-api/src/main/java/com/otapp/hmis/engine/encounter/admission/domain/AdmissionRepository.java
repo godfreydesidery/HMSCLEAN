@@ -43,6 +43,18 @@ public interface AdmissionRepository extends JpaRepository<Admission, Long> {
                            @Param("patientUid") String patientUid,
                            Pageable pageable);
 
+    /**
+     * The nurse worklist: currently-ADMITTED admissions, optionally filtered to
+     * a ward, oldest admission first. Inpatient nursing work is admission-scoped.
+     */
+    @Query("""
+            SELECT a FROM Admission a
+            WHERE a.status = com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.ADMITTED
+              AND (:wardUid IS NULL OR a.wardUid = :wardUid)
+            ORDER BY a.admittedAt ASC
+            """)
+    Page<Admission> nurseWorklist(@Param("wardUid") String wardUid, Pageable pageable);
+
     /** [wardUid, count] pairs for currently-ADMITTED admissions — drives the bed-occupancy report. */
     @Query("""
             SELECT a.wardUid, COUNT(a)

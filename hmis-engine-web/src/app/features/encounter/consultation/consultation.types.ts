@@ -56,6 +56,8 @@ export interface ConsultationSummary {
   clinicName: string | null;
   clinicianName: string | null;
   status: ConsultationStatus;
+  paymentType: PaymentType;
+  feeSettled: boolean;
   bookedAt: string;
   startedAt: string | null;
 }

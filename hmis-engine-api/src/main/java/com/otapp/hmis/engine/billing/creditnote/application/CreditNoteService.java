@@ -5,6 +5,7 @@ import com.otapp.hmis.engine.billing.creditnote.application.CreditNoteDtos.Credi
 import com.otapp.hmis.engine.billing.creditnote.domain.CreditNote;
 import com.otapp.hmis.engine.billing.creditnote.domain.CreditNoteRepository;
 import com.otapp.hmis.engine.billing.creditnote.infrastructure.CreditNoteNumberGenerator;
+import com.otapp.hmis.engine.billing.invoice.application.SettlementDispatcher;
 import com.otapp.hmis.engine.billing.invoice.domain.Invoice;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceRepository;
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
@@ -22,12 +23,15 @@ public class CreditNoteService {
     private final CreditNoteRepository repository;
     private final InvoiceRepository invoiceRepository;
     private final CreditNoteNumberGenerator numberGenerator;
+    private final SettlementDispatcher settlementDispatcher;
 
     @Transactional
     public CreditNoteDto raise(String invoiceUid, CreateCreditNoteRequest request) {
         Invoice invoice = invoiceRepository.findByUid(invoiceUid)
                 .orElseThrow(() -> new NotFoundException("Invoice not found: " + invoiceUid));
         invoice.applyCreditNote(request.amount());
+        // A full write-down can settle the invoice — propagate to encounter.
+        settlementDispatcher.onInvoiceMaybeSettled(invoice);
         CreditNote note = repository.save(new CreditNote(
                 numberGenerator.next(),
                 invoice.getUid(),

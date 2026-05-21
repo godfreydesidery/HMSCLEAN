@@ -85,11 +85,17 @@ public class InvoiceService {
     private final PaymentNumberGenerator paymentNumberGenerator;
     private final PriceLookup priceLookup;
     private final InvoiceDtoAssembler dtoAssembler;
+    private final SettlementDispatcher settlementDispatcher;
 
     /**
-     * Generates or regenerates the invoice for a consultation. Only allowed
-     * while the existing invoice is still DRAFT; once issued, the lines are
-     * locked. Returns the (possibly fresh) invoice with all its lines.
+     * Tops up the consultation invoice with newly-billable work. The invoice
+     * itself is seeded at booking by {@link ConsultationFeeService} (the
+     * up-front consultation fee), so this is now <b>additive and idempotent</b>:
+     * it ensures the invoice exists, adds the consultation-fee line if missing,
+     * and appends any COMPLETED clinical order / DISPENSED prescription that
+     * hasn't already been billed on this invoice. Charges accrue (legacy
+     * behaviour); existing lines and recorded payments are never discarded, so
+     * it is safe to call on an already-ISSUED / partially-paid invoice.
      */
     @Transactional
     public InvoiceDto generateForConsultation(String consultationUid) {
@@ -97,9 +103,6 @@ public class InvoiceService {
                 .orElseThrow(() -> new NotFoundException("Consultation not found: " + consultationUid));
 
         Invoice invoice = invoiceRepository.findByConsultationUid(consultationUid).orElse(null);
-        if (invoice != null && invoice.getStatus() != InvoiceStatus.DRAFT) {
-            throw new BusinessRuleException("Invoice is already " + invoice.getStatus() + " and cannot be regenerated");
-        }
         if (invoice == null) {
             invoice = Invoice.forConsultation(
                     invoiceNumberGenerator.next(),
@@ -109,20 +112,23 @@ public class InvoiceService {
                     consultation.getInsurancePlanUid(),
                     DEFAULT_CURRENCY);
             invoiceRepository.save(invoice);
-        } else {
-            invoiceLineRepository.deleteAllByInvoiceUid(invoice.getUid());
-            invoice.setSubtotal(BigDecimal.ZERO);
-            invoice.setPaymentType(consultation.getPaymentType());
-            invoice.setInsurancePlanUid(consultation.getInsurancePlanUid());
+        }
+
+        // What's already on this invoice — never double-bill the same reference.
+        Set<String> billed = new HashSet<>();
+        boolean hasConsultationFeeLine = false;
+        for (InvoiceLine existing : invoiceLineRepository.findAllByInvoiceUidOrderByCreatedAtAsc(invoice.getUid())) {
+            if (existing.getReferenceUid() != null) billed.add(existing.getReferenceUid());
+            if (existing.getKind() == InvoiceLineKind.CONSULTATION) hasConsultationFeeLine = true;
         }
 
         List<InvoiceLine> lines = new ArrayList<>();
-        BigDecimal subtotal = BigDecimal.ZERO;
+        BigDecimal subtotal = invoice.getSubtotal();
         String currency = invoice.getCurrency();
 
-        // 1) Consultation fee
+        // 1) Consultation fee — only if it wasn't already seeded at booking.
         Clinic clinic = clinicRepository.findByUid(consultation.getClinicUid()).orElse(null);
-        if (clinic != null) {
+        if (clinic != null && !hasConsultationFeeLine) {
             PriceLookup.Resolved r = priceLookup.resolve(ServiceKind.CONSULTATION, clinic.getUid(), consultation.getInsurancePlanUid(), currency);
             currency = r.currency();
             lines.add(new InvoiceLine(invoice.getUid(), InvoiceLineKind.CONSULTATION,
@@ -135,6 +141,7 @@ public class InvoiceService {
         // 2) Clinical orders that are COMPLETED — actually billed only when service is rendered
         for (ClinicalOrder order : clinicalOrderRepository.findAllByConsultationUidOrderByRequestedAtDesc(consultationUid)) {
             if (order.getStatus() != ClinicalOrderStatus.COMPLETED) continue;
+            if (billed.contains(order.getUid())) continue;
             InvoiceLineKind lineKind = mapKind(order.getKind());
             ServiceKind serviceKind = mapServiceKind(order.getKind());
             String serviceName = resolveOrderServiceName(order);
@@ -150,6 +157,7 @@ public class InvoiceService {
         // 3) Prescriptions that are DISPENSED — quantity-based
         for (Prescription rx : prescriptionRepository.findAllByConsultationUidOrderByRequestedAtDesc(consultationUid)) {
             if (rx.getStatus() != PrescriptionStatus.SOLD) continue;
+            if (billed.contains(rx.getUid())) continue;
             Medicine medicine = medicineRepository.findByUid(rx.getMedicineUid()).orElse(null);
             PriceLookup.Resolved r = priceLookup.resolve(ServiceKind.MEDICINE, rx.getMedicineUid(), consultation.getInsurancePlanUid(), currency);
             currency = r.currency();
@@ -376,6 +384,9 @@ public class InvoiceService {
                 emptyToNull(request.note()));
         paymentRepository.save(payment);
         invoice.applyPayment(request.amount());
+        // If this payment fully settled the invoice, push the settled state to
+        // the encounter module (consultation-fee gate, dispensed prescriptions).
+        settlementDispatcher.onInvoiceMaybeSettled(invoice);
         return toDto(invoice);
     }
 

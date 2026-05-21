@@ -41,7 +41,9 @@ export class ShellComponent {
       label: 'Clinical',
       items: [
         { label: 'Patients',    path: '/patients',                icon: 'bi-people',           privileges: ['PATIENT_ACCESS'] },
+        { label: 'From reception', path: '/encounters/reception-queue', icon: 'bi-clipboard2-check', privileges: ['ENCOUNTER_ACCESS'] },
         { label: 'Consultations', path: '/encounters/consultations', icon: 'bi-clipboard2-pulse', privileges: ['ENCOUNTER_ACCESS'] },
+        { label: 'Nursing worklist', path: '/encounters/nurse-queue', icon: 'bi-heart-pulse',    privileges: ['ENCOUNTER_ACCESS'] },
         { label: 'Admissions',  path: '/encounters/admissions',   icon: 'bi-hospital',         privileges: ['ENCOUNTER_ACCESS'] },
         { label: 'Orders & Results', path: '/orders',            icon: 'bi-card-list',        privileges: ['ENCOUNTER_ACCESS'] },
         { label: 'Lab batches', path: '/encounters/lab-batches',  icon: 'bi-collection',       privileges: ['ENCOUNTER_ACCESS'] }
@@ -50,6 +52,7 @@ export class ShellComponent {
     {
       label: 'Operations',
       items: [
+        { label: 'Dispensing queue', path: '/pharmacy/dispense-queue', icon: 'bi-capsule-pill', privileges: ['PHARMACY_ACCESS'] },
         { label: 'Pharmacy stock', path: '/pharmacy/stock', icon: 'bi-capsule',     privileges: ['PHARMACY_ACCESS'] },
         { label: 'Pharmacy sales', path: '/pharmacy/sales', icon: 'bi-cart',        privileges: ['PHARMACY_ACCESS'] },
         { label: 'Store stock',    path: '/store/stock',    icon: 'bi-box-seam',    privileges: ['STORE_ACCESS'] },

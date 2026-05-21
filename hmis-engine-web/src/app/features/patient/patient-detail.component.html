@@ -46,8 +46,8 @@
         <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="admit()" [disabled]="!p.active">
           <i class="bi bi-hospital"></i>Admit
         </button>
-        <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="startConsultation()" [disabled]="!p.active">
-          <i class="bi bi-clipboard2-pulse"></i>Start consultation
+        <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="sendToDoctor()" [disabled]="!p.active">
+          <i class="bi bi-send"></i>Send to doctor
         </button>
       }
     </div>
@@ -239,8 +239,8 @@
         <div class="card">
           <div class="card-header bg-white d-flex align-items-center justify-content-between">
             <div class="fw-semibold">Recent consultations</div>
-            <button type="button" class="btn btn-sm btn-light border" (click)="startConsultation()" [disabled]="!p.active">
-              <i class="bi bi-plus-lg me-1"></i>Start new
+            <button type="button" class="btn btn-sm btn-light border" (click)="sendToDoctor()" [disabled]="!p.active">
+              <i class="bi bi-send me-1"></i>Send to doctor
             </button>
           </div>
           @if (recentConsultations().length === 0) {

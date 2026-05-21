@@ -55,6 +55,8 @@ public final class ConsultationDtos {
             String clinicName,
             String clinicianName,
             ConsultationStatus status,
+            PaymentType paymentType,
+            boolean feeSettled,
             Instant bookedAt,
             Instant startedAt) {}
 

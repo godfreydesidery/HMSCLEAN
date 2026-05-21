@@ -3,6 +3,16 @@ import { Routes } from '@angular/router';
 export const ENCOUNTER_ROUTES: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'consultations' },
   {
+    path: 'reception-queue',
+    loadComponent: () =>
+      import('./consultation/reception-queue.component').then((m) => m.ReceptionQueueComponent)
+  },
+  {
+    path: 'nurse-queue',
+    loadComponent: () =>
+      import('./nurse-queue/nurse-queue.component').then((m) => m.NurseQueueComponent)
+  },
+  {
     path: 'consultations',
     loadComponent: () =>
       import('./consultation/consultation-list.component').then((m) => m.ConsultationListComponent)

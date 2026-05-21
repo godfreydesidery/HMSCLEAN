@@ -47,6 +47,12 @@ public class ConsultationController {
         return ResponseEntity.ok(consultationService.search(query, status, clinicUid, patientUid, clinicianUsername, pageable));
     }
 
+    /** The signed-in clinician's "from reception" queue — fee-settled BOOKED consultations. */
+    @GetMapping("/reception-queue")
+    public ResponseEntity<PageResponse<ConsultationSummary>> receptionQueue(Pageable pageable) {
+        return ResponseEntity.ok(consultationService.receptionQueue(pageable));
+    }
+
     @GetMapping("/uid/{consultationUid}")
     public ResponseEntity<ConsultationDto> findByUid(@PathVariable String consultationUid) {
         return ResponseEntity.ok(consultationService.findByUid(consultationUid));

@@ -1,7 +1,13 @@
 import { Routes } from '@angular/router';
 
 export const PHARMACY_ROUTES: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'stock' },
+  { path: '', pathMatch: 'full', redirectTo: 'dispense-queue' },
+  {
+    path: 'dispense-queue',
+    loadComponent: () =>
+      import('./dispense-worklist/dispense-worklist.component').then((m) => m.DispenseWorklistComponent),
+    data: { title: 'Dispensing queue' }
+  },
   {
     path: 'stock',
     loadComponent: () =>

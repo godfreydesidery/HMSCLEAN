@@ -1,0 +1,57 @@
+<div class="modal-header">
+  <div>
+    <h5 class="modal-title">Record medication administration</h5>
+    <div class="hmis-muted small mt-1">Log the dose actually given to the patient at the bedside.</div>
+  </div>
+  <button type="button" class="btn-close" (click)="activeModal.dismiss()" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  }
+
+  @if (loading()) {
+    <div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div>
+  } @else if (prescriptions().length === 0) {
+    <div class="alert alert-warning small"><i class="bi bi-exclamation-triangle me-1"></i>No prescriptions found for this admission's consultation. A prescription is required to record an administration.</div>
+  } @else {
+    <form [formGroup]="form" novalidate>
+      <div class="mb-3">
+        <label class="form-label" for="ma-rx">Prescription <span class="text-danger">*</span></label>
+        <select id="ma-rx" class="form-select" formControlName="prescriptionUid" (change)="onPrescriptionChange($any($event.target).value)">
+          <option value="" disabled>— Select a prescription —</option>
+          @for (rx of prescriptions(); track rx.uid) {
+            <option [value]="rx.uid">{{ rx.medicineName || rx.medicineUid }} · {{ rx.dose }} · {{ rx.frequency }} ({{ rx.prescriptionNo }})</option>
+          }
+        </select>
+      </div>
+      <div class="row g-2">
+        <div class="col-md-6 mb-2">
+          <label class="form-label" for="ma-dose">Dose given <span class="text-danger">*</span></label>
+          <input id="ma-dose" type="text" class="form-control" formControlName="doseGiven" placeholder="e.g. 500 mg">
+        </div>
+        <div class="col-md-6 mb-2">
+          <label class="form-label" for="ma-route">Route</label>
+          <input id="ma-route" type="text" class="form-control" formControlName="route" placeholder="e.g. IV / PO">
+        </div>
+      </div>
+      <div class="mb-2">
+        <label class="form-label" for="ma-resp">Patient response</label>
+        <input id="ma-resp" type="text" class="form-control" formControlName="patientResponse" placeholder="e.g. tolerated well">
+      </div>
+      <div class="mb-1">
+        <label class="form-label" for="ma-notes">Notes</label>
+        <textarea id="ma-notes" rows="2" class="form-control" formControlName="notes"></textarea>
+      </div>
+    </form>
+  }
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="busy()">Cancel</button>
+  <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="submit()" [disabled]="busy() || prescriptions().length === 0">
+    @if (busy()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }
+    <i class="bi bi-capsule"></i>Record dose
+  </button>
+</div>

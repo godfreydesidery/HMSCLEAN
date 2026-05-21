@@ -37,6 +37,7 @@
   <ul class="nav nav-tabs mb-3">
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'overview'" (click)="setTab('overview')"><i class="bi bi-info-circle me-1"></i>Overview</button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'notes'" (click)="setTab('notes')"><i class="bi bi-journal-text me-1"></i>Progress notes <span class="badge text-bg-light border ms-1">{{ notes().length }}</span></button></li>
+    <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'meds'" (click)="setTab('meds')"><i class="bi bi-capsule me-1"></i>Medications (MAR)</button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'consumables'" (click)="setTab('consumables')"><i class="bi bi-bandaid me-1"></i>Consumables <span class="badge text-bg-light border ms-1">{{ consumables().length }}</span></button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'billing'" (click)="setTab('billing')"><i class="bi bi-cash-coin me-1"></i>Billing @if (invoice()) { <i class="bi bi-check-circle text-success ms-1"></i> }</button></li>
   </ul>
@@ -170,6 +171,41 @@
       </div>
     }
 
+    @case ('meds') {
+      <div class="card">
+        <div class="card-header bg-white d-flex align-items-center">
+          <h2 class="h6 mb-0"><i class="bi bi-capsule me-2 hmis-muted"></i>Medication administration record (MAR)</h2>
+          @if (isActive()) {
+            <button type="button" class="btn btn-sm btn-primary ms-auto" (click)="openRecordAdministration()">
+              <i class="bi bi-plus-lg me-1"></i> Record dose
+            </button>
+          }
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 hmis-table">
+            <thead><tr><th>Medicine</th><th>Dose given</th><th>Route</th><th>Response</th><th>By</th><th>When</th></tr></thead>
+            <tbody>
+              @if (!medsLoaded()) {
+                <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div></td></tr>
+              } @else if (meds().length === 0) {
+                <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-capsule"></i><div class="fw-semibold mb-1">No doses recorded</div><div class="small">Use 'Record dose' to chart medications administered at the bedside.</div></div></td></tr>
+              } @else {
+                @for (m of meds(); track m.uid) {
+                  <tr>
+                    <td class="fw-semibold">{{ m.medicineName || '—' }}@if (m.prescriptionNo) { <div class="hmis-muted small hmis-code">{{ m.prescriptionNo }}</div> }</td>
+                    <td>{{ m.doseGiven }}</td>
+                    <td class="hmis-muted">{{ m.route || '—' }}</td>
+                    <td class="hmis-muted small">{{ m.patientResponse || '—' }}@if (m.notes) { <div class="hmis-muted small">{{ m.notes }}</div> }</td>
+                    <td class="hmis-muted small">{{ m.administeredByUsername }}</td>
+                    <td class="hmis-muted small">{{ m.administeredAt | date:'short' }}</td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
     @case ('consumables') {
       <div class="card">
         <div class="card-header bg-white d-flex align-items-center">

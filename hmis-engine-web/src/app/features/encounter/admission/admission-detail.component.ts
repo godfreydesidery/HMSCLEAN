@@ -18,10 +18,13 @@ import { AdmissionService } from './admission.service';
 import { ADMISSION_STATUSES, Admission, AdmissionStatus } from './admission.types';
 import { DischargePlanModalComponent } from './discharge-plan-modal.component';
 import { DischargePlan } from './discharge-plan.types';
+import { MedicationAdminService } from './medication-admin.service';
+import { MedicationAdministration } from './medication-admin.types';
+import { RecordAdministrationModalComponent } from './record-administration-modal.component';
 import { ProgressNoteService } from './progress-note.service';
 import { PROGRESS_NOTE_KINDS, ProgressNote, ProgressNoteKind } from './progress-note.types';
 
-type TabKey = 'overview' | 'notes' | 'consumables' | 'billing';
+type TabKey = 'overview' | 'notes' | 'meds' | 'consumables' | 'billing';
 
 @Component({
   selector: 'app-admission-detail',
@@ -37,6 +40,7 @@ export class AdmissionDetailComponent {
   private readonly noteService = inject(ProgressNoteService);
   private readonly invoiceService = inject(InvoiceService);
   private readonly consumableIssueService = inject(ConsumableIssueService);
+  private readonly medAdminService = inject(MedicationAdminService);
   private readonly modal = inject(NgbModal);
   private readonly fb = inject(FormBuilder);
 
@@ -50,6 +54,8 @@ export class AdmissionDetailComponent {
   readonly notes = signal<ProgressNote[]>([]);
   readonly invoice = signal<Invoice | null>(null);
   readonly consumables = signal<ConsumableIssue[]>([]);
+  readonly meds = signal<MedicationAdministration[]>([]);
+  readonly medsLoaded = signal(false);
 
   readonly loading = signal(true);
   readonly notesLoading = signal(false);
@@ -111,7 +117,29 @@ export class AdmissionDetailComponent {
     });
   }
 
-  setTab(tab: TabKey): void { this.activeTab.set(tab); }
+  setTab(tab: TabKey): void {
+    this.activeTab.set(tab);
+    if (tab === 'meds' && !this.medsLoaded()) this.loadMeds();
+  }
+
+  private loadMeds(): void {
+    const a = this.admission(); if (!a) return;
+    this.medAdminService.list(a.uid).subscribe({
+      next: (rows) => { this.meds.set(rows); this.medsLoaded.set(true); },
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load the medication record.')
+    });
+  }
+
+  openRecordAdministration(): void {
+    const a = this.admission(); if (!a) return;
+    const ref = this.modal.open(RecordAdministrationModalComponent, { size: 'lg', backdrop: 'static' });
+    const inst = ref.componentInstance as RecordAdministrationModalComponent;
+    inst.admissionUid = a.uid;
+    inst.consultationUid = a.consultationUid;
+    ref.closed.subscribe((rec?: MedicationAdministration) => {
+      if (rec) this.meds.update((rows) => [rec, ...rows]);
+    });
+  }
 
   openIssueConsumable(): void {
     const a = this.admission();

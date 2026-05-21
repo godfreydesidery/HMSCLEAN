@@ -8,13 +8,10 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.List;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -28,6 +25,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenService tokenService;
     private final RevokedTokenRepository revokedTokenRepository;
+    private final DomainUserDetailsService userDetailsService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -53,19 +51,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
-            String username = claims.getSubject();
-            List<GrantedAuthority> authorities = Stream.concat(
-                            tokenService.rolesOf(claims).stream().map(r -> new SimpleGrantedAuthority("ROLE_" + r)),
-                            tokenService.privilegesOf(claims).stream().map(SimpleGrantedAuthority::new))
-                    .distinct()
-                    .map(GrantedAuthority.class::cast)
-                    .toList();
+            // Re-validate the subject against the database on every request rather than
+            // trusting the token's embedded claims. This makes disabling, deleting,
+            // locking, or changing the roles of a user take effect immediately instead
+            // of lingering until the (up to 1-hour) access token expires. A deleted
+            // subject raises UsernameNotFoundException, caught below.
+            UserDetails userDetails = userDetailsService.loadUserByUsername(claims.getSubject());
+            if (!userDetails.isEnabled() || !userDetails.isAccountNonLocked()) {
+                SecurityContextHolder.clearContext();
+                chain.doFilter(request, response);
+                return;
+            }
 
             UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(username, null, authorities);
+                    new UsernamePasswordAuthenticationToken(
+                            userDetails.getUsername(), null, userDetails.getAuthorities());
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (Exception ex) {
+            // Invalid/expired token, or the subject no longer exists — leave the
+            // context empty so the request is treated as unauthenticated.
             SecurityContextHolder.clearContext();
         }
 

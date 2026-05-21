@@ -65,18 +65,6 @@ public class JwtTokenService {
         return d == null ? null : d.toInstant();
     }
 
-    @SuppressWarnings("unchecked")
-    public List<String> rolesOf(Claims claims) {
-        Object value = claims.get(CLAIM_ROLES);
-        return value instanceof List<?> list ? (List<String>) list : List.of();
-    }
-
-    @SuppressWarnings("unchecked")
-    public List<String> privilegesOf(Claims claims) {
-        Object value = claims.get(CLAIM_PRIVILEGES);
-        return value instanceof List<?> list ? (List<String>) list : List.of();
-    }
-
     private String buildToken(String subject, List<String> roles, List<String> privileges, TokenType type, long ttlMs) {
         Instant now = Instant.now();
         return Jwts.builder()

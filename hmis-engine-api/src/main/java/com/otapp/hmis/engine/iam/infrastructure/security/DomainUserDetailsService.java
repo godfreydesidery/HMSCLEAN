@@ -37,6 +37,7 @@ public class DomainUserDetailsService implements UserDetailsService {
         return org.springframework.security.core.userdetails.User.withUsername(user.getUsername())
                 .password(user.getPasswordHash())
                 .disabled(!user.isEnabled())
+                .accountLocked(user.isLocked())
                 .authorities(authorities)
                 .build();
     }

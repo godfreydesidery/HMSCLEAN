@@ -26,7 +26,13 @@ public final class InvoiceDtos {
             String description,
             BigDecimal quantity,
             BigDecimal unitPrice,
-            BigDecimal amount) {}
+            BigDecimal amount,
+            /** Negotiable floor for this line's unit price (null = no lower bound). */
+            BigDecimal minUnitPrice,
+            /** Negotiable ceiling for this line's unit price (null = no upper bound). */
+            BigDecimal maxUnitPrice,
+            /** Whether the unit price may still be renegotiated (no payment taken yet). */
+            boolean priceOverridable) {}
 
     public record InvoiceDto(
             String uid,
@@ -91,4 +97,8 @@ public final class InvoiceDtos {
             Instant createdAt) {}
 
     public record CancelInvoiceRequest(@Size(max = 255) String reason) {}
+
+    /** Negotiate a line's unit price within the service's [min, max] band. */
+    public record OverrideLinePriceRequest(
+            @NotNull @DecimalMin(value = "0.00", inclusive = true) BigDecimal unitPrice) {}
 }

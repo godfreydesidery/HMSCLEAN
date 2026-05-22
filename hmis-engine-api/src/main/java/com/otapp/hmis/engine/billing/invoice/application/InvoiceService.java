@@ -3,6 +3,7 @@ package com.otapp.hmis.engine.billing.invoice.application;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.CancelInvoiceRequest;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceDto;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceSummary;
+import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.OverrideLinePriceRequest;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.RecordPaymentRequest;
 import com.otapp.hmis.engine.billing.invoice.domain.Invoice;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLine;
@@ -64,8 +65,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class InvoiceService {
 
-    private static final String DEFAULT_CURRENCY = "TZS";
-
     private final InvoiceRepository invoiceRepository;
     private final InvoiceLineRepository invoiceLineRepository;
     private final PaymentRepository paymentRepository;
@@ -85,7 +84,9 @@ public class InvoiceService {
     private final PaymentNumberGenerator paymentNumberGenerator;
     private final PriceLookup priceLookup;
     private final InvoiceDtoAssembler dtoAssembler;
+    private final InvoiceLinePricing linePricing;
     private final SettlementDispatcher settlementDispatcher;
+    private final com.otapp.hmis.engine.masterdata.currency.application.CurrencyService currencyService;
 
     /**
      * Tops up the consultation invoice with newly-billable work. The invoice
@@ -110,7 +111,7 @@ public class InvoiceService {
                     consultation.getPatientUid(),
                     consultation.getPaymentType(),
                     consultation.getInsurancePlanUid(),
-                    DEFAULT_CURRENCY);
+                    currencyService.defaultCode());
             invoiceRepository.save(invoice);
         }
 
@@ -203,7 +204,7 @@ public class InvoiceService {
                     admission.getPatientUid(),
                     admission.getPaymentType(),
                     admission.getInsurancePlanUid(),
-                    DEFAULT_CURRENCY);
+                    currencyService.defaultCode());
             invoiceRepository.save(invoice);
         } else {
             invoiceLineRepository.deleteAllByInvoiceUid(invoice.getUid());
@@ -280,7 +281,7 @@ public class InvoiceService {
                     patient.getUid(),
                     patient.getPaymentType(),
                     patient.getInsurancePlanUid(),
-                    DEFAULT_CURRENCY);
+                    currencyService.defaultCode());
             invoiceRepository.save(invoice);
         } else {
             invoiceLineRepository.deleteAllByInvoiceUid(invoice.getUid());
@@ -364,6 +365,38 @@ public class InvoiceService {
     public InvoiceDto cancel(String uid, CancelInvoiceRequest request) {
         Invoice invoice = loadOrThrow(uid);
         invoice.cancel(request == null ? null : request.reason());
+        return toDto(invoice);
+    }
+
+    /**
+     * Negotiate the unit price of a single line within the service's
+     * {@code [min, max]} band (M: enforced negotiable pricing). Allowed only
+     * while the invoice is still open and unpaid; the line amount and invoice
+     * subtotal are recomputed from the new unit price.
+     */
+    @Transactional
+    public InvoiceDto overrideLinePrice(String invoiceUid, String lineUid, OverrideLinePriceRequest request) {
+        Invoice invoice = loadOrThrow(invoiceUid);
+        if (!linePricing.overridable(invoice)) {
+            throw new BusinessRuleException(
+                    "Line prices can only be changed before any payment is taken (current status: "
+                            + invoice.getStatus() + ")");
+        }
+        InvoiceLine line = invoiceLineRepository.findByUid(lineUid)
+                .orElseThrow(() -> new NotFoundException("Invoice line not found: " + lineUid));
+        if (!invoice.getUid().equals(line.getInvoiceUid())) {
+            throw new BusinessRuleException("Line does not belong to invoice " + invoice.getInvoiceNo());
+        }
+
+        PriceLookup.Resolved band = linePricing.bandFor(line, invoice.getInsurancePlanUid(), invoice.getCurrency());
+        linePricing.validateOverride(request.unitPrice(), band);
+
+        line.setUnitPrice(request.unitPrice());
+        line.setAmount(request.unitPrice().multiply(line.getQuantity()));
+
+        BigDecimal subtotal = invoiceLineRepository.findAllByInvoiceUidOrderByCreatedAtAsc(invoice.getUid())
+                .stream().map(InvoiceLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        invoice.setSubtotal(subtotal);
         return toDto(invoice);
     }
 

@@ -8,6 +8,7 @@ import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLineRepository;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceRepository;
 import com.otapp.hmis.engine.billing.invoice.infrastructure.InvoiceNumberGenerator;
 import com.otapp.hmis.engine.common.error.NotFoundException;
+import com.otapp.hmis.engine.masterdata.currency.application.CurrencyService;
 import com.otapp.hmis.engine.masterdata.pricing.domain.ServiceKind;
 import com.otapp.hmis.engine.patient.domain.Patient;
 import com.otapp.hmis.engine.patient.domain.PatientRepository;
@@ -29,14 +30,13 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class RegistrationFeeService {
 
-    private static final String DEFAULT_CURRENCY = "TZS";
-
     private final InvoiceRepository invoiceRepository;
     private final InvoiceLineRepository invoiceLineRepository;
     private final PatientRepository patientRepository;
     private final InvoiceNumberGenerator invoiceNumberGenerator;
     private final PriceLookup priceLookup;
     private final InvoiceDtoAssembler invoiceDtoAssembler;
+    private final CurrencyService currencyService;
 
     /**
      * Idempotent — returns the existing registration invoice if one already
@@ -57,17 +57,18 @@ public class RegistrationFeeService {
 
         // REQUIRES_NEW above is mandatory — the after-commit listener path otherwise leaves
         // Hibernate without a committable EntityManager and the save silently never reaches the DB.
+        String defaultCurrency = currencyService.defaultCode();
         Invoice invoice = Invoice.forRegistration(
                 invoiceNumberGenerator.next(),
                 patient.getUid(),
                 patient.getPaymentType(),
                 patient.getInsurancePlanUid(),
-                DEFAULT_CURRENCY);
+                defaultCurrency);
         invoiceRepository.save(invoice);
 
         PriceLookup.Resolved r = priceLookup.resolve(
                 ServiceKind.REGISTRATION, ServiceKind.REGISTRATION_SERVICE_UID,
-                patient.getInsurancePlanUid(), DEFAULT_CURRENCY);
+                patient.getInsurancePlanUid(), defaultCurrency);
         BigDecimal amount = r.amount();
         invoice.setCurrency(r.currency());
         invoice.setSubtotal(amount);

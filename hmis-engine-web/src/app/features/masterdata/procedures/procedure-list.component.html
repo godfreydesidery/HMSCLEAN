@@ -58,6 +58,7 @@
                   <button type="button" class="btn btn-sm btn-light border" ngbDropdownToggle aria-label="Actions"><i class="bi bi-three-dots"></i></button>
                   <div ngbDropdownMenu class="shadow-sm">
                     <button type="button" ngbDropdownItem (click)="openEdit(p)"><i class="bi bi-pencil me-2"></i>Edit</button>
+                    <button type="button" ngbDropdownItem (click)="openPrices(p)"><i class="bi bi-cash-coin me-2"></i>Prices</button>
                     <button type="button" ngbDropdownItem (click)="toggleActive(p)"><i class="bi me-2" [class.bi-toggle-off]="p.active" [class.bi-toggle-on]="!p.active"></i>{{ p.active ? 'Deactivate' : 'Activate' }}</button>
                     <div class="dropdown-divider"></div>
                     <button type="button" ngbDropdownItem class="text-danger" (click)="delete(p)"><i class="bi bi-trash me-2"></i>Delete</button>

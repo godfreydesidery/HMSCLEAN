@@ -29,6 +29,7 @@ class InvoiceDtoAssembler {
     private final PaymentRepository paymentRepository;
     private final PatientRepository patientRepository;
     private final InsurancePlanRepository insurancePlanRepository;
+    private final InvoiceLinePricing linePricing;
 
     InvoiceDto toDto(Invoice invoice) {
         List<InvoiceLine> lines = invoiceLineRepository.findAllByInvoiceUidOrderByCreatedAtAsc(invoice.getUid());
@@ -37,6 +38,7 @@ class InvoiceDtoAssembler {
         InsurancePlan plan = invoice.getInsurancePlanUid() == null
                 ? null
                 : insurancePlanRepository.findByUid(invoice.getInsurancePlanUid()).orElse(null);
+        boolean overridable = linePricing.overridable(invoice);
 
         return new InvoiceDto(
                 invoice.getUid(),
@@ -61,11 +63,12 @@ class InvoiceDtoAssembler {
                 invoice.getCancelReason(),
                 invoice.getCreatedAt(),
                 invoice.getUpdatedAt(),
-                lines.stream().map(InvoiceDtoAssembler::toLineDto).toList(),
+                lines.stream().map(l -> toLineDto(l, invoice.getInsurancePlanUid(), invoice.getCurrency(), overridable)).toList(),
                 payments.stream().map(InvoiceDtoAssembler::toPaymentDto).toList());
     }
 
-    private static InvoiceLineDto toLineDto(InvoiceLine l) {
+    private InvoiceLineDto toLineDto(InvoiceLine l, String planUid, String currency, boolean overridable) {
+        PriceLookup.Resolved band = linePricing.bandFor(l, planUid, currency);
         return new InvoiceLineDto(
                 l.getUid(),
                 l.getKind(),
@@ -74,7 +77,10 @@ class InvoiceDtoAssembler {
                 l.getDescription(),
                 l.getQuantity(),
                 l.getUnitPrice(),
-                l.getAmount());
+                l.getAmount(),
+                band == null ? null : band.minAmount(),
+                band == null ? null : band.maxAmount(),
+                overridable);
     }
 
     private static PaymentDto toPaymentDto(Payment p) {

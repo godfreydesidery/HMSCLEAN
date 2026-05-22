@@ -12,6 +12,7 @@ import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
 import com.otapp.hmis.engine.masterdata.clinic.domain.Clinic;
 import com.otapp.hmis.engine.masterdata.clinic.domain.ClinicRepository;
+import com.otapp.hmis.engine.masterdata.currency.application.CurrencyService;
 import com.otapp.hmis.engine.masterdata.pricing.domain.ServiceKind;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
@@ -34,8 +35,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ConsultationFeeService {
 
-    private static final String DEFAULT_CURRENCY = "TZS";
-
     private final InvoiceRepository invoiceRepository;
     private final com.otapp.hmis.engine.billing.invoice.domain.InvoiceLineRepository invoiceLineRepository;
     private final ConsultationRepository consultationRepository;
@@ -44,6 +43,7 @@ public class ConsultationFeeService {
     private final PriceLookup priceLookup;
     private final InvoiceDtoAssembler invoiceDtoAssembler;
     private final ConsultationService consultationService;
+    private final CurrencyService currencyService;
 
     /**
      * Idempotent — returns the existing consultation invoice if one exists,
@@ -62,6 +62,7 @@ public class ConsultationFeeService {
         }
 
         boolean followUp = consultation.getFollowUpOfConsultationUid() != null;
+        String defaultCurrency = currencyService.defaultCode();
 
         Invoice invoice = Invoice.forConsultation(
                 invoiceNumberGenerator.next(),
@@ -69,17 +70,17 @@ public class ConsultationFeeService {
                 consultation.getPatientUid(),
                 consultation.getPaymentType(),
                 consultation.getInsurancePlanUid(),
-                DEFAULT_CURRENCY);
+                defaultCurrency);
         invoiceRepository.save(invoice);
 
         Clinic clinic = clinicRepository.findByUid(consultation.getClinicUid()).orElse(null);
         BigDecimal amount = BigDecimal.ZERO;
-        String currency = DEFAULT_CURRENCY;
+        String currency = defaultCurrency;
         String clinicName = clinic == null ? consultation.getClinicUid() : clinic.getName();
         if (clinic != null && !followUp) {
             PriceLookup.Resolved r = priceLookup.resolve(
                     ServiceKind.CONSULTATION, clinic.getUid(),
-                    consultation.getInsurancePlanUid(), DEFAULT_CURRENCY);
+                    consultation.getInsurancePlanUid(), defaultCurrency);
             amount = r.amount();
             currency = r.currency();
         }

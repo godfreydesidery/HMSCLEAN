@@ -39,13 +39,29 @@
         </select>
       </div>
 
-      <div class="col-md-8">
-        <label class="form-label" for="pr-amount">Amount <span class="text-danger">*</span></label>
+      <div class="col-md-6">
+        <label class="form-label" for="pr-amount">Standard price <span class="text-danger">*</span></label>
         <input id="pr-amount" name="amount" type="number" min="0" step="0.01" class="form-control" formControlName="amount">
       </div>
-      <div class="col-md-4">
+      <div class="col-md-6">
         <label class="form-label" for="pr-currency">Currency <span class="text-danger">*</span></label>
-        <input id="pr-currency" name="currency" type="text" maxlength="3" class="form-control text-uppercase" formControlName="currency">
+        <select id="pr-currency" name="currency" class="form-select" formControlName="currency">
+          @for (c of currencies(); track c.uid) {
+            <option [value]="c.code">{{ c.code }} — {{ c.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label" for="pr-min">Min price</label>
+        <input id="pr-min" name="minAmount" type="number" min="0" step="0.01" class="form-control" formControlName="minAmount" placeholder="No floor">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="pr-max">Max price</label>
+        <input id="pr-max" name="maxAmount" type="number" min="0" step="0.01" class="form-control" formControlName="maxAmount" placeholder="No ceiling">
+      </div>
+      <div class="col-12">
+        <div class="form-text">Min / max bound the standard price and any negotiated per-line override at billing. Leave blank for a fixed price.</div>
       </div>
 
       <div class="col-12">

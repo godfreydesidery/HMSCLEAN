@@ -17,6 +17,8 @@ export interface ServicePrice {
   serviceUid: string;
   serviceName: string | null;
   amount: number;
+  minAmount: number | null;
+  maxAmount: number | null;
   currency: string;
   note: string | null;
   createdAt: string;
@@ -28,7 +30,16 @@ export interface SetServicePriceRequest {
   kind: ServiceKind;
   serviceUid: string;
   amount: number;
+  minAmount: number | null;
+  maxAmount: number | null;
   currency: string;
+  note: string | null;
+}
+
+export interface UpdateServicePriceRequest {
+  amount: number;
+  minAmount: number | null;
+  maxAmount: number | null;
   note: string | null;
 }
 

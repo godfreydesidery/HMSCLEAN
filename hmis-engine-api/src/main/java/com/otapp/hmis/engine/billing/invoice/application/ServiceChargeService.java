@@ -13,6 +13,7 @@ import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrder;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderRepository;
 import com.otapp.hmis.engine.encounter.prescription.domain.Prescription;
 import com.otapp.hmis.engine.encounter.prescription.domain.PrescriptionRepository;
+import com.otapp.hmis.engine.masterdata.currency.application.CurrencyService;
 import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineRepository;
 import com.otapp.hmis.engine.masterdata.pricing.domain.ServiceKind;
@@ -36,8 +37,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ServiceChargeService {
 
-    private static final String DEFAULT_CURRENCY = "TZS";
-
     private final InvoiceRepository invoiceRepository;
     private final InvoiceLineRepository invoiceLineRepository;
     private final InvoiceNumberGenerator invoiceNumberGenerator;
@@ -46,6 +45,7 @@ public class ServiceChargeService {
     private final ClinicalOrderRepository clinicalOrderRepository;
     private final PrescriptionRepository prescriptionRepository;
     private final MedicineRepository medicineRepository;
+    private final CurrencyService currencyService;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void billOrder(String orderUid) {
@@ -111,7 +111,7 @@ public class ServiceChargeService {
                     consultation.getPatientUid(),
                     consultation.getPaymentType(),
                     consultation.getInsurancePlanUid(),
-                    DEFAULT_CURRENCY);
+                    currencyService.defaultCode());
             invoiceRepository.save(invoice);
         }
         if (invoice.getStatus() == InvoiceStatus.DRAFT) {

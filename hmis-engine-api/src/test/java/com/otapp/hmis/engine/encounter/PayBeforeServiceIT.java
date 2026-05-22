@@ -26,10 +26,12 @@ class PayBeforeServiceIT extends AuthenticatedIntegrationTest {
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
     void cashLabOrderCannotCompleteUntilItsBillIsSettled() {
-        // CBC has a cash price so the order is billable (non-zero).
-        expectOk(put("/masterdata/service-prices",
+        // CBC has a cash price so the order is billable (non-zero). Create-only now;
+        // tolerate 409 if a prior run in this JVM already created the cell.
+        ResponseEntity<Map> priceResp = post("/masterdata/service-prices",
                 Map.of("kind", "LAB_TEST", "serviceUid", CBC_UID, "amount", CBC_PRICE, "currency", "TZS"),
-                Map.class));
+                Map.class);
+        assertThat(priceResp.getStatusCode().is2xxSuccessful() || priceResp.getStatusCode().value() == 409).isTrue();
 
         String patientUid = stringField(expectOk(post(
                 "/patients",

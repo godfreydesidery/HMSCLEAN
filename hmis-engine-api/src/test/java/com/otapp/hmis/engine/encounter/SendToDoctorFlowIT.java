@@ -116,14 +116,15 @@ class SendToDoctorFlowIT extends AuthenticatedIntegrationTest {
 
     // ----- helpers -----------------------------------------------------------
 
-    /** Upsert a cash consultation fee for the OPD clinic so the CASH gate has teeth. */
+    /** Ensure a cash consultation fee for the OPD clinic so the CASH gate has teeth.
+     *  Create-only now; tolerate 409 when a prior test already created the cell. */
     @SuppressWarnings("rawtypes")
     private void ensureConsultationFee() {
-        ResponseEntity<Map> r = put("/masterdata/service-prices",
+        ResponseEntity<Map> r = post("/masterdata/service-prices",
                 Map.of("kind", "CONSULTATION", "serviceUid", OPD_CLINIC_UID,
                         "amount", FEE, "currency", "TZS"),
                 Map.class);
-        assertThat(r.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(r.getStatusCode().is2xxSuccessful() || r.getStatusCode().value() == 409).isTrue();
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

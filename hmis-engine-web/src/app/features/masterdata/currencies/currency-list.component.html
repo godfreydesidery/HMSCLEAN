@@ -1,10 +1,10 @@
 <div class="hmis-page-header">
   <div>
-    <h1 class="hmis-page-title">Wards</h1>
-    <p class="hmis-muted mb-0 small">Inpatient units organised by category and capacity.</p>
+    <h1 class="hmis-page-title">Currencies</h1>
+    <p class="hmis-muted mb-0 small">Currencies the system can price and bill in. One is the system default.</p>
   </div>
   <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="openCreate()">
-    <i class="bi bi-plus-lg"></i>New ward
+    <i class="bi bi-plus-lg"></i>New currency
   </button>
 </div>
 
@@ -25,20 +25,6 @@
           <button type="button" class="btn btn-outline-secondary" [class.active]="activeFilter() === 'INACTIVE'" (click)="setActiveFilter('INACTIVE')">Inactive</button>
         </fieldset>
       </div>
-      <div class="col-md-auto ms-md-auto">
-        <div ngbDropdown class="d-inline-block">
-          <button type="button" class="btn btn-outline-secondary btn-sm" ngbDropdownToggle>
-            <i class="bi bi-funnel me-1"></i>{{ categoryFilter() === 'ALL' ? 'All categories' : categoryLabel($any(categoryFilter())) }}
-          </button>
-          <div ngbDropdownMenu class="shadow-sm">
-            <button type="button" ngbDropdownItem (click)="setCategoryFilter('ALL')">All categories</button>
-            <div class="dropdown-divider"></div>
-            @for (c of categories; track c.value) {
-              <button type="button" ngbDropdownItem (click)="setCategoryFilter(c.value)">{{ c.label }}</button>
-            }
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </div>
@@ -56,9 +42,8 @@
         <tr>
           <th scope="col">Code</th>
           <th scope="col">Name</th>
-          <th scope="col">Category</th>
-          <th scope="col">Capacity</th>
-          <th scope="col">Location</th>
+          <th scope="col">Symbol</th>
+          <th scope="col">Default</th>
           <th scope="col">Status</th>
           <th scope="col" class="text-end">Actions</th>
         </tr>
@@ -67,38 +52,39 @@
         @if (loading()) {
           @for (i of [1,2,3,4,5]; track i) {
             <tr class="hmis-skeleton-row">
-              <td><span class="hmis-skeleton" style="width:60px;"></span></td>
-              <td><span class="hmis-skeleton" style="width:200px;"></span></td>
-              <td><span class="hmis-skeleton" style="width:90px;"></span></td>
               <td><span class="hmis-skeleton" style="width:50px;"></span></td>
-              <td><span class="hmis-skeleton" style="width:120px;"></span></td>
+              <td><span class="hmis-skeleton" style="width:200px;"></span></td>
+              <td><span class="hmis-skeleton" style="width:50px;"></span></td>
+              <td><span class="hmis-skeleton" style="width:70px;"></span></td>
               <td><span class="hmis-skeleton" style="width:70px;"></span></td>
               <td class="text-end"><span class="hmis-skeleton" style="width:80px;"></span></td>
             </tr>
           }
-        } @else if (wards().length === 0) {
+        } @else if (currencies().length === 0) {
           <tr>
-            <td colspan="7">
+            <td colspan="6">
               <div class="hmis-empty">
-                <i class="bi bi-door-open"></i>
-                <div class="fw-semibold mb-1">No wards found</div>
-                <div class="small">Adjust your filters or create a new ward.</div>
+                <i class="bi bi-currency-exchange"></i>
+                <div class="fw-semibold mb-1">No currencies found</div>
+                <div class="small">Adjust your filters or create a new currency.</div>
               </div>
             </td>
           </tr>
         } @else {
-          @for (w of wards(); track w.uid) {
+          @for (c of currencies(); track c.uid) {
             <tr>
-              <td><span class="hmis-code">{{ w.code }}</span></td>
+              <td><span class="hmis-code">{{ c.code }}</span></td>
+              <td><div class="fw-semibold">{{ c.name }}</div></td>
+              <td class="hmis-muted">{{ c.symbol || '—' }}</td>
               <td>
-                <div class="fw-semibold">{{ w.name }}</div>
-                @if (w.description) { <div class="hmis-muted small text-truncate" style="max-width:320px;">{{ w.description }}</div> }
+                @if (c.isDefault) {
+                  <span class="badge text-bg-success-subtle text-success-emphasis border border-success-subtle">
+                    <i class="bi bi-star-fill me-1"></i>Default
+                  </span>
+                } @else { <span class="hmis-muted">—</span> }
               </td>
-              <td><span class="badge text-bg-info-subtle text-info-emphasis border border-info-subtle">{{ categoryLabel(w.category) }}</span></td>
-              <td>{{ w.capacity }}</td>
-              <td class="hmis-muted">{{ w.location || '—' }}</td>
               <td>
-                @if (w.active) {
+                @if (c.active) {
                   <span class="badge text-bg-success-subtle text-success-emphasis border border-success-subtle">
                     <i class="bi bi-circle-fill me-1" style="font-size:0.5rem;"></i>Active
                   </span>
@@ -112,13 +98,15 @@
                 <div ngbDropdown placement="bottom-end" class="d-inline-block">
                   <button type="button" class="btn btn-sm btn-light border" ngbDropdownToggle aria-label="Actions"><i class="bi bi-three-dots"></i></button>
                   <div ngbDropdownMenu class="shadow-sm">
-                    <button type="button" ngbDropdownItem (click)="openEdit(w)"><i class="bi bi-pencil me-2"></i>Edit</button>
-                    <button type="button" ngbDropdownItem (click)="openPrices(w)"><i class="bi bi-cash-coin me-2"></i>Prices</button>
-                    <button type="button" ngbDropdownItem (click)="toggleActive(w)">
-                      <i class="bi me-2" [class.bi-toggle-off]="w.active" [class.bi-toggle-on]="!w.active"></i>{{ w.active ? 'Deactivate' : 'Activate' }}
+                    <button type="button" ngbDropdownItem (click)="openEdit(c)"><i class="bi bi-pencil me-2"></i>Edit</button>
+                    @if (!c.isDefault) {
+                      <button type="button" ngbDropdownItem (click)="setDefault(c)"><i class="bi bi-star me-2"></i>Set as default</button>
+                    }
+                    <button type="button" ngbDropdownItem (click)="toggleActive(c)">
+                      <i class="bi me-2" [class.bi-toggle-off]="c.active" [class.bi-toggle-on]="!c.active"></i>{{ c.active ? 'Deactivate' : 'Activate' }}
                     </button>
                     <div class="dropdown-divider"></div>
-                    <button type="button" ngbDropdownItem class="text-danger" (click)="delete(w)"><i class="bi bi-trash me-2"></i>Delete</button>
+                    <button type="button" ngbDropdownItem class="text-danger" (click)="delete(c)"><i class="bi bi-trash me-2"></i>Delete</button>
                   </div>
                 </div>
               </td>
@@ -129,12 +117,12 @@
     </table>
   </div>
 
-  @if (!loading() && wards().length > 0) {
+  @if (!loading() && currencies().length > 0) {
     <div class="card-footer bg-white d-flex flex-wrap align-items-center gap-2">
-      <div class="hmis-muted small">Showing {{ wards().length }} of {{ totalElements() }}</div>
+      <div class="hmis-muted small">Showing {{ currencies().length }} of {{ totalElements() }}</div>
       <div class="ms-auto d-flex align-items-center gap-2">
-        <label class="hmis-muted small mb-0" for="ward-page-size">Rows</label>
-        <select id="ward-page-size" name="pageSize" class="form-select form-select-sm" style="width:auto;" [value]="pageSize()" (change)="changePageSize(+$any($event.target).value)">
+        <label class="hmis-muted small mb-0" for="currency-page-size">Rows</label>
+        <select id="currency-page-size" name="pageSize" class="form-select form-select-sm" style="width:auto;" [value]="pageSize()" (change)="changePageSize(+$any($event.target).value)">
           <option [value]="10">10</option><option [value]="25">25</option><option [value]="50">50</option>
         </select>
         <nav aria-label="Pagination" class="ms-2">

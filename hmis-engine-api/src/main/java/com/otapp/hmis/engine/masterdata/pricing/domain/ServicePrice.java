@@ -19,7 +19,7 @@ import lombok.Setter;
 @Table(name = "md_service_price",
        uniqueConstraints = @UniqueConstraint(
                name = "uk_md_service_price",
-               columnNames = {"plan_uid", "kind", "service_uid"}),
+               columnNames = {"plan_uid", "kind", "service_uid", "currency"}),
        indexes = {
                @Index(name = "idx_md_service_price_service", columnList = "kind,service_uid"),
                @Index(name = "idx_md_service_price_plan",    columnList = "plan_uid")
@@ -46,6 +46,16 @@ public class ServicePrice extends AuditableEntity {
     @Setter
     @Column(nullable = false, precision = 14, scale = 2)
     private BigDecimal amount;
+
+    /** Optional negotiable floor — a per-line override may not go below this. */
+    @Setter
+    @Column(name = "min_amount", precision = 14, scale = 2)
+    private BigDecimal minAmount;
+
+    /** Optional negotiable ceiling — a per-line override may not exceed this. */
+    @Setter
+    @Column(name = "max_amount", precision = 14, scale = 2)
+    private BigDecimal maxAmount;
 
     @Setter
     @Column(nullable = false, length = 3)

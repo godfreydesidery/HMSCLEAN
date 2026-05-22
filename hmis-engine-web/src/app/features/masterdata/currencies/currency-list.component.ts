@@ -5,19 +5,18 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
-import { ItemPricesComponent } from '../pricing/item-prices.component';
-import { LabTestFormComponent } from './lab-test-form.component';
-import { LabTestTypeService } from './lab-test.service';
-import { LabTestType } from './lab-test.types';
+import { CurrencyFormComponent } from './currency-form.component';
+import { CurrencyService } from './currency.service';
+import { Currency } from './currency.types';
 
 @Component({
-  selector: 'app-lab-test-list',
+  selector: 'app-currency-list',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, NgbDropdownModule],
-  templateUrl: './lab-test-list.component.html'
+  templateUrl: './currency-list.component.html'
 })
-export class LabTestListComponent {
-  private readonly service = inject(LabTestTypeService);
+export class CurrencyListComponent {
+  private readonly currencyService = inject(CurrencyService);
   private readonly modal = inject(NgbModal);
 
   readonly query = new FormControl('', { nonNullable: true });
@@ -39,19 +38,21 @@ export class LabTestListComponent {
       switchMap(() => {
         this.loading.set(true);
         this.errorMessage.set(null);
-        return this.service.search({
+        return this.currencyService.search({
           query: this.searchQuery() || undefined,
           active: this.activeFilter() === 'ALL' ? undefined : this.activeFilter() === 'ACTIVE',
-          page: this.page(), size: this.pageSize(), sort: 'name,asc'
+          page: this.page(),
+          size: this.pageSize(),
+          sort: 'code,asc'
         }).pipe(finalize(() => this.loading.set(false)));
       }),
-      tap({ error: (err) => { this.errorMessage.set(err?.error?.message ?? 'Could not load lab tests.'); this.loading.set(false); } }),
+      tap({ error: (err) => { this.errorMessage.set(err?.error?.message ?? 'Could not load currencies.'); this.loading.set(false); } }),
       takeUntilDestroyed()
     ),
     { initialValue: null }
   );
 
-  readonly items = computed(() => this.result()?.content ?? []);
+  readonly currencies = computed(() => this.result()?.content ?? []);
   readonly totalElements = computed(() => this.result()?.totalElements ?? 0);
   readonly totalPages = computed(() => this.result()?.totalPages ?? 0);
   readonly pageWindow = computed(() => {
@@ -71,25 +72,36 @@ export class LabTestListComponent {
   goToPage(p: number): void { if (p < 0 || p >= this.totalPages() || p === this.page()) return; this.page.set(p); this.refresh$.next(); }
   changePageSize(s: number): void { this.pageSize.set(s); this.page.set(0); this.refresh$.next(); }
 
-  openCreate(): void { const r = this.modal.open(LabTestFormComponent, { size: 'lg', backdrop: 'static' }); r.closed.subscribe(() => this.refresh$.next()); }
-  openEdit(l: LabTestType): void { const r = this.modal.open(LabTestFormComponent, { size: 'lg', backdrop: 'static' }); (r.componentInstance as LabTestFormComponent).existing = l; r.closed.subscribe(() => this.refresh$.next()); }
-  openPrices(l: LabTestType): void {
-    const r = this.modal.open(ItemPricesComponent, { size: 'lg', backdrop: 'static' });
-    const inst = r.componentInstance as ItemPricesComponent;
-    inst.kind = 'LAB_TEST'; inst.serviceUid = l.uid; inst.serviceLabel = `${l.name} (${l.code})`;
+  openCreate(): void {
+    const r = this.modal.open(CurrencyFormComponent, { size: 'lg', backdrop: 'static' });
+    r.closed.subscribe(() => this.refresh$.next());
   }
 
-  toggleActive(l: LabTestType): void {
-    this.service.setActive(l.uid, !l.active).subscribe({
+  openEdit(c: Currency): void {
+    const r = this.modal.open(CurrencyFormComponent, { size: 'lg', backdrop: 'static' });
+    (r.componentInstance as CurrencyFormComponent).existing = c;
+    r.closed.subscribe(() => this.refresh$.next());
+  }
+
+  setDefault(c: Currency): void {
+    this.currencyService.setDefault(c.uid).subscribe({
       next: () => this.refresh$.next(),
-      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not update lab test.')
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not set default currency.')
     });
   }
-  delete(l: LabTestType): void {
-    if (!globalThis.confirm(`Delete lab test "${l.name}"? This cannot be undone.`)) return;
-    this.service.delete(l.uid).subscribe({
+
+  toggleActive(c: Currency): void {
+    this.currencyService.setActive(c.uid, !c.active).subscribe({
       next: () => this.refresh$.next(),
-      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not delete lab test.')
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not update currency.')
+    });
+  }
+
+  delete(c: Currency): void {
+    if (!globalThis.confirm(`Delete currency "${c.code}"? This cannot be undone.`)) return;
+    this.currencyService.delete(c.uid).subscribe({
+      next: () => this.refresh$.next(),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not delete currency.')
     });
   }
 }

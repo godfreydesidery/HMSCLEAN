@@ -5,7 +5,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { PageResponse } from '../../../core/http/page.types';
 import {
-  ServicePrice, ServicePriceSearchParams, SetServicePriceRequest
+  ServicePrice, ServicePriceSearchParams, SetServicePriceRequest, UpdateServicePriceRequest
 } from './service-price.types';
 
 @Injectable({ providedIn: 'root' })
@@ -24,8 +24,14 @@ export class ServicePriceService {
     return this.http.get<PageResponse<ServicePrice>>(this.base, { params: p });
   }
 
-  setPrice(req: SetServicePriceRequest): Observable<ServicePrice> {
-    return this.http.put<ServicePrice>(this.base, req);
+  /** Create a new price cell. Backend returns 409 if (payer, service, currency) already exists. */
+  create(req: SetServicePriceRequest): Observable<ServicePrice> {
+    return this.http.post<ServicePrice>(this.base, req);
+  }
+
+  /** Update an existing price (amount / band / note) by uid. */
+  update(uid: string, req: UpdateServicePriceRequest): Observable<ServicePrice> {
+    return this.http.put<ServicePrice>(`${this.base}/uid/${uid}`, req);
   }
 
   delete(uid: string): Observable<void> {

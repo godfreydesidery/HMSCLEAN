@@ -3,6 +3,7 @@ package com.otapp.hmis.engine.billing.invoice.api;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.CancelInvoiceRequest;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceDto;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceSummary;
+import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.OverrideLinePriceRequest;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.RecordPaymentRequest;
 import com.otapp.hmis.engine.billing.invoice.application.ConsultationFeeService;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceService;
@@ -123,5 +124,13 @@ public class InvoiceController {
     public ResponseEntity<InvoiceDto> recordPayment(@PathVariable String invoiceUid,
                                                     @Valid @RequestBody RecordPaymentRequest request) {
         return ResponseEntity.ok(invoiceService.recordPayment(invoiceUid, request));
+    }
+
+    /** Negotiate a line's unit price within the service's [min, max] band. */
+    @PutMapping("/billing/invoices/uid/{invoiceUid}/lines/uid/{lineUid}/price")
+    public ResponseEntity<InvoiceDto> overrideLinePrice(@PathVariable String invoiceUid,
+                                                        @PathVariable String lineUid,
+                                                        @Valid @RequestBody OverrideLinePriceRequest request) {
+        return ResponseEntity.ok(invoiceService.overrideLinePrice(invoiceUid, lineUid, request));
     }
 }

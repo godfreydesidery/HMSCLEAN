@@ -5,6 +5,7 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
+import { ItemPricesComponent } from '../pricing/item-prices.component';
 import { WardFormComponent } from './ward-form.component';
 import { WardService } from './ward.service';
 import { WARD_CATEGORIES, Ward, WardCategory } from './ward.types';
@@ -85,6 +86,12 @@ export class WardListComponent {
     const r = this.modal.open(WardFormComponent, { size: 'lg', backdrop: 'static' });
     (r.componentInstance as WardFormComponent).existing = w;
     r.closed.subscribe(() => this.refresh$.next());
+  }
+
+  openPrices(w: Ward): void {
+    const r = this.modal.open(ItemPricesComponent, { size: 'lg', backdrop: 'static' });
+    const inst = r.componentInstance as ItemPricesComponent;
+    inst.kind = 'WARD'; inst.serviceUid = w.uid; inst.serviceLabel = `${w.name} (${w.code})`;
   }
 
   toggleActive(w: Ward): void {

@@ -5,6 +5,7 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
+import { ItemPricesComponent } from '../pricing/item-prices.component';
 import { ProcedureFormComponent } from './procedure-form.component';
 import { ProcedureTypeService } from './procedure.service';
 import { ProcedureType } from './procedure.types';
@@ -72,6 +73,11 @@ export class ProcedureListComponent {
 
   openCreate(): void { const r = this.modal.open(ProcedureFormComponent, { size: 'lg', backdrop: 'static' }); r.closed.subscribe(() => this.refresh$.next()); }
   openEdit(p: ProcedureType): void { const r = this.modal.open(ProcedureFormComponent, { size: 'lg', backdrop: 'static' }); (r.componentInstance as ProcedureFormComponent).existing = p; r.closed.subscribe(() => this.refresh$.next()); }
+  openPrices(p: ProcedureType): void {
+    const r = this.modal.open(ItemPricesComponent, { size: 'lg', backdrop: 'static' });
+    const inst = r.componentInstance as ItemPricesComponent;
+    inst.kind = 'PROCEDURE'; inst.serviceUid = p.uid; inst.serviceLabel = `${p.name} (${p.code})`;
+  }
 
   toggleActive(p: ProcedureType): void {
     this.service.setActive(p.uid, !p.active).subscribe({

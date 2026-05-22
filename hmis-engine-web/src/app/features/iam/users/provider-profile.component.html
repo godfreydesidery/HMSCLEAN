@@ -1,0 +1,46 @@
+<div class="modal-header">
+  <div>
+    <h5 class="modal-title">Provider profile</h5>
+    <div class="hmis-muted small mt-1">
+      <span class="fw-semibold">{{ user.firstName }} {{ user.lastName }}</span>
+      <span class="hmis-code ms-2">{{ user.username }}</span>
+    </div>
+  </div>
+  <button type="button" class="btn-close" (click)="activeModal.dismiss()" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span>
+    </div>
+  }
+
+  <p class="hmis-muted small">Specialty and registration appear in the clinician pickers.</p>
+
+  <form [formGroup]="form" novalidate>
+    <div class="mb-3">
+      <label class="form-label" for="pp-specialty">Specialty</label>
+      <input id="pp-specialty" type="text" class="form-control" formControlName="specialty"
+             placeholder="e.g. Cardiology" [attr.disabled]="loading() ? '' : null" />
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="pp-reg">Registration no.</label>
+      <input id="pp-reg" type="text" class="form-control" formControlName="registrationNo"
+             [attr.disabled]="loading() ? '' : null" />
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="pp-lic">Licence no.</label>
+      <input id="pp-lic" type="text" class="form-control" formControlName="licenseNo"
+             [attr.disabled]="loading() ? '' : null" />
+    </div>
+  </form>
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+  <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="submit()" [disabled]="submitting() || loading()">
+    @if (submitting()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }
+    <i class="bi bi-save"></i>Save
+  </button>
+</div>

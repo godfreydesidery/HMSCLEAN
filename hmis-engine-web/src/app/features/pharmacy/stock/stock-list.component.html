@@ -25,7 +25,7 @@
           <label class="form-label small hmis-muted mb-1" for="st-q">Search medicine</label>
           <div class="input-group">
             <span class="input-group-text bg-white border-end-0"><i class="bi bi-search hmis-muted"></i></span>
-            <input id="st-q" type="search" class="form-control border-start-0 ps-0" placeholder="Name or code" [value]="query()" (input)="setQuery($any($event.target).value)">
+            <input id="st-q" type="search" class="form-control border-start-0 ps-0" placeholder="Name or code" [formControl]="query">
           </div>
         </div>
         <div class="col-md-auto ms-md-auto pt-md-4">
@@ -62,10 +62,10 @@
               @for (i of [1,2,3,4,5,6]; track i) {
                 <tr><td></td><td><span class="hmis-skeleton" style="width:80px;"></span></td><td><span class="hmis-skeleton" style="width:220px;"></span></td><td><span class="hmis-skeleton" style="width:60px;"></span></td><td><span class="hmis-skeleton" style="width:40px;"></span></td><td><span class="hmis-skeleton" style="width:100px;"></span></td></tr>
               }
-            } @else if (filteredBalances().length === 0) {
-              <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-box-seam"></i><div class="fw-semibold mb-1">Nothing on hand</div><div class="small">Use "Receive stock" to add the first batch.</div></div></td></tr>
+            } @else if (balances().length === 0) {
+              <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-box-seam"></i><div class="fw-semibold mb-1">Nothing on hand</div><div class="small">No stock matches the current filters.</div></div></td></tr>
             } @else {
-              @for (b of filteredBalances(); track b.medicineUid) {
+              @for (b of balances(); track b.medicineUid) {
                 <tr [class.table-warning]="b.totalQuantity <= lowStockThreshold" style="cursor:pointer;" (click)="toggleExpanded(b.medicineUid)">
                   <td>
                     <i class="bi" [class.bi-caret-right-fill]="!isExpanded(b.medicineUid)" [class.bi-caret-down-fill]="isExpanded(b.medicineUid)"></i>
@@ -100,7 +100,10 @@
                               <td class="hmis-muted small">{{ batch.receivedAt | date:'short' }}</td>
                               <td class="text-end">{{ batch.quantity }}</td>
                               <td class="text-end">
-                                <button type="button" class="btn btn-sm btn-light border" (click)="openAdjustBatch(batch); $event.stopPropagation()"><i class="bi bi-sliders me-1"></i>Adjust</button>
+                                <div class="btn-group btn-group-sm">
+                                  <button type="button" class="btn btn-light border" (click)="openAdjustBatch(batch); $event.stopPropagation()"><i class="bi bi-sliders me-1"></i>Adjust</button>
+                                  <button type="button" class="btn btn-light border text-danger-emphasis" (click)="openWriteOffBatch(batch); $event.stopPropagation()" [disabled]="batch.quantity <= 0"><i class="bi bi-trash me-1"></i>Write off</button>
+                                </div>
                               </td>
                             </tr>
                           }
@@ -114,6 +117,24 @@
           </tbody>
         </table>
       </div>
+      @if (!loading() && balances().length > 0) {
+        <div class="card-footer bg-white d-flex flex-wrap align-items-center gap-2">
+          <div class="hmis-muted small">Showing {{ balances().length }} of {{ totalElements() }}</div>
+          <div class="ms-auto d-flex align-items-center gap-2">
+            <label class="hmis-muted small mb-0" for="st-page-size">Rows</label>
+            <select id="st-page-size" name="pageSize" class="form-select form-select-sm" style="width:auto;" [value]="pageSize()" (change)="changePageSize(+$any($event.target).value)">
+              <option [value]="15">15</option><option [value]="25">25</option><option [value]="50">50</option>
+            </select>
+            <nav aria-label="Pagination" class="ms-2">
+              <ul class="pagination pagination-sm mb-0">
+                <li class="page-item" [class.disabled]="page() === 0"><button type="button" class="page-link" (click)="goToPage(page() - 1)" aria-label="Previous"><i class="bi bi-chevron-left"></i></button></li>
+                @for (p of pageWindow(); track p) { <li class="page-item" [class.active]="p === page()"><button type="button" class="page-link" (click)="goToPage(p)">{{ p + 1 }}</button></li> }
+                <li class="page-item" [class.disabled]="page() >= totalPages() - 1"><button type="button" class="page-link" (click)="goToPage(page() + 1)" aria-label="Next"><i class="bi bi-chevron-right"></i></button></li>
+              </ul>
+            </nav>
+          </div>
+        </div>
+      }
     </div>
   </div>
 

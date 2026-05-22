@@ -10,7 +10,6 @@ import com.otapp.hmis.engine.store.stock.application.StoreStockService;
 import com.otapp.hmis.engine.store.stock.domain.StoreStockMovementKind;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -27,8 +26,13 @@ public class StoreStockController {
     private final StoreStockService storeStockService;
 
     @GetMapping("/stores/uid/{storeUid}/stock")
-    public ResponseEntity<List<StoreStockBalanceDto>> listBalances(@PathVariable String storeUid) {
-        return ResponseEntity.ok(storeStockService.listBalances(storeUid));
+    public ResponseEntity<PageResponse<StoreStockBalanceDto>> searchBalances(
+            @PathVariable String storeUid,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false, defaultValue = "false") boolean lowOnly,
+            @RequestParam(required = false, defaultValue = "false") boolean expiringOnly,
+            Pageable pageable) {
+        return ResponseEntity.ok(storeStockService.searchBalances(storeUid, query, lowOnly, expiringOnly, pageable));
     }
 
     @PostMapping("/stores/uid/{storeUid}/stock/receive")

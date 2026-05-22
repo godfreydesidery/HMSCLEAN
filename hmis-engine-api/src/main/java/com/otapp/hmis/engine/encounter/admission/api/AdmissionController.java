@@ -47,6 +47,14 @@ public class AdmissionController {
         return ResponseEntity.ok(admissionService.search(query, status, wardUid, patientUid, pageable));
     }
 
+    /** Nurse worklist — currently-admitted patients, optionally filtered by ward. */
+    @GetMapping("/nurse-worklist")
+    public ResponseEntity<PageResponse<AdmissionSummary>> nurseWorklist(
+            @RequestParam(required = false) String wardUid,
+            Pageable pageable) {
+        return ResponseEntity.ok(admissionService.nurseWorklist(wardUid, pageable));
+    }
+
     @GetMapping("/uid/{admissionUid}")
     public ResponseEntity<AdmissionDto> findByUid(@PathVariable String admissionUid) {
         return ResponseEntity.ok(admissionService.findByUid(admissionUid));

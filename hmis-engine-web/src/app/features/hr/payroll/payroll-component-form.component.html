@@ -1,0 +1,129 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">{{ editingUid() ? 'Edit' : 'New' }} payroll component</h1>
+    <p class="hmis-muted mb-0 small">An earning or deduction rule. Bands and rates are configured here — nothing statutory is hard-coded.</p>
+  </div>
+  <a routerLink="/hr/payroll/components" class="btn btn-light border"><i class="bi bi-arrow-left me-1"></i> Back</a>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+@if (loading()) {
+  <div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div>
+} @else {
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label for="code" class="form-label">Code <span class="text-danger">*</span></label>
+          <input id="code" name="code" type="text" class="form-control hmis-code" formControlName="code" maxlength="32"
+                 [class.is-invalid]="form.controls.code.invalid && form.controls.code.touched" placeholder="e.g. PAYE">
+          @if (editingUid()) { <div class="form-text">Code can't be changed after creation.</div> }
+        </div>
+        <div class="col-md-8">
+          <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
+          <input id="name" name="name" type="text" class="form-control" formControlName="name" maxlength="120"
+                 [class.is-invalid]="form.controls.name.invalid && form.controls.name.touched" placeholder="e.g. Pay-As-You-Earn">
+        </div>
+
+        <div class="col-md-4">
+          <label for="type" class="form-label">Type</label>
+          <select id="type" name="type" class="form-select" formControlName="type">
+            @for (t of types; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label for="method" class="form-label">Method</label>
+          <select id="method" name="method" class="form-select" formControlName="method" (change)="onMethodChange()">
+            @for (m of methods; track m.value) { <option [value]="m.value">{{ m.label }}</option> }
+          </select>
+        </div>
+        @if (!isFixed()) {
+          <div class="col-md-4">
+            <label for="base" class="form-label">Computed on</label>
+            <select id="base" name="base" class="form-select" formControlName="base">
+              @for (b of bases; track b.value) { <option [value]="b.value">{{ b.label }}</option> }
+            </select>
+          </div>
+        }
+
+        @if (isFixed()) {
+          <div class="col-md-4">
+            <label for="fixedAmount" class="form-label">Fixed amount</label>
+            <input id="fixedAmount" name="fixedAmount" type="text" inputmode="decimal" class="form-control" formControlName="fixedAmount"
+                   [class.is-invalid]="form.controls.fixedAmount.invalid && form.controls.fixedAmount.touched">
+            <div class="invalid-feedback">Use up to 2 decimals.</div>
+          </div>
+        }
+        @if (isPercent()) {
+          <div class="col-md-4">
+            <label for="ratePercent" class="form-label">Rate (%)</label>
+            <div class="input-group">
+              <input id="ratePercent" name="ratePercent" type="text" inputmode="decimal" class="form-control" formControlName="ratePercent"
+                     [class.is-invalid]="form.controls.ratePercent.invalid && form.controls.ratePercent.touched">
+              <span class="input-group-text">%</span>
+            </div>
+            <div class="form-text">e.g. 10 = 10% of the chosen base.</div>
+          </div>
+        }
+
+        <div class="col-md-3">
+          <label for="sortOrder" class="form-label">Apply order</label>
+          <input id="sortOrder" name="sortOrder" type="number" min="0" class="form-control" formControlName="sortOrder">
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <div class="form-check">
+            <input id="active" name="active" type="checkbox" class="form-check-input" formControlName="active">
+            <label for="active" class="form-check-label">Active</label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (isBand()) {
+    <div class="card mb-3">
+      <div class="card-header bg-white d-flex align-items-center">
+        <h2 class="h6 mb-0">Progressive bands</h2>
+        <button type="button" class="btn btn-sm btn-light border ms-auto" (click)="addBand()"><i class="bi bi-plus-lg me-1"></i> Add band</button>
+      </div>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead><tr><th>From</th><th>To (blank = no upper limit)</th><th>Rate (%)</th><th class="text-end"></th></tr></thead>
+          <tbody>
+            @if (bandsArray.length === 0) {
+              <tr><td colspan="4"><div class="hmis-empty"><i class="bi bi-bar-chart-steps"></i><div class="small">Add at least one band.</div></div></td></tr>
+            } @else {
+              @for (bg of bandsArray.controls; track $index) {
+                <tr [formGroup]="bg">
+                  <td><input type="text" inputmode="decimal" class="form-control form-control-sm" formControlName="fromAmount" [class.is-invalid]="bg.controls['fromAmount'].invalid && bg.controls['fromAmount'].touched"></td>
+                  <td><input type="text" inputmode="decimal" class="form-control form-control-sm" formControlName="toAmount" placeholder="∞" [class.is-invalid]="bg.controls['toAmount'].invalid && bg.controls['toAmount'].touched"></td>
+                  <td>
+                    <div class="input-group input-group-sm">
+                      <input type="text" inputmode="decimal" class="form-control" formControlName="ratePercent" [class.is-invalid]="bg.controls['ratePercent'].invalid && bg.controls['ratePercent'].touched">
+                      <span class="input-group-text">%</span>
+                    </div>
+                  </td>
+                  <td class="text-end"><button type="button" class="btn btn-sm btn-light border text-danger" (click)="removeBand($index)" aria-label="Remove band"><i class="bi bi-trash"></i></button></td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="card-footer bg-white small hmis-muted">Each band's rate applies only to the slice of the base between "From" and "To" (standard progressive tax).</div>
+    </div>
+  }
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary" [disabled]="submitting()">
+      @if (submitting()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+      <i class="bi bi-check2 me-1"></i> {{ editingUid() ? 'Save changes' : 'Create component' }}
+    </button>
+    <button type="button" class="btn btn-light border" (click)="cancel()">Cancel</button>
+  </div>
+</form>
+}

@@ -21,28 +21,31 @@
   </div>
 }
 
-@if (patient(); as p) {
-  <div class="card mb-3 start-consultation__patient">
-    <div class="card-body d-flex align-items-center gap-3">
-      <span class="patient-avatar">{{ ((p.firstName[0] || '') + (p.lastName[0] || '')) | uppercase }}</span>
-      <div>
-        <div class="fw-semibold">{{ p.firstName }} {{ p.middleName }} {{ p.lastName }}</div>
-        <div class="hmis-muted small d-flex gap-3">
-          <span><span class="hmis-code">{{ p.patientNo }}</span></span>
-          <span>{{ p.gender }}</span>
-          @if (p.phoneNo) { <span><i class="bi bi-telephone me-1"></i>{{ p.phoneNo }}</span> }
-        </div>
-      </div>
+@if (registrationFeeBlocked()) {
+  <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
+    <i class="bi bi-cash-coin fs-5"></i>
+    <div class="flex-grow-1">
+      <div class="fw-semibold">Settle the registration fee first</div>
+      <div class="small">This CASH patient has an unpaid registration fee. Take payment at the cashier, then book the consultation again.</div>
+      @if (registrationInvoiceUid()) {
+        <button type="button" class="btn btn-sm btn-warning mt-2" (click)="openRegistrationInvoice()">
+          <i class="bi bi-receipt me-1"></i> Open registration invoice
+        </button>
+      }
     </div>
   </div>
 }
 
 <form id="start-consultation-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
   <div class="row g-3">
-    <div class="col-md-6">
-      <label class="form-label" for="sc-patient">Patient UID <span class="text-danger">*</span></label>
-      <input id="sc-patient" name="patientUid" type="text" class="form-control" formControlName="patientUid" autocomplete="off" placeholder="Paste patient uid or open this page from a patient profile">
-      <div class="form-text">Tip: from a patient's profile, click "Start consultation" to pre-fill this field.</div>
+    <div class="col-12">
+      <label class="form-label">Patient <span class="text-danger">*</span></label>
+      <app-patient-search [initialUid]="initialPatientUid"
+                          [invalid]="form.controls.patientUid.invalid && form.controls.patientUid.touched"
+                          (selectedChange)="onPatientSelected($event)"></app-patient-search>
+      @if (form.controls.patientUid.invalid && form.controls.patientUid.touched) {
+        <div class="text-danger small mt-1">Search and select a patient.</div>
+      }
     </div>
 
     <div class="col-md-6">
@@ -57,14 +60,15 @@
 
     <div class="col-md-6">
       <label class="form-label" for="sc-clinician">Clinician <span class="text-danger">*</span></label>
-      <select id="sc-clinician" name="clinicianUsername" class="form-select" formControlName="clinicianUsername">
-        <option value="" disabled>{{ loadingLookups() ? 'Loading…' : '— Select a clinician —' }}</option>
+      <select id="sc-clinician" name="clinicianUsername" class="form-select" formControlName="clinicianUsername"
+              [attr.disabled]="!form.controls.clinicUid.value ? '' : null">
+        <option value="" disabled>{{ loadingClinicians() ? 'Loading…' : (form.controls.clinicUid.value ? '— Select a clinician —' : '— Select a clinic first —') }}</option>
         @for (c of clinicians(); track c.username) {
-          <option [value]="c.username">{{ c.fullName }} ({{ c.username }})</option>
+          <option [value]="c.username">{{ c.fullName }}{{ c.specialty ? ' — ' + c.specialty : '' }} ({{ c.username }})</option>
         }
       </select>
-      @if (!loadingLookups() && clinicians().length === 0) {
-        <div class="form-text text-warning">No users with the CLINICIAN role are enabled. Assign a user to the CLINICIAN role to populate this list.</div>
+      @if (form.controls.clinicUid.value && !loadingClinicians() && clinicians().length === 0) {
+        <div class="form-text text-warning">No clinicians are assigned to this clinic. Assign clinicians on the clinic's Clinicians panel.</div>
       }
     </div>
 
@@ -94,6 +98,26 @@
     <div class="col-12">
       <label class="form-label" for="sc-reason">Reason for visit</label>
       <textarea id="sc-reason" name="reason" rows="3" class="form-control" formControlName="reason" placeholder="Chief complaint, presenting symptoms…"></textarea>
+    </div>
+
+    <div class="col-12">
+      <label class="form-label" for="sc-follow-up">Follow-up of (optional)</label>
+      <select id="sc-follow-up" name="followUpOfConsultationUid" class="form-select" formControlName="followUpOfConsultationUid">
+        <option value="">— Not a follow-up —</option>
+        @for (c of followUpCandidates(); track c.uid) {
+          <option [value]="c.uid">{{ c.consultationNo }} · {{ c.clinicName || 'Clinic' }} · {{ c.bookedAt | date:'mediumDate' }}</option>
+        }
+        @if (followUpValueMissing) {
+          <option [value]="form.controls.followUpOfConsultationUid.value">Linked consultation {{ form.controls.followUpOfConsultationUid.value }}</option>
+        }
+      </select>
+      <div class="form-text">
+        @if (followUpCandidates().length > 0) {
+          Links this visit to a prior completed consultation for the same patient.
+        } @else {
+          No prior completed consultations found for the selected patient — pick a patient first, or leave blank.
+        }
+      </div>
     </div>
   </div>
 </form>

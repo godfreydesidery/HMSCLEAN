@@ -1,5 +1,5 @@
 export const environment = {
   production: true,
   apiUrl: '/api',
-  appName: 'HMIS Engine'
+  appName: 'ORBIX HMIS'
 };

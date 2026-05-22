@@ -1,0 +1,103 @@
+<div class="modal-header">
+  <div>
+    <h5 class="modal-title">Discharge / closure plan</h5>
+    <div class="hmis-muted small mt-1">
+      Author the structured plan; a different user (ward administrator) approves it, which closes the admission.
+    </div>
+  </div>
+  <button type="button" class="btn-close" (click)="activeModal.dismiss()" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  }
+  @if (plan(); as p) {
+    <div class="alert" [class.alert-info]="p.status === 'PENDING'" [class.alert-success]="p.status === 'APPROVED'" [class.alert-secondary]="p.status === 'CANCELLED'">
+      <span class="fw-semibold">{{ p.status }}</span>
+      @if (p.authoredByUsername) { · authored by {{ p.authoredByUsername }} }
+      @if (p.approvedByUsername) { · approved by {{ p.approvedByUsername }} }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div>
+  } @else {
+    <form [formGroup]="form" novalidate>
+      <div class="mb-3">
+        <label class="form-label" for="dp-kind">Closure kind <span class="text-danger">*</span></label>
+        <select id="dp-kind" class="form-select" formControlName="kind" [attr.disabled]="isNew ? null : true">
+          @for (k of kinds; track k.value) { <option [value]="k.value">{{ k.label }}</option> }
+        </select>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label" for="dp-history">History <span class="text-danger">*</span></label>
+        <textarea id="dp-history" rows="2" class="form-control" formControlName="history"></textarea>
+      </div>
+      <div class="mb-2">
+        <label class="form-label" for="dp-investigation">Investigation</label>
+        <textarea id="dp-investigation" rows="2" class="form-control" formControlName="investigation"></textarea>
+      </div>
+      <div class="mb-2">
+        <label class="form-label" for="dp-management">Management <span class="text-danger">*</span></label>
+        <textarea id="dp-management" rows="2" class="form-control" formControlName="management"></textarea>
+      </div>
+      <div class="mb-2">
+        <label class="form-label" for="dp-recommendations">Recommendations <span class="text-danger">*</span></label>
+        <textarea id="dp-recommendations" rows="2" class="form-control" formControlName="recommendations"></textarea>
+      </div>
+
+      <div class="row g-2">
+        <div class="col-md-6 mb-2">
+          <label class="form-label" for="dp-op">Operation note</label>
+          <textarea id="dp-op" rows="2" class="form-control" formControlName="operationNote"></textarea>
+        </div>
+        <div class="col-md-6 mb-2">
+          <label class="form-label" for="dp-icu">ICU note</label>
+          <textarea id="dp-icu" rows="2" class="form-control" formControlName="icuNote"></textarea>
+        </div>
+      </div>
+
+      @if (kind === 'REFERRAL') {
+        <div class="row g-2">
+          <div class="col-md-6 mb-2">
+            <label class="form-label" for="dp-facility">Referral facility <span class="text-danger">*</span></label>
+            <input id="dp-facility" type="text" class="form-control" formControlName="referralFacility">
+          </div>
+          <div class="col-md-6 mb-2">
+            <label class="form-label" for="dp-rreason">Referral reason <span class="text-danger">*</span></label>
+            <input id="dp-rreason" type="text" class="form-control" formControlName="referralReason">
+          </div>
+        </div>
+      }
+      @if (kind === 'DECEASED') {
+        <div class="row g-2">
+          <div class="col-md-6 mb-2">
+            <label class="form-label" for="dp-tod">Time of death <span class="text-danger">*</span></label>
+            <input id="dp-tod" type="datetime-local" class="form-control" formControlName="timeOfDeath">
+          </div>
+          <div class="col-md-6 mb-2">
+            <label class="form-label" for="dp-cod">Cause of death <span class="text-danger">*</span></label>
+            <input id="dp-cod" type="text" class="form-control" formControlName="causeOfDeath">
+          </div>
+        </div>
+      }
+    </form>
+  }
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="busy()">Close</button>
+  @if (isNew || isPending) {
+    <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="save()" [disabled]="busy()">
+      @if (busy()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }
+      <i class="bi bi-save"></i>{{ isNew ? 'Create plan' : 'Save' }}
+    </button>
+  }
+  @if (isPending) {
+    <button type="button" class="btn btn-success d-flex align-items-center gap-2" (click)="approve()" [disabled]="busy()">
+      <i class="bi bi-check2-circle"></i>Approve &amp; close admission
+    </button>
+  }
+</div>

@@ -56,12 +56,30 @@ public class ClinicalOrder extends AuditableEntity {
     @Column(nullable = false, length = 16)
     private OrderUrgency urgency = OrderUrgency.NORMAL;
 
+    /**
+     * Denormalised payment flag set by the billing settlement dispatcher when
+     * the invoice carrying this order's line is paid. Surfaced on the role
+     * worklists so a technician can scope to settled work (the encounter module
+     * never reads billing).
+     */
+    @Column(name = "settled", nullable = false) private boolean settled = false;
+    @Setter @Column(name = "settled_at") private Instant settledAt;
+
     @Column(name = "requested_at", nullable = false) private Instant requestedAt;
+    @Setter @Column(name = "accepted_at") private Instant acceptedAt;
+    @Setter @Column(name = "approved_at") private Instant approvedAt;
+    @Setter @Column(name = "approved_by_username", length = 64) private String approvedByUsername;
     @Setter @Column(name = "completed_at") private Instant completedAt;
 
     @Setter @Column(name = "instructions", length = 1000) private String instructions;
     @Setter @Column(name = "result",       length = 4000) private String result;
     @Setter @Column(name = "cancel_reason", length = 255)  private String cancelReason;
+
+    // ----- procedure-only scheduling fields (PROCESS.md §7, Phase 24) ------
+    /** Theatre booked for this procedure. Always null for LAB_TEST / RADIOLOGY. */
+    @Setter @Column(name = "theatre_uid",   length = 26) private String theatreUid;
+    @Setter @Column(name = "scheduled_at")               private Instant scheduledAt;
+    @Setter @Column(name = "scheduled_by_username", length = 64) private String scheduledByUsername;
 
     public ClinicalOrder(String orderNo, String consultationUid, String patientUid,
                          ClinicalOrderKind kind, String serviceUid,
@@ -76,16 +94,84 @@ public class ClinicalOrder extends AuditableEntity {
         this.requestedAt = Instant.now();
     }
 
-    public void markInProgress() {
+    /**
+     * Books a theatre + time slot for a procedure order. Idempotent —
+     * re-scheduling a still-open procedure simply overwrites the booking.
+     */
+    public void schedule(String theatreUid, Instant scheduledAt, String scheduledByUsername) {
+        if (kind != ClinicalOrderKind.PROCEDURE) {
+            throw new BusinessRuleException("Only procedure orders can be scheduled (kind: " + kind + ")");
+        }
+        if (status == ClinicalOrderStatus.COMPLETED || status == ClinicalOrderStatus.CANCELLED) {
+            throw new BusinessRuleException("Cannot schedule a " + status + " order");
+        }
+        this.theatreUid = theatreUid;
+        this.scheduledAt = scheduledAt;
+        this.scheduledByUsername = scheduledByUsername;
+    }
+
+    /** Idempotent — flags this order's charge as settled. */
+    public void markSettled() {
+        if (!settled) {
+            settled = true;
+            settledAt = Instant.now();
+        }
+    }
+
+    /**
+     * Lab / radiology acceptance gate: REQUESTED → ACCEPTED (specimen collected
+     * or study scheduled and accepted). Procedures use {@link #approve} instead.
+     */
+    public void accept() {
+        if (kind == ClinicalOrderKind.PROCEDURE) {
+            throw new BusinessRuleException("Procedures are signed off via approve(), not accept()");
+        }
         if (status != ClinicalOrderStatus.REQUESTED) {
-            throw new BusinessRuleException("Only REQUESTED orders can be started (current: " + status + ")");
+            throw new BusinessRuleException("Only REQUESTED orders can be accepted (current: " + status + ")");
+        }
+        status = ClinicalOrderStatus.ACCEPTED;
+        acceptedAt = Instant.now();
+    }
+
+    /**
+     * Procedure approval gate: REQUESTED → APPROVED (surgeon / anaesthetist
+     * sign-off). Only valid for PROCEDURE orders.
+     */
+    public void approve(String approverUsername) {
+        if (kind != ClinicalOrderKind.PROCEDURE) {
+            throw new BusinessRuleException("Only procedures require approval (kind: " + kind + ")");
+        }
+        if (status != ClinicalOrderStatus.REQUESTED) {
+            throw new BusinessRuleException("Only REQUESTED procedures can be approved (current: " + status + ")");
+        }
+        status = ClinicalOrderStatus.APPROVED;
+        approvedAt = Instant.now();
+        approvedByUsername = approverUsername;
+    }
+
+    public void markInProgress() {
+        boolean gatePassed = (kind == ClinicalOrderKind.PROCEDURE)
+                ? status == ClinicalOrderStatus.APPROVED
+                : status == ClinicalOrderStatus.ACCEPTED;
+        if (!gatePassed) {
+            String gate = kind == ClinicalOrderKind.PROCEDURE ? "APPROVED" : "ACCEPTED";
+            throw new BusinessRuleException(
+                    "Order must be " + gate + " before work begins (current: " + status + ")");
         }
         status = ClinicalOrderStatus.IN_PROGRESS;
     }
 
     public void complete(String result) {
-        if (status != ClinicalOrderStatus.REQUESTED && status != ClinicalOrderStatus.IN_PROGRESS) {
-            throw new BusinessRuleException("Order cannot be completed from " + status);
+        if (status != ClinicalOrderStatus.IN_PROGRESS) {
+            throw new BusinessRuleException(
+                    "Only IN_PROGRESS orders can be completed (current: " + status + ")");
+        }
+        // Pay-before-service gate (M13): a consultation-bound order's bill must be
+        // settled before its result is released. Non-CASH / zero-price orders are
+        // settled at billing; outsider-direct orders (no consultation) are exempt.
+        if (consultationUid != null && !settled) {
+            throw new BusinessRuleException(
+                    "The order's bill must be settled before it can be completed (collect payment first)");
         }
         status = ClinicalOrderStatus.COMPLETED;
         this.result = result;

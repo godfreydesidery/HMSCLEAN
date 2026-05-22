@@ -1,0 +1,89 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">New lab batch</h1>
+    <p class="hmis-muted mb-0 small">Pick a lab test and the orders to group for a single bench run.</p>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label for="labTestTypeUid" class="form-label">Lab test <span class="text-danger">*</span></label>
+          <select id="labTestTypeUid" name="labTestTypeUid" class="form-select" formControlName="labTestTypeUid" (change)="onLabTestChange()" [class.is-invalid]="form.controls.labTestTypeUid.invalid && form.controls.labTestTypeUid.touched">
+            <option value="" disabled>— select a lab test —</option>
+            @for (t of labTests(); track t.uid) {
+              <option [value]="t.uid">{{ t.code }} — {{ t.name }}</option>
+            }
+          </select>
+          @if (form.controls.labTestTypeUid.invalid && form.controls.labTestTypeUid.touched) {
+            <div class="invalid-feedback">Pick a lab test.</div>
+          }
+        </div>
+        <div class="col-md-6">
+          <label for="note" class="form-label">Note</label>
+          <input id="note" name="note" type="text" class="form-control" formControlName="note" placeholder="e.g. Morning bench run" autocomplete="off">
+        </div>
+
+        <div class="col-12">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <label class="form-label mb-0">Orders to batch <span class="text-danger">*</span></label>
+            @if (candidates().length > 0) {
+              <div class="d-flex align-items-center gap-2">
+                <span class="hmis-muted small">{{ selectedCount() }} of {{ candidates().length }} selected</span>
+                <button type="button" class="btn btn-sm btn-light border" (click)="selectAll()">Select all</button>
+                <button type="button" class="btn btn-sm btn-light border" (click)="clearSelection()" [disabled]="selectedCount() === 0">Clear</button>
+              </div>
+            }
+          </div>
+
+          @if (!form.controls.labTestTypeUid.value) {
+            <div class="hmis-empty border rounded"><i class="bi bi-arrow-up"></i><div class="small">Pick a lab test to list its eligible orders.</div></div>
+          } @else if (loadingCandidates()) {
+            <div class="hmis-empty border rounded"><i class="bi bi-hourglass-split"></i><div class="small">Loading eligible orders…</div></div>
+          } @else if (candidates().length === 0) {
+            <div class="hmis-empty border rounded"><i class="bi bi-inbox"></i><div class="fw-semibold mb-1">No eligible orders</div><div class="small">There are no requested, unbatched orders for this lab test.</div></div>
+          } @else {
+            <div class="table-responsive border rounded">
+              <table class="table table-hover align-middle mb-0 hmis-table">
+                <thead><tr><th style="width:2.5rem;"></th><th>Order</th><th>Patient</th><th>Urgency</th><th class="hmis-muted small">Requested</th></tr></thead>
+                <tbody>
+                  @for (o of candidates(); track o.orderUid) {
+                    <tr (click)="toggle(o.orderUid)" [class.table-active]="isSelected(o.orderUid)" style="cursor:pointer;">
+                      <td>
+                        <input type="checkbox" class="form-check-input" [checked]="isSelected(o.orderUid)" (click)="$event.stopPropagation(); toggle(o.orderUid)" [attr.aria-label]="'Select order ' + o.orderNo">
+                      </td>
+                      <td class="hmis-code">{{ o.orderNo }}</td>
+                      <td>
+                        <div class="fw-semibold">{{ o.patientName || '—' }}</div>
+                        @if (o.patientNo) { <div class="hmis-muted small hmis-code">{{ o.patientNo }}</div> }
+                      </td>
+                      <td>
+                        <span class="badge" [class.text-bg-light]="o.urgency === 'NORMAL'" [class.text-bg-warning]="o.urgency === 'URGENT'" [class.text-bg-danger]="o.urgency === 'STAT'">{{ o.urgency }}</span>
+                      </td>
+                      <td class="hmis-muted small">{{ o.requestedAt | date:'short' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <div class="form-text">Only requested orders for this lab test that aren't already in a batch are shown.</div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary" [disabled]="submitting()">
+      @if (submitting()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+      Create batch
+    </button>
+    <button type="button" class="btn btn-light border" (click)="cancel()">Cancel</button>
+  </div>
+</form>

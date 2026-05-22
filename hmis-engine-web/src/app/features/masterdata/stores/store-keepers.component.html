@@ -1,0 +1,82 @@
+<div class="modal-header">
+  <div>
+    <h5 class="modal-title">Store keepers</h5>
+    <div class="hmis-muted small mt-1">
+      <span class="fw-semibold">{{ store.name }}</span>
+      <span class="hmis-code ms-2">{{ store.code }}</span>
+    </div>
+  </div>
+  <button type="button" class="btn-close" (click)="activeModal.dismiss()" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span>
+    </div>
+  }
+
+  <p class="hmis-muted small">
+    Only keepers assigned here may issue goods out of this store.
+  </p>
+
+  <div class="d-flex gap-2 align-items-end mb-3">
+    <div class="flex-grow-1">
+      <label class="form-label" for="sk-add">Add keeper</label>
+      <select id="sk-add" class="form-select" [formControl]="selectedUserUid">
+        <option value="">— Select a store keeper —</option>
+        @for (s of assignable(); track s.uid) {
+          <option [value]="s.uid">{{ s.fullName }} ({{ s.username }})</option>
+        }
+      </select>
+    </div>
+    <button type="button" class="btn btn-primary d-flex align-items-center gap-2"
+            (click)="assign()" [disabled]="!selectedUserUid.value || busy()">
+      <i class="bi bi-plus-lg"></i>Add
+    </button>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th scope="col">Keeper</th>
+          <th scope="col" class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="2"><span class="skeleton" style="width: 200px;"></span></td></tr>
+        } @else if (assigned().length === 0) {
+          <tr>
+            <td colspan="2">
+              <div class="hmis-empty py-3">
+                <i class="bi bi-person-badge"></i>
+                <div class="small">No keepers assigned yet.</div>
+              </div>
+            </td>
+          </tr>
+        } @else {
+          @for (row of assigned(); track row.uid) {
+            <tr>
+              <td>
+                <div class="fw-semibold">{{ row.fullName }}</div>
+                <div class="hmis-muted small">{{ row.username }}</div>
+              </td>
+              <td class="text-end">
+                <button type="button" class="btn btn-sm btn-light border text-danger"
+                        (click)="remove(row)" [disabled]="busy()" aria-label="Remove keeper">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.close()">Done</button>
+</div>

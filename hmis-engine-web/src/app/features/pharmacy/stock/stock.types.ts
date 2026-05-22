@@ -60,11 +60,31 @@ export interface ReceiveStockRequest {
   batchNo: string;
   expiresAt: string | null;
   quantity: number;
+  unitUid?: string | null;
   note: string | null;
 }
 
 export interface AdjustStockRequest {
   batchUid: string;
   delta: number;
+  unitUid?: string | null;
+  note: string | null;
+}
+
+export type WastageReason = 'EXPIRED' | 'DAMAGED' | 'RECALLED' | 'LOST' | 'OTHER';
+
+export const WASTAGE_REASONS: { value: WastageReason; label: string }[] = [
+  { value: 'EXPIRED',  label: 'Expired' },
+  { value: 'DAMAGED',  label: 'Damaged' },
+  { value: 'RECALLED', label: 'Recalled' },
+  { value: 'LOST',     label: 'Lost' },
+  { value: 'OTHER',    label: 'Other' }
+];
+
+export interface WriteOffStockRequest {
+  batchUid: string;
+  quantity: number;
+  reason: WastageReason;
+  unitUid?: string | null;
   note: string | null;
 }

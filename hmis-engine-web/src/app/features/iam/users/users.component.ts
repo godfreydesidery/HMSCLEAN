@@ -6,6 +6,7 @@ import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
 import { AssignRolesComponent } from './assign-roles.component';
+import { ProviderProfileComponent } from './provider-profile.component';
 import { ResetPasswordComponent } from './reset-password.component';
 import { UserFormComponent } from './user-form.component';
 import { UserService } from './user.service';
@@ -100,6 +101,18 @@ export class UsersComponent {
     ref.closed.subscribe((done) => {
       if (done) { this.actionMessage.set('Password reset.'); this.refresh$.next(); }
     });
+  }
+
+  openProviderProfile(u: User): void {
+    const ref = this.modal.open(ProviderProfileComponent, { backdrop: 'static' });
+    (ref.componentInstance as ProviderProfileComponent).user = u;
+    ref.closed.subscribe((saved) => {
+      if (saved) { this.actionMessage.set('Provider profile saved.'); }
+    });
+  }
+
+  isClinician(u: User): boolean {
+    return u.roles?.includes('CLINICIAN') ?? false;
   }
 
   toggleEnabled(u: User): void {

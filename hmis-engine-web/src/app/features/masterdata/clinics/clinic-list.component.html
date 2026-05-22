@@ -157,6 +157,12 @@
                       <button type="button" ngbDropdownItem (click)="openEdit(clinic)">
                         <i class="bi bi-pencil me-2"></i>Edit
                       </button>
+                      <button type="button" ngbDropdownItem (click)="openClinicians(clinic)">
+                        <i class="bi bi-person-badge me-2"></i>Clinicians
+                      </button>
+                      <button type="button" ngbDropdownItem (click)="openPrices(clinic)">
+                        <i class="bi bi-cash-coin me-2"></i>Prices
+                      </button>
                       <button type="button" ngbDropdownItem (click)="toggleActive(clinic)">
                         <i class="bi me-2" [class.bi-toggle-off]="clinic.active" [class.bi-toggle-on]="!clinic.active"></i>
                         {{ clinic.active ? 'Deactivate' : 'Activate' }}

@@ -5,7 +5,8 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { PageResponse } from '../../../core/http/page.types';
 import {
-  AdjustStockRequest, ReceiveStockRequest, StockBalance, StockBatch, StockMovement, StockMovementKind
+  AdjustStockRequest, ReceiveStockRequest, StockBalance, StockBatch, StockMovement, StockMovementKind,
+  WriteOffStockRequest
 } from './stock.types';
 
 export interface MovementSearchParams {
@@ -17,13 +18,30 @@ export interface MovementSearchParams {
   sort?: string;
 }
 
+export interface BalanceSearchParams {
+  query?: string;
+  lowOnly?: boolean;
+  expiringOnly?: boolean;
+  page?: number;
+  size?: number;
+  sort?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class StockService {
   private readonly http = inject(HttpClient);
   private readonly base = `${environment.apiUrl}/pharmacy`;
 
-  listBalances(pharmacyUid: string): Observable<StockBalance[]> {
-    return this.http.get<StockBalance[]>(`${this.base}/pharmacies/uid/${pharmacyUid}/stock`);
+  /** Server-side, paginated balances with name/code search + low/expiring filters. */
+  searchBalances(pharmacyUid: string, params: BalanceSearchParams = {}): Observable<PageResponse<StockBalance>> {
+    let p = new HttpParams();
+    if (params.query) p = p.set('query', params.query);
+    if (params.lowOnly) p = p.set('lowOnly', 'true');
+    if (params.expiringOnly) p = p.set('expiringOnly', 'true');
+    if (params.page !== undefined) p = p.set('page', String(params.page));
+    if (params.size !== undefined) p = p.set('size', String(params.size));
+    if (params.sort) p = p.set('sort', params.sort);
+    return this.http.get<PageResponse<StockBalance>>(`${this.base}/pharmacies/uid/${pharmacyUid}/stock`, { params: p });
   }
 
   receive(pharmacyUid: string, req: ReceiveStockRequest): Observable<StockBatch> {
@@ -34,8 +52,27 @@ export class StockService {
     return this.http.post<StockBatch>(`${this.base}/pharmacies/uid/${pharmacyUid}/stock/adjust`, req);
   }
 
-  dispense(pharmacyUid: string, prescriptionUid: string): Observable<StockMovement[]> {
-    return this.http.post<StockMovement[]>(`${this.base}/pharmacies/uid/${pharmacyUid}/dispense/uid/${prescriptionUid}`, {});
+  writeOff(pharmacyUid: string, req: WriteOffStockRequest): Observable<StockBatch> {
+    return this.http.post<StockBatch>(`${this.base}/pharmacies/uid/${pharmacyUid}/stock/write-off`, req);
+  }
+
+  /**
+   * Dispense a prescription. When {@code salesPharmacyUid} is set and differs
+   * from {@code pharmacyUid}, the script is filled at the issuing pharmacy
+   * but stock is pulled from the sales pharmacy (Phase 37 multi-pharmacy
+   * dispense). The receiving Prescription records both uids.
+   */
+  dispense(pharmacyUid: string, prescriptionUid: string,
+           salesPharmacyUid?: string | null): Observable<StockMovement[]> {
+    let params = new HttpParams();
+    if (salesPharmacyUid && salesPharmacyUid !== pharmacyUid) {
+      params = params.set('salesPharmacyUid', salesPharmacyUid);
+    }
+    return this.http.post<StockMovement[]>(
+      `${this.base}/pharmacies/uid/${pharmacyUid}/dispense/uid/${prescriptionUid}`,
+      {},
+      { params }
+    );
   }
 
   searchMovements(params: MovementSearchParams = {}): Observable<PageResponse<StockMovement>> {

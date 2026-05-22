@@ -5,7 +5,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { PageResponse } from '../../../core/http/page.types';
 import {
-  ServicePrice, ServicePriceSearchParams, SetServicePriceRequest
+  ServicePrice, ServicePriceSearchParams, SetServicePriceRequest, UpdateServicePriceRequest
 } from './service-price.types';
 
 @Injectable({ providedIn: 'root' })
@@ -16,16 +16,25 @@ export class ServicePriceService {
   search(params: ServicePriceSearchParams = {}): Observable<PageResponse<ServicePrice>> {
     let p = new HttpParams();
     if (params.planUid) p = p.set('planUid', params.planUid);
+    if (params.cashOnly) p = p.set('cashOnly', 'true');
     if (params.kind) p = p.set('kind', params.kind);
     if (params.serviceUid) p = p.set('serviceUid', params.serviceUid);
+    if (params.currency) p = p.set('currency', params.currency);
+    if (params.query) p = p.set('query', params.query);
     if (params.page !== undefined) p = p.set('page', String(params.page));
     if (params.size !== undefined) p = p.set('size', String(params.size));
     if (params.sort) p = p.set('sort', params.sort);
     return this.http.get<PageResponse<ServicePrice>>(this.base, { params: p });
   }
 
-  setPrice(req: SetServicePriceRequest): Observable<ServicePrice> {
-    return this.http.put<ServicePrice>(this.base, req);
+  /** Create a new price cell. Backend returns 409 if (payer, service, currency) already exists. */
+  create(req: SetServicePriceRequest): Observable<ServicePrice> {
+    return this.http.post<ServicePrice>(this.base, req);
+  }
+
+  /** Update an existing price (amount / band / note) by uid. */
+  update(uid: string, req: UpdateServicePriceRequest): Observable<ServicePrice> {
+    return this.http.put<ServicePrice>(`${this.base}/uid/${uid}`, req);
   }
 
   delete(uid: string): Observable<void> {

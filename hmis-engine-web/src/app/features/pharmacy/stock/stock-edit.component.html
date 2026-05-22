@@ -41,12 +41,42 @@
       </div>
     }
 
-    <div class="mb-3">
-      <label class="form-label" for="se-qty">{{ quantityLabel }} <span class="text-danger">*</span></label>
-      <input id="se-qty" name="quantity" type="number" step="1" class="form-control" formControlName="quantity">
-      @if (mode === 'adjust') {
-        <div class="form-text">Use a positive number to add, negative to remove. Must be non-zero.</div>
-      }
+    @if (mode === 'write-off') {
+      <div class="mb-3">
+        <label class="form-label" for="se-reason">Reason <span class="text-danger">*</span></label>
+        <select id="se-reason" name="reason" class="form-select" formControlName="reason">
+          <option value="" disabled>— Select reason —</option>
+          @for (r of wastageReasons; track r.value) {
+            <option [value]="r.value">{{ r.label }}</option>
+          }
+        </select>
+      </div>
+    }
+
+    <div class="row g-2 mb-3">
+      <div class="col-md-7">
+        <label class="form-label" for="se-qty">{{ quantityLabel }} <span class="text-danger">*</span></label>
+        <input id="se-qty" name="quantity" type="number" step="1" [attr.min]="mode === 'adjust' ? null : 1" class="form-control" formControlName="quantity">
+        @if (mode === 'adjust') {
+          <div class="form-text">Use a positive number to add, negative to remove. Must be non-zero.</div>
+        } @else if (mode === 'write-off') {
+          <div class="form-text">Quantity is in the selected unit and converted to base on save.</div>
+        }
+      </div>
+      <div class="col-md-5">
+        <label class="form-label" for="se-unit">Unit</label>
+        <select id="se-unit" name="unitUid" class="form-select" formControlName="unitUid" [disabled]="loadingUnits() || units().length === 0">
+          @if (loadingUnits()) {
+            <option value="" disabled>Loading…</option>
+          } @else if (units().length === 0) {
+            <option value="" disabled>Base unit</option>
+          } @else {
+            @for (u of units(); track u.uid) {
+              <option [value]="u.uid">{{ unitLabel(u) }}</option>
+            }
+          }
+        </select>
+      </div>
     </div>
 
     <div class="mb-2">

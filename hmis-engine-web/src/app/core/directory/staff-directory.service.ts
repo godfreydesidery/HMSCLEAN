@@ -10,6 +10,10 @@ export interface StaffOption {
   firstName: string;
   lastName: string;
   fullName: string;
+  /** Clinical attributes from the optional ProviderProfile sidecar (null when none). */
+  specialty?: string | null;
+  registrationNo?: string | null;
+  licenseNo?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })

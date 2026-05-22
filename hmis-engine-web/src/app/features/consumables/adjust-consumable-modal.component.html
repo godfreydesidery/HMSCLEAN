@@ -1,0 +1,46 @@
+<div class="modal-header">
+  <h5 class="modal-title">Adjust stock</h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss('x')"></button>
+</div>
+
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-body">
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+    }
+
+    <div class="mb-3">
+      <div class="hmis-muted small">Consumable</div>
+      <div class="fw-semibold">{{ balance.consumableName || balance.consumableUid }}</div>
+      <div class="hmis-muted small">On hand: <span class="fw-semibold">{{ balance.quantity }}</span></div>
+    </div>
+
+    <div class="mb-3">
+      <label for="adjDelta" class="form-label">Signed adjustment <span class="text-danger">*</span></label>
+      <input id="adjDelta" name="delta" type="number" step="1" class="form-control" formControlName="delta"
+             placeholder="e.g. 5 to add, -3 to debit"
+             [class.is-invalid]="form.controls.delta.invalid && form.controls.delta.touched">
+      <div class="form-text">Use a negative number for a debit. Zero is not allowed.</div>
+      @if (form.controls.delta.invalid && form.controls.delta.touched) {
+        <div class="invalid-feedback">Enter a non-zero whole number.</div>
+      }
+      @if (projected !== null) {
+        <div class="form-text">New on-hand will be <span class="fw-semibold" [class.text-danger]="projected < 0">{{ projected }}</span>.</div>
+      }
+    </div>
+
+    <div class="mb-3">
+      <label for="adjNote" class="form-label">Reason / note</label>
+      <textarea id="adjNote" name="note" rows="2" class="form-control" formControlName="note" maxlength="500"
+                placeholder="e.g. stock count correction, breakage"></textarea>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss('cancel')">Cancel</button>
+    <button type="submit" class="btn btn-primary" [disabled]="submitting()">
+      @if (submitting()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+      <i class="bi bi-pencil me-1"></i> Apply adjustment
+    </button>
+  </div>
+</form>

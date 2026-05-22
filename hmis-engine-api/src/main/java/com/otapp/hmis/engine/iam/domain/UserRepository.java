@@ -28,6 +28,16 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findEnabledByRoleName(@Param("roleName") String roleName);
 
     @Query("""
+            SELECT (COUNT(u) > 0) FROM User u
+            JOIN u.roles r
+            WHERE u.username = :username
+              AND r.name = :roleName
+              AND u.enabled = TRUE
+            """)
+    boolean existsEnabledByUsernameAndRoleName(@Param("username") String username,
+                                               @Param("roleName") String roleName);
+
+    @Query("""
             SELECT u FROM User u
             WHERE (:search IS NULL OR :search = ''
                    OR LOWER(u.username)  LIKE LOWER(CONCAT('%', :search, '%'))

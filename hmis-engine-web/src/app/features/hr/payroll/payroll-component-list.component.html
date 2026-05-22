@@ -1,0 +1,52 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">Payroll components</h1>
+    <p class="hmis-muted mb-0 small">Configurable earnings &amp; deductions used to auto-prefill payroll items. Rates and bands are yours to set — no statutory values are baked in.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a routerLink="/hr/payroll" class="btn btn-light border"><i class="bi bi-arrow-left me-1"></i> Payroll</a>
+    <a routerLink="new" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> New component</a>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 hmis-table">
+      <thead><tr><th>Order</th><th>Code</th><th>Name</th><th>Type</th><th>Formula</th><th>Status</th><th class="text-end"></th></tr></thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="7"><div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div></td></tr>
+        } @else if (components().length === 0) {
+          <tr><td colspan="7"><div class="hmis-empty"><i class="bi bi-sliders"></i><div class="fw-semibold mb-1">No components yet</div><div class="small">Add earnings/deductions to enable payroll auto-prefill.</div></div></td></tr>
+        } @else {
+          @for (c of components(); track c.uid) {
+            <tr [class.opacity-50]="!c.active">
+              <td class="hmis-muted">{{ c.sortOrder }}</td>
+              <td class="hmis-code">{{ c.code }}</td>
+              <td class="fw-semibold">{{ c.name }}</td>
+              <td><span [class]="typeBadgeClass(c.type)">{{ c.type }}</span></td>
+              <td class="hmis-muted small">{{ formula(c) }}</td>
+              <td>
+                @if (c.active) { <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">Active</span> }
+                @else { <span class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle">Inactive</span> }
+              </td>
+              <td class="text-end">
+                <div class="btn-group btn-group-sm">
+                  <a [routerLink]="[c.uid, 'edit']" class="btn btn-light border" aria-label="Edit"><i class="bi bi-pencil"></i></a>
+                  <button type="button" class="btn btn-light border" (click)="toggleActive(c)" [disabled]="busy()" aria-label="Toggle active">
+                    <i class="bi" [class.bi-toggle-on]="c.active" [class.bi-toggle-off]="!c.active"></i>
+                  </button>
+                  <button type="button" class="btn btn-light border text-danger" (click)="remove(c)" [disabled]="busy()" aria-label="Delete"><i class="bi bi-trash"></i></button>
+                </div>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

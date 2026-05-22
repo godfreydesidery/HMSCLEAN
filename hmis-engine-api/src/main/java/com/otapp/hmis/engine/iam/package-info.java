@@ -7,6 +7,7 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Identity & Access",
-        allowedDependencies = {"common", "common.*"}
+        allowedDependencies = {"common"},
+        type = org.springframework.modulith.ApplicationModule.Type.OPEN
 )
 package com.otapp.hmis.engine.iam;

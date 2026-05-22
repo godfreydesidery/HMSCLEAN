@@ -1,6 +1,7 @@
 package com.otapp.hmis.engine.billing.invoice.application;
 
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLineKind;
+import com.otapp.hmis.engine.billing.invoice.domain.InvoiceScope;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceStatus;
 import com.otapp.hmis.engine.billing.payment.domain.PaymentMethod;
 import com.otapp.hmis.engine.patient.domain.PaymentType;
@@ -25,11 +26,18 @@ public final class InvoiceDtos {
             String description,
             BigDecimal quantity,
             BigDecimal unitPrice,
-            BigDecimal amount) {}
+            BigDecimal amount,
+            /** Negotiable floor for this line's unit price (null = no lower bound). */
+            BigDecimal minUnitPrice,
+            /** Negotiable ceiling for this line's unit price (null = no upper bound). */
+            BigDecimal maxUnitPrice,
+            /** Whether the unit price may still be renegotiated (no payment taken yet). */
+            boolean priceOverridable) {}
 
     public record InvoiceDto(
             String uid,
             String invoiceNo,
+            InvoiceScope scope,
             String consultationUid,
             String admissionUid,
             String patientUid,
@@ -55,6 +63,7 @@ public final class InvoiceDtos {
     public record InvoiceSummary(
             String uid,
             String invoiceNo,
+            InvoiceScope scope,
             String consultationUid,
             String admissionUid,
             String patientUid,
@@ -88,4 +97,8 @@ public final class InvoiceDtos {
             Instant createdAt) {}
 
     public record CancelInvoiceRequest(@Size(max = 255) String reason) {}
+
+    /** Negotiate a line's unit price within the service's [min, max] band. */
+    public record OverrideLinePriceRequest(
+            @NotNull @DecimalMin(value = "0.00", inclusive = true) BigDecimal unitPrice) {}
 }

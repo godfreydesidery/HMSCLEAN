@@ -11,6 +11,12 @@
 <div class="card mb-3">
   <div class="card-body py-3">
     <div class="row g-2 align-items-center">
+      <div class="col-md-4">
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0"><i class="bi bi-search hmis-muted"></i></span>
+          <input type="search" name="query" autocomplete="off" class="form-control border-start-0 ps-0" placeholder="Search service…" [formControl]="query" aria-label="Search services">
+        </div>
+      </div>
       <div class="col-md-auto">
         <div ngbDropdown class="d-inline-block">
           <button type="button" class="btn btn-outline-secondary btn-sm" ngbDropdownToggle>
@@ -45,6 +51,20 @@
           </div>
         </div>
       </div>
+      <div class="col-md-auto">
+        <div ngbDropdown class="d-inline-block">
+          <button type="button" class="btn btn-outline-secondary btn-sm" ngbDropdownToggle>
+            <i class="bi bi-currency-exchange me-1"></i>{{ currencyFilter() === 'ALL' ? 'All currencies' : currencyFilter() }}
+          </button>
+          <div ngbDropdownMenu class="shadow-sm" style="max-height: 360px; overflow-y: auto;">
+            <button type="button" ngbDropdownItem (click)="setCurrencyFilter('ALL')">All currencies</button>
+            <div class="dropdown-divider"></div>
+            @for (c of currencies(); track c.uid) {
+              <button type="button" ngbDropdownItem (click)="setCurrencyFilter(c.code)">{{ c.code }} — {{ c.name }}</button>
+            }
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -56,7 +76,7 @@
 <div class="card">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0 hmis-table">
-      <thead><tr><th>Service</th><th>Type</th><th>Plan</th><th class="text-end">Amount</th><th>Currency</th><th>Note</th><th class="text-end">Actions</th></tr></thead>
+      <thead><tr><th>Service</th><th>Type</th><th>Plan</th><th class="text-end">Amount</th><th class="text-end">Band (min–max)</th><th>Currency</th><th>Note</th><th class="text-end">Actions</th></tr></thead>
       <tbody>
         @if (loading()) {
           @for (i of [1,2,3,4,5]; track i) {
@@ -65,13 +85,14 @@
               <td><span class="hmis-skeleton" style="width:100px;"></span></td>
               <td><span class="hmis-skeleton" style="width:140px;"></span></td>
               <td class="text-end"><span class="hmis-skeleton" style="width:80px;"></span></td>
+              <td class="text-end"><span class="hmis-skeleton" style="width:90px;"></span></td>
               <td><span class="hmis-skeleton" style="width:50px;"></span></td>
               <td><span class="hmis-skeleton" style="width:120px;"></span></td>
               <td class="text-end"><span class="hmis-skeleton" style="width:80px;"></span></td>
             </tr>
           }
         } @else if (items().length === 0) {
-          <tr><td colspan="7"><div class="hmis-empty"><i class="bi bi-cash-stack"></i><div class="fw-semibold mb-1">No prices defined</div><div class="small">Use "Set price" to add a cash or insurance plan price for any service.</div></div></td></tr>
+          <tr><td colspan="8"><div class="hmis-empty"><i class="bi bi-cash-stack"></i><div class="fw-semibold mb-1">No prices defined</div><div class="small">Use "Set price" to add a cash or insurance plan price for any service.</div></div></td></tr>
         } @else {
           @for (p of items(); track p.uid) {
             <tr>
@@ -91,6 +112,11 @@
                 }
               </td>
               <td class="text-end fw-semibold">{{ p.amount | number:'1.2-2' }}</td>
+              <td class="text-end hmis-muted small">
+                @if (p.minAmount !== null || p.maxAmount !== null) {
+                  {{ (p.minAmount !== null ? (p.minAmount | number:'1.2-2') : '—') }}–{{ (p.maxAmount !== null ? (p.maxAmount | number:'1.2-2') : '—') }}
+                } @else { — }
+              </td>
               <td class="hmis-muted">{{ p.currency }}</td>
               <td class="hmis-muted small text-truncate" style="max-width:200px;">{{ p.note || '—' }}</td>
               <td class="text-end">

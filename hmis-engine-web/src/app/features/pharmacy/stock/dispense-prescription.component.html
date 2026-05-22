@@ -29,14 +29,27 @@
   }
 
   <form [formGroup]="form" novalidate>
-    <label class="form-label" for="dp-pharm">Dispense from pharmacy <span class="text-danger">*</span></label>
-    <select id="dp-pharm" name="pharmacyUid" class="form-select" formControlName="pharmacyUid">
-      <option value="" disabled>{{ loadingPharmacies() ? 'Loading…' : '— Select pharmacy —' }}</option>
-      @for (p of pharmacies(); track p.uid) {
-        <option [value]="p.uid">{{ p.name }} ({{ p.code }})</option>
-      }
-    </select>
-    <div class="form-text">Stock will be decremented from this pharmacy. The prescription will be marked dispensed in the same step.</div>
+    <div class="mb-3">
+      <label class="form-label" for="dp-pharm">Filling pharmacy <span class="text-danger">*</span></label>
+      <select id="dp-pharm" name="pharmacyUid" class="form-select" formControlName="pharmacyUid">
+        <option value="" disabled>{{ loadingPharmacies() ? 'Loading…' : '— Select pharmacy —' }}</option>
+        @for (p of pharmacies(); track p.uid) {
+          <option [value]="p.uid">{{ p.name }} ({{ p.code }})</option>
+        }
+      </select>
+      <div class="form-text">Where the script is being filled. Recorded as <code>issuePharmacy</code> on the prescription.</div>
+    </div>
+
+    <div class="mb-1">
+      <label class="form-label" for="dp-sales">Sales pharmacy <span class="hmis-muted small">(optional)</span></label>
+      <select id="dp-sales" name="salesPharmacyUid" class="form-select" formControlName="salesPharmacyUid">
+        <option value="">Same as filling pharmacy (default)</option>
+        @for (p of pharmacies(); track p.uid) {
+          <option [value]="p.uid">{{ p.name }} ({{ p.code }})</option>
+        }
+      </select>
+      <div class="form-text">When set to a different pharmacy, stock is pulled from there instead — no formal transfer required.</div>
+    </div>
   </form>
 </div>
 

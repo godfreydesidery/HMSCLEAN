@@ -2,7 +2,7 @@
   <aside class="shell__sidebar">
     <div class="shell__brand">
       <i class="bi bi-activity shell__brand-icon"></i>
-      <span class="shell__brand-text">HMIS Engine</span>
+      <span class="shell__brand-text">ORBIX HMIS</span>
     </div>
 
     <nav class="shell__nav">
@@ -52,6 +52,34 @@
       </div>
 
       <div class="shell__topbar-actions">
+        <div ngbDropdown placement="bottom-end" class="d-inline-block">
+          <button
+            type="button"
+            class="btn btn-sm shell__icon-btn"
+            ngbDropdownToggle
+            aria-label="Choose theme"
+          >
+            <i class="bi bi-palette"></i>
+          </button>
+          <div ngbDropdownMenu class="shadow-sm shell__theme-menu">
+            <div class="dropdown-header">Theme</div>
+            @for (t of themes; track t.id) {
+              <button type="button" ngbDropdownItem class="shell__theme-item" (click)="selectTheme(t.id)">
+                <span class="shell__theme-swatch" [style.background]="t.swatch[0]">
+                  <span class="shell__theme-dot" [style.background]="t.swatch[1]"></span>
+                </span>
+                <span class="shell__theme-meta">
+                  <span class="shell__theme-name">{{ t.label }}</span>
+                  <span class="shell__theme-desc">{{ t.description }}</span>
+                </span>
+                @if (currentTheme() === t.id) {
+                  <i class="bi bi-check-lg shell__theme-check"></i>
+                }
+              </button>
+            }
+          </div>
+        </div>
+
         <button
           type="button"
           class="btn btn-sm shell__icon-btn"
@@ -101,5 +129,18 @@
     <main class="shell__content">
       <router-outlet />
     </main>
+
+    <!-- Desktop-theme status bar (hidden in other themes via CSS). -->
+    <footer class="shell__statusbar">
+      <span class="shell__status-item">
+        <span class="shell__status-dot"></span> Ready
+      </span>
+      @if (user(); as u) {
+        <span class="shell__status-item shell__status-item--push">
+          <i class="bi bi-person"></i>{{ u.firstName }} {{ u.lastName }}
+        </span>
+      }
+      <span class="shell__status-item">ORBIX HMIS v0.1.0</span>
+    </footer>
   </div>
 </div>

@@ -49,6 +49,32 @@ public class Prescription extends AuditableEntity {
     @Setter @Column(name = "quantity")      private Integer quantity;
     @Setter @Column(name = "instructions",  length = 500)                  private String instructions;
 
+    // ----- masterdata picklist references (Phase 33) -----------------------
+    // Optional. When set, the service denormalises the picklist's
+    // display name into {@link #dose} / {@link #route} / {@link #frequency}
+    // so existing read-paths keep working without joining masterdata.
+    @Setter @Column(name = "dosage_uid",    length = 26) private String dosageUid;
+    @Setter @Column(name = "route_uid",     length = 26) private String routeUid;
+    @Setter @Column(name = "route",         length = 80) private String route;
+    @Setter @Column(name = "frequency_uid", length = 26) private String frequencyUid;
+
+    // ----- multi-pharmacy dispense (Phase 37) ------------------------------
+    // Both populated at dispense time. Equal in the common case; differ when
+    // the prescription is filled at pharmacy A but stock is pulled from
+    // pharmacy B without a formal transfer document.
+    @Setter @Column(name = "issue_pharmacy_uid", length = 26) private String issuePharmacyUid;
+    @Setter @Column(name = "sales_pharmacy_uid", length = 26) private String salesPharmacyUid;
+
+    /**
+     * Denormalised payment flag set by the billing settlement dispatcher when
+     * the invoice carrying this prescription's MEDICINE line is paid in full.
+     * The dispense worklist exposes it; it is not a hard pre-dispense gate
+     * because the rewrite bills medicines at point of dispense (SOLD), not
+     * before. The encounter module never reads billing.
+     */
+    @Column(name = "settled", nullable = false) private boolean settled = false;
+    @Setter @Column(name = "settled_at") private Instant settledAt;
+
     @Column(name = "requested_at", nullable = false) private Instant requestedAt;
     @Setter @Column(name = "accepted_at")  private Instant acceptedAt;
     @Setter @Column(name = "held_at")      private Instant heldAt;
@@ -72,6 +98,14 @@ public class Prescription extends AuditableEntity {
         this.quantity = quantity;
         this.instructions = instructions;
         this.requestedAt = Instant.now();
+    }
+
+    /** Idempotent — flags this prescription's charge as settled. */
+    public void markSettled() {
+        if (!settled) {
+            settled = true;
+            settledAt = Instant.now();
+        }
     }
 
     /** Pharmacist picks the Rx off the queue. PENDING → ACCEPTED. */
@@ -118,6 +152,14 @@ public class Prescription extends AuditableEntity {
     public void markSold() {
         if (status != PrescriptionStatus.APPROVED) {
             throw new BusinessRuleException("Only APPROVED prescriptions can be sold (current: " + status + ")");
+        }
+        // Pay-before-dispense gate (M13, legacy "won't SOLD if UNPAID"): a
+        // consultation-bound prescription's bill must be settled before dispense.
+        // Non-CASH / zero-price are settled at billing; outsider retail (no
+        // consultation) bills via the outsider invoice and is exempt here.
+        if (consultationUid != null && !settled) {
+            throw new BusinessRuleException(
+                    "The prescription's bill must be settled before dispensing (collect payment first)");
         }
         status = PrescriptionStatus.SOLD;
         dispensedAt = Instant.now();

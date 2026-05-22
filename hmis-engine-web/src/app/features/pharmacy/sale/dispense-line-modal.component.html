@@ -1,0 +1,38 @@
+<div class="modal-header">
+  <h5 class="modal-title">Dispense line</h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss('x')"></button>
+</div>
+
+<form [formGroup]="form" (ngSubmit)="confirm()" novalidate>
+  <div class="modal-body">
+    @if (medicineLabel) {
+      <div class="mb-3">
+        <div class="hmis-muted small">Medicine</div>
+        <div class="fw-semibold">{{ medicineLabel }}</div>
+      </div>
+    }
+
+    <div class="mb-2">
+      <label for="dispPharmacy" class="form-label">Dispense from</label>
+      <select id="dispPharmacy" name="salesPharmacyUid" class="form-select" formControlName="salesPharmacyUid">
+        <option value="">Default — {{ openedAtPharmacyName || 'sale pharmacy' }}</option>
+        @for (p of pharmacies(); track p.uid) {
+          @if (p.uid !== openedAtPharmacyUid) {
+            <option [value]="p.uid">{{ p.code }} — {{ p.name }}</option>
+          }
+        }
+      </select>
+      <div class="form-text">
+        Leave as default to pull stock from the pharmacy that opened the sale. Pick another pharmacy to override the
+        source location (Phase 37) — stock is decremented there instead, without a formal transfer document.
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss('cancel')">Cancel</button>
+    <button type="submit" class="btn btn-success">
+      <i class="bi bi-box-arrow-up me-1"></i> Dispense
+    </button>
+  </div>
+</form>

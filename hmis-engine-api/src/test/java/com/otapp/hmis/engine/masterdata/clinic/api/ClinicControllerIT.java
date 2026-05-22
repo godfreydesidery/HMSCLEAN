@@ -28,7 +28,7 @@ class ClinicControllerIT extends AbstractIntegrationTest {
     @BeforeEach
     void signIn() {
         LoginResponse login = rest.postForObject(
-                "/api/auth/login",
+                "/auth/login",
                 new LoginRequest("root", "TestRoot!123"),
                 LoginResponse.class);
         accessToken = login.tokens().accessToken();
@@ -41,7 +41,7 @@ class ClinicControllerIT extends AbstractIntegrationTest {
                 "ENT", "Ear, Nose & Throat", ClinicType.SPECIALTY,
                 "ENT specialist clinic", "Block C");
         ResponseEntity<ClinicDto> created = rest.exchange(
-                "/api/masterdata/clinics",
+                "/masterdata/clinics",
                 HttpMethod.POST,
                 new HttpEntity<>(create, authHeaders()),
                 ClinicDto.class);
@@ -52,28 +52,30 @@ class ClinicControllerIT extends AbstractIntegrationTest {
         assertThat(saved.code()).isEqualTo("ENT");
         assertThat(saved.active()).isTrue();
 
-        // Deactivate
+        // Deactivate — controller path is /uid/{uid}/active, body is the ActiveRequest DTO.
         ResponseEntity<ClinicDto> deactivated = rest.exchange(
-                "/api/masterdata/clinics/" + saved.uid() + "/active",
+                "/masterdata/clinics/uid/" + saved.uid() + "/active",
                 HttpMethod.PUT,
-                new HttpEntity<>("{\"active\":false}", jsonHeaders()),
+                new HttpEntity<>(new ActiveBody(false), authHeaders()),
                 ClinicDto.class);
         assertThat(deactivated.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(deactivated.getBody().active()).isFalse();
 
         // Delete
         ResponseEntity<Void> deleted = rest.exchange(
-                "/api/masterdata/clinics/" + saved.uid(),
+                "/masterdata/clinics/uid/" + saved.uid(),
                 HttpMethod.DELETE,
                 new HttpEntity<>(authHeaders()),
                 Void.class);
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 
+    private record ActiveBody(boolean active) {}
+
     @Test
     void unauthenticatedRequestIsRejected() {
         ResponseEntity<String> response = rest.getForEntity(
-                "/api/masterdata/clinics",
+                "/masterdata/clinics",
                 String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
@@ -83,10 +85,5 @@ class ClinicControllerIT extends AbstractIntegrationTest {
         headers.setBearerAuth(accessToken);
         headers.add("Content-Type", "application/json");
         return headers;
-    }
-
-    private HttpHeaders jsonHeaders() {
-        HttpHeaders h = authHeaders();
-        return h;
     }
 }

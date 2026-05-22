@@ -2,8 +2,10 @@ package com.otapp.hmis.engine.procurement.receipt.application;
 
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
+import com.otapp.hmis.engine.masterdata.medicine.application.UnitConversionService;
 import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineRepository;
+import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineUnit;
 import com.otapp.hmis.engine.masterdata.store.domain.Store;
 import com.otapp.hmis.engine.masterdata.store.domain.StoreRepository;
 import com.otapp.hmis.engine.procurement.order.domain.PurchaseOrder;
@@ -14,6 +16,7 @@ import com.otapp.hmis.engine.procurement.order.domain.PurchaseOrderStatus;
 import com.otapp.hmis.engine.procurement.receipt.application.GoodsReceiptDtos.GoodsReceiptDto;
 import com.otapp.hmis.engine.procurement.receipt.application.GoodsReceiptDtos.GoodsReceiptLineDto;
 import com.otapp.hmis.engine.procurement.receipt.application.GoodsReceiptDtos.RecordReceiptRequest;
+import com.otapp.hmis.engine.procurement.receipt.application.GoodsReceiptDtos.RejectReceiptRequest;
 import com.otapp.hmis.engine.procurement.receipt.domain.GoodsReceipt;
 import com.otapp.hmis.engine.procurement.receipt.domain.GoodsReceiptLine;
 import com.otapp.hmis.engine.procurement.receipt.domain.GoodsReceiptLineRepository;
@@ -37,19 +40,16 @@ public class GoodsReceiptService {
     private final PurchaseOrderLineRepository orderLineRepository;
     private final StoreRepository storeRepository;
     private final MedicineRepository medicineRepository;
+    private final UnitConversionService unitConversion;
     private final GoodsReceiptNumberGenerator numberGenerator;
     private final StoreStockService storeStockService;
 
     /**
-     * Records a goods receipt against a purchase order:
-     * <ol>
-     *   <li>Validates the PO is in a receivable state.</li>
-     *   <li>For each line: bumps the PO line's received quantity and applies
-     *       a RECEIPT movement to the target store's stock balance for the
-     *       supplier-provided batch.</li>
-     *   <li>Transitions the PO to PARTIALLY_RECEIVED or RECEIVED.</li>
-     * </ol>
-     * All steps run inside one transaction; failure rolls back stock as well.
+     * Creates a GRN against a purchase order in PENDING state. The PO
+     * must be ORDERED or PARTIALLY_RECEIVED. <strong>No stock change
+     * yet</strong> — the receipt only credits the store on
+     * {@link #approve(String)}. Line quantities are captured here so the
+     * approver sees what was claimed.
      */
     @Transactional
     public GoodsReceiptDto record(String orderUid, RecordReceiptRequest request) {
@@ -77,22 +77,77 @@ public class GoodsReceiptService {
             if (!poLine.getOrderUid().equals(order.getUid())) {
                 throw new BusinessRuleException("PO line " + lineReq.poLineUid() + " does not belong to this order");
             }
-            poLine.recordReceipt(lineReq.quantity());
-
+            // Convert to base units up front so PO outstanding accounting + GRN
+            // storage are always in the same unit. Null unitUid → already base.
+            MedicineUnit unit = unitConversion.resolveUnit(poLine.getMedicineUid(), lineReq.unitUid());
+            int claimed = unitConversion.toBaseQuantity(unit, lineReq.quantity());
+            int outstanding = poLine.outstandingQuantity();
+            if (claimed > outstanding) {
+                throw new BusinessRuleException(
+                        "Receipt quantity " + claimed + " exceeds outstanding " + outstanding
+                                + " for PO line " + poLine.getUid());
+            }
             savedLines.add(receiptLineRepository.save(new GoodsReceiptLine(
                     receipt.getUid(),
                     poLine.getUid(),
                     poLine.getMedicineUid(),
-                    lineReq.quantity(),
+                    claimed,
                     lineReq.batchNo(),
                     lineReq.expiresAt())));
+        }
+        return toDto(receipt, order, store, savedLines);
+    }
 
+    @Transactional
+    public GoodsReceiptDto verify(String receiptUid) {
+        GoodsReceipt receipt = loadOrThrow(receiptUid);
+        receipt.verify(currentUsername());
+        PurchaseOrder order = orderRepository.findByUid(receipt.getOrderUid()).orElse(null);
+        Store store = storeRepository.findByUid(receipt.getStoreUid()).orElse(null);
+        return toDto(receipt, order, store,
+                receiptLineRepository.findAllByReceiptUidOrderByCreatedAtAsc(receipt.getUid()));
+    }
+
+    /**
+     * Approve the GRN: validates the PO is still receivable, runs the
+     * per-line stock credits (FEFO not needed — supplier-supplied batch
+     * goes into the store as a new {@code StoreStockBatch}), advances
+     * the PO line {@code receivedQuantity}, and rolls the PO header to
+     * PARTIALLY_RECEIVED / RECEIVED. All inside one transaction.
+     */
+    @Transactional
+    public GoodsReceiptDto approve(String receiptUid) {
+        GoodsReceipt receipt = loadOrThrow(receiptUid);
+        PurchaseOrder order = orderRepository.findByUid(receipt.getOrderUid())
+                .orElseThrow(() -> new NotFoundException("Purchase order not found: " + receipt.getOrderUid()));
+        if (order.getStatus() != PurchaseOrderStatus.ORDERED
+                && order.getStatus() != PurchaseOrderStatus.PARTIALLY_RECEIVED) {
+            throw new BusinessRuleException(
+                    "Cannot approve a GRN against a " + order.getStatus() + " purchase order");
+        }
+        Store store = storeRepository.findByUid(receipt.getStoreUid())
+                .orElseThrow(() -> new NotFoundException("Store not found: " + receipt.getStoreUid()));
+
+        receipt.approve(currentUsername());
+
+        List<GoodsReceiptLine> lines = receiptLineRepository
+                .findAllByReceiptUidOrderByCreatedAtAsc(receipt.getUid());
+        for (GoodsReceiptLine line : lines) {
+            PurchaseOrderLine poLine = orderLineRepository.findByUid(line.getPoLineUid())
+                    .orElseThrow(() -> new NotFoundException("PO line not found: " + line.getPoLineUid()));
+            int outstanding = poLine.outstandingQuantity();
+            if (line.getQuantity() > outstanding) {
+                throw new BusinessRuleException(
+                        "Receipt line " + line.getUid() + " exceeds PO outstanding "
+                                + outstanding + " at approval — re-verify");
+            }
+            poLine.recordReceipt(line.getQuantity());
             storeStockService.receiveFromProcurement(
                     store.getUid(),
                     poLine.getMedicineUid(),
-                    lineReq.batchNo(),
-                    lineReq.expiresAt(),
-                    lineReq.quantity(),
+                    line.getBatchNo(),
+                    line.getExpiresAt(),
+                    line.getQuantity(),
                     receipt.getUid(),
                     "Receipt against " + order.getOrderNo());
         }
@@ -101,7 +156,26 @@ public class GoodsReceiptService {
                 .allMatch(PurchaseOrderLine::isFullyReceived);
         order.onLineReceipt(allFull);
 
-        return toDto(receipt, order, store, savedLines);
+        return toDto(receipt, order, store, lines);
+    }
+
+    @Transactional
+    public GoodsReceiptDto reject(String receiptUid, RejectReceiptRequest request) {
+        GoodsReceipt receipt = loadOrThrow(receiptUid);
+        receipt.reject(currentUsername(), emptyToNull(request == null ? null : request.reason()));
+        PurchaseOrder order = orderRepository.findByUid(receipt.getOrderUid()).orElse(null);
+        Store store = storeRepository.findByUid(receipt.getStoreUid()).orElse(null);
+        return toDto(receipt, order, store,
+                receiptLineRepository.findAllByReceiptUidOrderByCreatedAtAsc(receipt.getUid()));
+    }
+
+    @Transactional(readOnly = true)
+    public GoodsReceiptDto findByUid(String receiptUid) {
+        GoodsReceipt receipt = loadOrThrow(receiptUid);
+        PurchaseOrder order = orderRepository.findByUid(receipt.getOrderUid()).orElse(null);
+        Store store = storeRepository.findByUid(receipt.getStoreUid()).orElse(null);
+        return toDto(receipt, order, store,
+                receiptLineRepository.findAllByReceiptUidOrderByCreatedAtAsc(receipt.getUid()));
     }
 
     @Transactional(readOnly = true)
@@ -113,6 +187,11 @@ public class GoodsReceiptService {
                 .map(r -> toDto(r, order, store,
                         receiptLineRepository.findAllByReceiptUidOrderByCreatedAtAsc(r.getUid())))
                 .toList();
+    }
+
+    private GoodsReceipt loadOrThrow(String uid) {
+        return receiptRepository.findByUid(uid)
+                .orElseThrow(() -> new NotFoundException("Goods receipt not found: " + uid));
     }
 
     private GoodsReceiptDto toDto(GoodsReceipt r, PurchaseOrder order, Store store,
@@ -127,7 +206,11 @@ public class GoodsReceiptService {
                 r.getReceivedByUsername(),
                 r.getDeliveryNote(),
                 r.getNotes(),
+                r.getStatus(),
                 r.getReceivedAt(),
+                r.getVerifiedAt(), r.getVerifiedByUsername(),
+                r.getApprovedAt(), r.getApprovedByUsername(),
+                r.getRejectedAt(), r.getRejectedByUsername(), r.getRejectReason(),
                 r.getCreatedAt(),
                 lines.stream().map(this::toLineDto).toList());
     }

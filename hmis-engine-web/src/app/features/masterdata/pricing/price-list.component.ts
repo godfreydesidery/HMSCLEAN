@@ -1,9 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
-import { Subject, finalize, startWith, switchMap, tap } from 'rxjs';
+import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
+import { CurrencyService } from '../currencies/currency.service';
+import { Currency } from '../currencies/currency.types';
 import { InsurancePlanService } from '../insurance-plans/insurance-plan.service';
 import { InsurancePlan } from '../insurance-plans/insurance-plan.types';
 import { PriceFormComponent } from './price-form.component';
@@ -13,18 +16,22 @@ import { SERVICE_KINDS, ServiceKind, ServicePrice } from './service-price.types'
 @Component({
   selector: 'app-price-list',
   standalone: true,
-  imports: [CommonModule, NgbDropdownModule],
+  imports: [CommonModule, ReactiveFormsModule, NgbDropdownModule],
   templateUrl: './price-list.component.html'
 })
 export class PriceListComponent {
   private readonly priceService = inject(ServicePriceService);
   private readonly planService = inject(InsurancePlanService);
+  private readonly currencyService = inject(CurrencyService);
   private readonly modal = inject(NgbModal);
 
   readonly serviceKinds = SERVICE_KINDS;
+  readonly query = new FormControl('', { nonNullable: true });
   readonly plans = signal<InsurancePlan[]>([]);
+  readonly currencies = signal<Currency[]>([]);
   readonly planFilter = signal<string | 'ALL' | 'CASH'>('ALL');
   readonly kindFilter = signal<ServiceKind | 'ALL'>('ALL');
+  readonly currencyFilter = signal<string | 'ALL'>('ALL');
   readonly page = signal(0);
   readonly pageSize = signal(15);
   readonly loading = signal(false);
@@ -38,12 +45,12 @@ export class PriceListComponent {
         this.loading.set(true);
         this.errorMessage.set(null);
         const planFilter = this.planFilter();
-        // 'CASH' filter (planUid null) is not supported by the backend `planUid`
-        // parameter; we request all and filter on the client until pricing search
-        // grows a dedicated flag.
         return this.priceService.search({
           planUid: planFilter === 'ALL' || planFilter === 'CASH' ? undefined : planFilter,
+          cashOnly: planFilter === 'CASH',
           kind: this.kindFilter() === 'ALL' ? undefined : (this.kindFilter() as ServiceKind),
+          currency: this.currencyFilter() === 'ALL' ? undefined : this.currencyFilter(),
+          query: this.query.value || undefined,
           page: this.page(), size: this.pageSize(), sort: 'kind,asc'
         }).pipe(finalize(() => this.loading.set(false)));
       }),
@@ -53,10 +60,7 @@ export class PriceListComponent {
     { initialValue: null }
   );
 
-  readonly items = computed(() => {
-    const all = this.result()?.content ?? [];
-    return this.planFilter() === 'CASH' ? all.filter((p) => p.planUid === null) : all;
-  });
+  readonly items = computed(() => this.result()?.content ?? []);
   readonly totalElements = computed(() => this.result()?.totalElements ?? 0);
   readonly totalPages = computed(() => this.result()?.totalPages ?? 0);
   readonly pageWindow = computed(() => {
@@ -72,10 +76,17 @@ export class PriceListComponent {
       next: (res) => this.plans.set(res.content),
       error: () => { /* ignore */ }
     });
+    this.currencyService.search({ active: true, size: 200, sort: 'code,asc' }).subscribe({
+      next: (res) => this.currencies.set(res.content),
+      error: () => { /* ignore */ }
+    });
+    this.query.valueChanges.pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed())
+      .subscribe(() => { this.page.set(0); this.refresh$.next(); });
   }
 
   setPlanFilter(v: string | 'ALL' | 'CASH'): void { this.planFilter.set(v); this.page.set(0); this.refresh$.next(); }
   setKindFilter(v: ServiceKind | 'ALL'): void { this.kindFilter.set(v); this.page.set(0); this.refresh$.next(); }
+  setCurrencyFilter(v: string | 'ALL'): void { this.currencyFilter.set(v); this.page.set(0); this.refresh$.next(); }
   goToPage(p: number): void { if (p < 0 || p >= this.totalPages() || p === this.page()) return; this.page.set(p); this.refresh$.next(); }
   changePageSize(s: number): void { this.pageSize.set(s); this.page.set(0); this.refresh$.next(); }
 

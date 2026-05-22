@@ -585,27 +585,28 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Process | Status | Notes |
 |---|---|---|
 | Patient registry (create, edit, search, deactivate) | ✅ | Patient module from earlier phase. |
-| Patient kin / nationality fields | ⚠️ | Only basic kin captured; legacy supports 3 kin contacts. |
+| Patient kin / nationality fields | ✅ | Phase 40 — full nationality + ID/passport set; up to 3 kin contacts (`kinFullName`/`kinRelationship`/`kinPhoneNo` plus matching kin2_/kin3_ columns) matching the legacy schema. |
 | Payment type at registration (CASH, INSURANCE, etc.) | ✅ | `PaymentType` enum present. |
 | Insurance plan + membership no at registration | ✅ | `insurancePlanUid` on Patient. |
-| Registration fee bill | ❌ | New system charges consultation-level fees; no separate registration fee yet. |
-| OUTPATIENT vs. OUTSIDER patient type | ❌ | Only one patient type today. Need to add and propagate through encounter and pharmacy. |
-| Patient type conversion | ❌ | Depends on above. |
-| Last visit tracking display | ⚠️ | Data is queryable but not surfaced on the registry. |
-| Pre-generated search keys / card scan | ❌ | Plain name + no. search only. |
+| Registration fee bill | ✅ | Phase 36 — `PatientService.register` publishes `PatientRegisteredEvent`; billing seeds an ISSUED `Invoice` (scope=REGISTRATION) via after-commit listener. Idempotent recovery at `POST /billing/patients/uid/{uid}/registration-fee`. Pricing via `ServicePrice(kind=REGISTRATION, serviceUid="DEFAULT")` so plans can waive (amount=0). |
+| OUTPATIENT vs. OUTSIDER patient type | ✅ | `PatientType` enum on Patient (default OUTPATIENT). Walk-in OUTSIDERs raise lab/radiology/procedure directly via `POST /encounters/patients/uid/{uid}/outsider-orders` and pharmacy retail via `PharmacySaleOrder`. |
+| Patient type conversion | ✅ | `PUT /patients/uid/{uid}/type` flips between OUTPATIENT and OUTSIDER without touching past encounters. |
+| Last visit tracking display | ✅ | Phase 40 — `last_visit_at` denormalised on `patient`; touched by `ConsultationService.book` and `AdmissionService.admit` via the same direction as the existing encounter → patient dependency. Surfaced on both `PatientDto` and `PatientSummary`. |
+| Pre-generated search keys / card scan | ✅ | Phase 40 — exact lookup via `GET /patients/by-no/{patientNo}`. The `PT-YYYY-NNNNNN` patient number doubles as the scannable card key (uses the existing unique index on `patient_no`). |
 
 ### 17.2 Doctor — outpatient
 
 | Process | Status | Notes |
 |---|---|---|
 | Consultation lifecycle | ✅ | New: BOOKED → IN_PROGRESS → COMPLETED / CANCELLED. Legacy: PENDING → IN_PROCESS → COMPLETED / CANCELLED. Equivalent semantics; rename internally is acceptable. |
+| Send-to-doctor + reception queue | ✅ | **Fidelity fix (PROCESS_MISMATCHES.md M1/M2):** a "Send to doctor" action on the patient (`SendToDoctorModalComponent`) auto-creates the consultation; the doctor picks it up from `GET /encounters/consultations/reception-queue` (`ReceptionQueueComponent`), which lists only their BOOKED, fee-settled consultations. |
 | Clinical notes (SOAP) | ✅ | Phase 1. |
 | Working + final diagnoses | ✅ | Phase 1 — uses kind = WORKING / FINAL. |
 | Lab / radiology / procedure orders | ✅ | Phase 2 — polymorphic ClinicalOrder. |
 | Order results (narrative + impression + finalize) | ✅ | Phase 5. |
-| Prescriptions | ⚠️ | Phase 2 — simplified status (REQUESTED / DISPENSED / CANCELLED). **Must be expanded** to PENDING → ACCEPTED → HELD → VERIFIED → APPROVED → SOLD plus pay-status. |
-| Follow-up visit flag | ❌ | |
-| Consultation transfer between clinics | ❌ | |
+| Prescriptions | ✅ | `PrescriptionStatus` covers the full PENDING → ACCEPTED → HELD → VERIFIED → APPROVED → SOLD chain plus REJECTED / CANCELLED (V18). Per-line UNPAID → PAID pay-status enforced on dispense for CASH patients. Phase 33 wired Dosage / Route / Frequency picklists; Phase 37 added the issue/sales-pharmacy split. |
+| Follow-up visit flag | ✅ | Phase 44 — `StartConsultationRequest.followUpOfConsultationUid` (optional); service validates the referenced consultation belongs to the same patient. Surfaced on `ConsultationDto`. |
+| Consultation transfer between clinics | ✅ | Phase 44 — `POST /encounters/consultations/uid/{uid}/transfer` with target clinic + clinician. Closes the original as new status TRANSFERRED, creates a fresh BOOKED consultation at the target; both reference each other via `transferred_to/_from_consultation_uid` + `transfer_reason` + `transferred_at`. |
 
 ### 17.3 Doctor — inpatient + nurse
 
@@ -615,38 +616,39 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Ward / bed assignment | ✅ | Bed labels (free text) on the admission; legacy uses a `WardBed` entity for true bed availability. |
 | Ward-to-ward transfer (in-stay) | ✅ | `transferWard()` on Admission. |
 | Progress notes (per-shift) | ✅ | Phase 6 — kinds DOCTOR / NURSING / OBSERVATION / HANDOVER. |
-| Patient observation chart (vitals across stay) | ⚠️ | Single Vitals record per consultation; no continuous chart yet. Needs an `AdmissionVitalsEntry` series. |
-| Nursing care plan | ❌ | |
-| Patient consumable chart | ❌ | Requires inventory link from ward issue to pharmacy/store. |
-| Patient dressing chart | ❌ | |
-| Discharge plan (structured) | ⚠️ | Phase 6 closes admission with a free-text summary. Needs the structured fields: history, investigation, management, op note, ICU note, recommendations + PENDING → APPROVED state. |
-| Deceased note / referral plan | ⚠️ | Status transitions present; structured note documents missing. |
+| Patient observation chart (vitals across stay) | ✅ | Phase 22b — `AdmissionVitalsEntry` series at `/encounters/admissions/uid/{uid}/vitals`, immutable rows, per-shift / per-round trend. |
+| Nursing care plan | ✅ | Phase 22b — `NursingCarePlanItem` per problem with goal + intervention + evaluation, ACTIVE → RESOLVED / CANCELLED. |
+| Patient consumable chart | ✅ | Phase 41 + 46 — `ConsumableIssue` aggregate per admission with snapshot unit cost. `POST /encounters/admissions/uid/{uid}/consumables` + GET. Admission invoice generator picks rows up as `CONSUMABLE`-kind lines. Phase 46 added the source-stock layer: `ConsumableStockBalance` per (sourceKind, sourceUid, consumableUid) with integer balance (no batches — matches how warehouses actually track gauze / saline / dressings), pessimistic-write lock on decrement, ledger via `ConsumableStockMovement` (RECEIPT / ISSUE_TO_WARD / ADJUSTMENT / WASTAGE). `ConsumableIssueService.issue` now calls `ConsumableStockService.decrementForIssue` in the same tx — overdrafts are refused. Receive / adjust / read endpoints at `/consumables/stock/...`. |
+| Patient dressing chart | ✅ | Phase 22b — `DressingChartEntry` series with `WoundStatus` enum (CLEAN, HEALING, GRANULATING, SLOUGHY, INFECTED, NECROTIC, DEHISCED) + dressing applied. |
+| Discharge plan (structured) | ✅ | Phase 22a — `DischargePlan` aggregate with structured fields (history, investigation, management, op note, ICU note, recommendations) + PENDING → APPROVED → drives admission closure on approval. Free-text `Admission.dischargeSummary` becomes a back-pointer to the plan. |
+| Deceased note / referral plan | ✅ | Phase 22a — same `DischargePlan` aggregate with `kind = DECEASED` (requires timeOfDeath + causeOfDeath) or `REFERRAL` (requires referralFacility + referralReason). Approval routes the admission to DECEASED / TRANSFERRED. |
 
 ### 17.4 Laboratory
 
 | Process | Status | Notes |
 |---|---|---|
 | Order acceptance + result entry | ✅ | Phase 5 via OrderResult. |
+| Role + patient-class worklists (lab / radiology / procedure × outpatient / inpatient / outsider) | ✅ | **Fidelity fix (PROCESS_MISMATCHES.md M8):** `GET /encounters/orders` scopes by `kind` (role lens) + `patientClass` (OUTPATIENT/INPATIENT/OUTSIDER) + `settledOnly`. `ClinicalOrder.settled` (V51) is flipped by the billing `SettlementDispatcher`. UI: patient-class filter chips on the Orders & Results worklist. |
 | Status flow (PENDING / ACCEPTED / COMPLETED / CANCELLED) | ✅ | Aligned with legacy. |
-| Result attachments (files / images) | ❌ | No file upload yet. |
-| Batch processing for high-volume tests | ❌ | |
-| Insurance-specific lab pricing | ⚠️ | `ServicePrice` table covers it but only one row per (plan, service); legacy has a dedicated `LabTestTypeInsurancePlan`. Same data, different shape — acceptable. |
+| Result attachments (files / images) | ✅ | Phase 39 — `OrderAttachment` aggregate + filesystem-backed `AttachmentStorage` (root configurable via `hmis.attachments.dir`). Multipart upload at `POST /encounters/orders/uid/{uid}/attachments`, list / download / delete under `/encounters/attachments/uid/{uid}/...`. 25 MiB per-file cap; filename sanitised; per-order subdirectory keyed by attachment uid. |
+| Batch processing for high-volume tests | ✅ | Phase 45 — `LabBatch` aggregate groups N same-`labTestTypeUid` LAB_TEST orders for a single bench run (OPEN → PROCESSING → COMPLETED). `LabBatchMember` enforces at-most-one-batch-per-order. CRUD + transitions under `/encounters/lab-batches`. Purely organisational — individual order statuses are unchanged by batch transitions. |
+| Insurance-specific lab pricing | ✅ | Delivered via the cross-cutting `ServicePrice(planUid, kind=LAB_TEST, serviceUid)` matrix instead of legacy's dedicated `LabTestTypeInsurancePlan`. Same data, single table — by-design simplification. `PriceLookup.resolve` falls back to the cash price when no plan-specific row exists. |
 
 ### 17.5 Radiology
 
 | Process | Status | Notes |
 |---|---|---|
 | Order + accept + report | ✅ | Same OrderResult pipeline. |
-| Image attachments | ❌ | Same gap as lab attachments. |
-| Insurance-specific radiology pricing | ⚠️ | Same as 17.4. |
+| Image attachments | ✅ | Phase 39 — same `OrderAttachment` plumbing as lab; radiology orders accept binary uploads via the same multipart endpoint. |
+| Insurance-specific radiology pricing | ✅ | Same `ServicePrice(planUid, kind=RADIOLOGY, serviceUid)` matrix as the lab row — single table covering all priced service kinds. |
 
 ### 17.6 Procedure
 
 | Process | Status | Notes |
 |---|---|---|
 | Order + procedure note (impression) | ✅ | Phase 5. |
-| Theatre scheduling | ❌ | No theatre entity yet. |
-| Operative record fields | ⚠️ | Captured in narrative; not structured. |
+| Theatre scheduling | ✅ | Phase 24 — `Theatre` masterdata + `ClinicalOrder.theatreUid` / `scheduledAt` / `scheduledByUsername` + `POST /encounters/orders/uid/{uid}/schedule`. Only valid for PROCEDURE-kind orders. |
+| Operative record fields | ✅ | Phase 24 — `OperativeRecord` 1:1 with the procedure order: findings, technique, instruments, complications, specimens, surgical team, anaesthesia, start/end times. Upsert + lock workflow at `/encounters/orders/uid/{uid}/operative-record`. |
 
 ### 17.7 Pharmacy
 
@@ -656,35 +658,35 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Receive stock (RECEIPT movement) | ✅ | Phase 7 + Phase 8 via GRN. |
 | Adjustment movement | ✅ | Phase 7. |
 | Dispense to prescription (decrement) | ✅ | Phase 7 — pessimistic-locked. |
-| Full prescription status lifecycle (PENDING → ACCEPTED → HELD → VERIFIED → APPROVED → SOLD) | ❌ | Currently REQUESTED → DISPENSED only. |
-| Prescription pay-status | ❌ | |
-| Pharmacy sales order (retail / OTC) | ❌ | No separate PharmacySaleOrder entity. |
-| Pharmacy → Pharmacy transfer (RO / TO / RN) | ❌ | Big gap. |
-| Pharmacy ↔ Store transfer (RO / TO / RN) | ❌ | Big gap — depends on a Store domain. |
-| Conversion coefficients on items | ❌ | Single unit per medicine today. |
-| Batch + expiry tracking per pharmacy | ❌ | Stock balance is a single integer per (pharmacy, medicine); no batch granularity. |
-| Wastage / transfer-in / transfer-out movement kinds | ⚠️ | Enum has them but no flows emit them yet. |
-| `issuePharmacy` vs. `salesPharmacy` split | ❌ | |
+| Full prescription status lifecycle (PENDING → ACCEPTED → HELD → VERIFIED → APPROVED → SOLD) | ✅ | `PrescriptionStatus` covers the full chain plus REJECTED / CANCELLED; pay-status per-line. |
+| Prescription pay-status | ✅ | Per-line UNPAID → PAID gate; dispense path enforces it for CASH patients. |
+| Pharmacy sales order (retail / OTC) | ✅ | `PharmacySaleOrder` head + per-line lifecycle. Supports registered OUTSIDER patients and anonymous walk-ins (customer name required for audit). |
+| Pharmacy → Pharmacy transfer (RO / TO / RN) | ✅ | Phase 20b — requesting pharmacy RO → delivering pharmacy TO → requesting pharmacy RN, FEFO TRANSFER_OUT / TRANSFER_IN movements, shares the `TransferDocStatus` / `ReceiveNoteStatus` enums in `transfer.common.domain`. |
+| Pharmacy ↔ Store transfer (RO / TO / RN) | ✅ | Phase 20a forward (pharmacy RO → store TO → pharmacy RN, FEFO store-side issue, per-batch propagation) plus Phase 30 reverse (single-document `PharmacyStoreReturn`: DRAFT → SUBMITTED → COMPLETED with FEFO TRANSFER_OUT at the pharmacy + RETURN credit at the store). |
+| Conversion coefficients on items | ✅ | Phase 21 wired `MedicineUnit` into the transfer chains; Phase 43 added optional `unitUid` to manual receive / adjust / write-off and to GRN line ingestion — service converts to base via `UnitConversionService` before persistence. Dispense pulls Prescription/SaleLine quantity in base units (dispensable unit) and is unchanged. |
+| Batch + expiry tracking per pharmacy | ✅ | Phase 20 — `StockBatch` aggregate per (pharmacy, medicine, batchNo) with expiry; `StockBalance` is the per-medicine roll-up. Dispense + sale-order paths walk batches FEFO via `StockBatchRepository.lockFefoForDispense` (pessimistic-write lock, null expiry sorted last). |
+| Wastage / transfer-in / transfer-out movement kinds | ✅ | Phase 20/20a/20b emit `TRANSFER_IN` / `TRANSFER_OUT` from the transfer chains and `issueToPharmacy`; Phase 37 adds the pharmacist `POST /pharmacy/pharmacies/uid/{uid}/stock/write-off` path emitting `WASTAGE` with a structured `WastageReason`. |
+| `issuePharmacy` vs. `salesPharmacy` split | ✅ | Phase 37 — both `Prescription` and `PharmacySaleOrderLine` record `issuePharmacyUid` (where the script was filled) and `salesPharmacyUid` (where stock was actually pulled). Dispense endpoints accept an optional `salesPharmacyUid` query param; when set, FEFO decrement runs at the sales pharmacy without a formal transfer document. |
 
 ### 17.8 Store
 
 | Process | Status | Notes |
 |---|---|---|
-| Central store as separate inventory | ❌ | Today, "pharmacy" stock is the only inventory; GRNs deposit into a pharmacy directly. Legacy puts goods into the store first, then transfers to pharmacy. |
-| Store stock card + batches | ❌ | |
-| Item inquiry across batches | ❌ | |
-| Direct consumable issue to ward | ❌ | |
+| Central store as separate inventory | ✅ | Store module has its own `StoreStockBalance` + `StoreStockBatch` + `StoreStockMovement` aggregates. `GoodsReceiptService.approve` calls `storeStockService.receiveFromProcurement` — goods land in the central store, never directly in a pharmacy. Pharmacy resupply flows via the RO/TO/RN transfer chain. |
+| Store stock card + batches | ✅ | `StoreStockBatch` per (store, medicine, batchNo) with expiry + `receivedAt`. `StoreStockMovement` is the append-only ledger (RECEIPT / TRANSFER_OUT / ADJUSTMENT / WASTAGE). Search at `GET /store/stock/movements?storeUid=&medicineUid=&kind=`. |
+| Item inquiry across batches | ✅ | `GET /store/stores/uid/{storeUid}/stock` returns one `StoreStockBalanceDto` per medicine with the per-batch breakdown (batch no, expiry, qty) inline. Phase 27 expiring-batches report (`/reporting/expiring-batches`) queries the same store-side batch table. |
+| Direct consumable issue to ward | ✅ | Phase 41 + 46 — `ConsumableIssue` takes `sourceKind=STORE` + `sourceLocationUid`; `ConsumableStockService.decrementForIssue` debits the store's `ConsumableStockBalance` in the same tx as the admission chart entry. Overdrafts refused. |
 
 ### 17.9 Procurement
 
 | Process | Status | Notes |
 |---|---|---|
 | Supplier registry | ✅ | Phase 8. |
-| Local Purchase Order (header + lines) | ✅ | Phase 8 — DRAFT → ORDERED → PARTIALLY_RECEIVED → RECEIVED / CANCELLED. Legacy: PENDING → VERIFIED → APPROVED → SUBMITTED → RECEIVED. Need to add the VERIFIED / APPROVED gates. |
-| Goods Received Note | ✅ | Phase 8 — but no separate VERIFIED state. |
-| Per-line batch info on GRN | ❌ | Single qty per line today; no batch breakdown. |
-| Supplier item price list | ❌ | Unit cost is typed per LPO line; no per-supplier catalog yet. |
-| Three-way match (PO vs. GRN vs. invoice) | ❌ | Supplier invoice entity missing. |
+| Local Purchase Order (header + lines) | ✅ | Phase 8 + 23a — full legacy gate chain: DRAFT → VERIFIED → APPROVED → ORDERED → PARTIALLY_RECEIVED → RECEIVED, with REJECTED from any pre-submission state and CANCELLED from any non-RECEIVED state. |
+| Goods Received Note | ✅ | Phase 8 + 23a — full PENDING → VERIFIED → APPROVED workflow. Stock credit + PO line `recordReceipt` now fire on APPROVED (not on creation), so a count mismatch caught at verification doesn't pollute the ledger. REJECTED branch has no stock impact. |
+| Per-line batch info on GRN | ✅ | `GoodsReceiptLine` carries `batchNo + expiresAt` per line; multi-batch receipts are modelled as multiple lines against the same PO line (each with its own batch) rather than a child batch table. |
+| Supplier item price list | ✅ | Phase 23b — `SupplierItemPrice` per (supplier, medicine, validity window). CRUD at `/procurement/suppliers/uid/{uid}/prices`; comparison shopping at `/procurement/medicines/uid/{uid}/prices/{active|best}`. LPO line still takes its own typed unit cost — the price list is a lookup, not auto-fill. |
+| Three-way match (PO vs. GRN vs. invoice) | ✅ | Phase 31 — `SupplierInvoice` aggregate at `/procurement/supplier-invoices` with DRAFT → SUBMITTED → APPROVED → PAID lifecycle. Match runs on APPROVED: per-line `invoiced ≤ received ≤ ordered` cumulative across all approved invoices for the PO. `PurchaseOrderLine.invoicedQuantity` tracks the running total. |
 
 ### 17.10 Payments / Billing
 
@@ -695,43 +697,44 @@ Legend: ✅ covered · ⚠️ partial — needs work · ❌ not yet started
 | Per-line type breakdown (CONSULTATION / LAB / PROCEDURE / RADIOLOGY / MEDICINE / WARD) | ✅ | Phase 3 + 6. |
 | Invoice status (DRAFT → ISSUED → PARTIALLY_PAID → PAID / CANCELLED) | ✅ | Phase 3. Equivalent semantics to legacy. |
 | Payment recording (multiple methods, partial allocation) | ✅ | Phase 3. |
-| Insurance-specific pricing | ⚠️ | Via the cross-cutting `ServicePrice` table; legacy uses per-service tables. Acceptable design simplification — must verify all 6 service kinds have entries. |
-| Credit note / write-off | ❌ | |
-| Refunds | ❌ | |
-| End-of-day cash collection vs. invoice reconciliation | ❌ | |
-| Registration / consultation fee that gates clinical activity for cash patients | ⚠️ | Invoices exist but workflow does not block consultation if unpaid. |
+| Insurance-specific pricing | ✅ | Cross-cutting `ServicePrice(planUid, kind, serviceUid)` matrix covers all 7 priced kinds (CONSULTATION / LAB_TEST / PROCEDURE / RADIOLOGY / MEDICINE / WARD / REGISTRATION). Single source for `PriceLookup` across consultation, admission, and outsider invoice generators. Per-plan rows override the cash row; missing plan row falls back to cash. |
+| Credit note / write-off | ✅ | Phase 25 — `CreditNote` aggregate per invoice with `CreditNoteReason` (HARDSHIP / GOODWILL / ERROR_CORRECTION / SERVICE_NOT_RENDERED / ROUNDING / OTHER). Invoice gains `totalCredited`; `balance = subtotal - totalPaid - totalCredited`. POST `/billing/invoices/uid/{uid}/credit-notes`. |
+| Refunds | ✅ | Phase 25 — `Refund` aggregate per invoice with `RefundReason` (OVERPAYMENT / SERVICE_NOT_RENDERED / DOUBLE_PAYMENT / CANCELLATION / OTHER) + `PaymentMethod`. Reduces `totalPaid` and rolls invoice status back from PAID → PARTIALLY_PAID / ISSUED as needed. POST `/billing/invoices/uid/{uid}/refunds`. |
+| End-of-day cash collection vs. invoice reconciliation | ✅ | Phase 32 — `CashierShift` per cashier (OPEN → CLOSED). `POST /billing/cashier-shifts/open` and `/close`; close computes expected = openingFloat + sum(CASH payments where createdBy=user in window), records variance for audit. Partial unique index enforces at-most-one OPEN shift per user. |
+| Registration / consultation fee that gates clinical activity for cash patients | ✅ | **Fidelity fix (PROCESS_MISMATCHES.md M3):** the registration fee is collected at the cashier but no longer blocks booking. Booking publishes `ConsultationBookedEvent`; billing's `ConsultationFeeService` seeds an ISSUED CONSULTATION-scope invoice (waived to zero for follow-ups). The doctor's reception queue shows only fee-settled consultations, and `ConsultationService.start` refuses a CASH consultation until its fee is settled (`Consultation.feeSettled`, flipped by the billing `SettlementDispatcher`). Non-CASH is treated as COVERED. |
 
 ### 17.11 Human Resource
 
 | Process | Status | Notes |
 |---|---|---|
-| Employee register | ❌ | Users only — no separate Employee entity (HR profile beyond auth). |
-| Payroll | ❌ | |
-| Clinician performance | ❌ | |
-| Asset register | ❌ | |
+| Employee register | ✅ | Phase 26 — `Employee` aggregate in `hr.employee.*` with optional 1:1 link to `iam.User`. CRUD at `/hr/employees`, gated by `HR_ACCESS`. Designation + department are strings for V1 (upgrade to masterdata later if needed). |
+| Payroll | ✅ | Phase 47 — `PayrollPeriod` + `PayrollItem` skeleton with DRAFT → APPROVED → PAID state machine (DRAFT also → CANCELLED; PAID is terminal). Items captured as snapshot gross / total deductions; net re-derived on every write. Period locks items on APPROVED; empty periods can't be approved. CRUD + upsert + approve + pay + cancel under `/hr/payroll/periods`. **No statutory tax tables, no auto-prefill** — that surface area is intentionally left to a dedicated HR/finance product per the legacy plan's "large business surface area" note. |
+| Clinician performance | ✅ | Phase 26 — `GET /hr/employees/uid/{uid}/clinician-performance?from=&to=` rolls up consultations + admissions + lab/radiology/procedure orders for the linked username in a date range. |
+| Asset register | ✅ | Phase 42 — `Asset` aggregate with tag (unique barcode), category, location, custodian, acquisition cost, status (ACTIVE → RETIRED / DISPOSED / LOST; RETIRED can be `reinstate`d, DISPOSED is terminal). CRUD + transitions under `/hr/assets`; by-tag lookup `/hr/assets/by-tag/{tag}` for scanner workflow. Gated by `HR_ACCESS`. |
 
 ### 17.12 Management / Reports
 
 | Process | Status | Notes |
 |---|---|---|
 | Operational dashboard | ✅ | Phase 12 — live KPIs + recent activity. Limited to counts; no revenue / inventory yet. |
-| Revenue by source | ❌ | |
-| Patient register / IPD register | ⚠️ | Patient list exists; IPD register-style date-range / ward filter view missing. |
-| Bed occupancy | ❌ | |
-| Pharmacy stock-out / expired report | ❌ | |
-| Clinician case load | ❌ | |
+| Revenue by source | ✅ | Phase 27 — `GET /reporting/revenue?from=&to=` returns total billed / collected / credited / refunded + per-`InvoiceLineKind` breakdown. |
+| Patient register / IPD register | ✅ | Phase 27 — `GET /reporting/ipd-register?from=&to=&wardUid=&status=` returns the admissions list with ward + patient + clinician columns. |
+| Bed occupancy | ✅ | Phase 27 — `GET /reporting/bed-occupancy` returns per-ward capacity + currently-occupied + available. |
+| Pharmacy stock-out / expired report | ✅ | Phase 27 — `GET /reporting/stock-out?threshold=N` (default 0 = true stock-outs across pharmacies + stores) and `GET /reporting/expiring-batches?daysAhead=N` (default 30). |
+| Clinician case load | ✅ | Phase 26 clinician-performance endpoint covers this. |
 
 ### 17.13 Admin / master data
 
 | Process | Status | Notes |
 |---|---|---|
-| Company profile | ❌ | Hard-coded "HMIS Engine" today. |
-| Clinics, wards (+ types), pharmacies, stores | ⚠️ | Clinics, wards, pharmacies done. Stores absent. Bed-availability model absent. |
-| Theatres | ❌ | |
+| Company profile | ✅ | Phase 28 — singleton `CompanyProfile` at `/masterdata/company-profile` (GET for any authenticated caller; PUT gated by `MASTERDATA_MANAGE`). |
+| Clinics, wards (+ types), pharmacies, stores | ✅ | Clinics, wards, pharmacies, stores all done. Phase 29 added the per-bed `Bed` aggregate (FREE / OCCUPIED / RESERVED / OUT_OF_SERVICE) — AdmissionService claims/releases beds on admit / transfer / discharge, and the bed-occupancy report uses real bed counts. |
+| Theatres | ✅ | Phase 24 — `Theatre` masterdata with full CRUD at `/masterdata/theatres`. Two sample theatres seeded. |
 | Medicines, lab tests, radiology, procedures, diagnoses | ✅ | Masterdata phase. |
-| Consumables | ❌ | |
+| Medicine units (base + alternates with conversion factors) | ✅ | Phase 21 — `MedicineUnit` aggregate, CRUD at `/medicines/uid/{uid}/units`, EACH base auto-seeded; transfer chains accept per-line `unitUid` and convert at the boundary. |
+| Consumables | ✅ | Phase 28 — `Consumable` masterdata at `/masterdata/consumables`. Wiring into a ward-issue path is a follow-up. |
 | Insurance plans + per-service pricing | ✅ | `InsurancePlan` + `ServicePrice` matrix. |
-| Dosages / routes / frequencies dropdowns | ❌ | Prescription dose / frequency are free text today. |
+| Dosages / routes / frequencies dropdowns | ✅ | Phase 28 — three masterdata aggregates (`Dosage`, `AdministrationRoute`, `DosingFrequency`) at `/masterdata/{dosages|administration-routes|dosing-frequencies}`. Standard routes (ORAL/IV/IM/SC/TOPICAL/INHALED) and frequencies (OD/BD/TDS/QID/STAT/PRN with `timesPerDay`) seeded. Phase 33 wired them into `Prescription` via `dosageUid` / `routeUid` / `frequencyUid` columns; service denormalises picklist names into the existing free-text columns so dispense + sale-order paths stay unchanged. |
 | Users + roles + privileges | ✅ | Phases 9–11. |
 
 ---
@@ -744,6 +747,13 @@ phase that respects the modulith boundaries:
 1. **Patient type + OUTSIDER pathway** — add `PatientType` (OUTPATIENT /
    OUTSIDER), allow lab / radiology / procedure / pharmacy-sale to be
    raised on an outsider without a consultation. Add registration fee.
+   *Delivered:* OUTSIDER plumbing (PatientType, outsider orders,
+   `Invoice.forOutsider`, `PharmacySaleOrder`) landed across earlier
+   phases. Phase 36 added the registration-fee invoice (auto-seeded
+   on registration via `PatientRegisteredEvent` after-commit listener;
+   idempotent recovery at `POST /billing/patients/uid/{uid}/registration-fee`)
+   and the CASH-patient consultation gate (sync `@EventListener` on
+   `ConsultationBookingRequestedEvent`).
 2. **Prescription status lifecycle + pay-status** — extend prescription
    states and gate dispensing on payment status for cash patients.
 3. **Pharmacy retail (PharmacySaleOrder)** — OTC sales head entity, same
@@ -754,21 +764,58 @@ phase that respects the modulith boundaries:
    ledger. Procurement GRN now lands in store, not pharmacy. Pharmacies
    must request from store.
 6. **RO / TO / RN documents** — pharmacy ↔ store transfer chain first
-   (depends on §5), then pharmacy ↔ pharmacy.
+   (depends on §5), then pharmacy ↔ pharmacy. Phase 20a delivered the
+   forward P↔S chain (resupply); Phase 20b delivered the full P↔P chain.
+   Both run without conversion coefficients (single unit per medicine).
+   Reverse-direction P↔S (pharmacy returns to store) deferred.
 7. **Conversion coefficients on items** — needed before RO/TO/RN to be
-   useful in practice.
+   useful in practice. Phase 21 delivered `MedicineUnit` (base + alternates
+   with `factorToBase`) and wired it into both transfer chains. Stock
+   balances stay in base units; conversion happens at the API boundary.
+   Manual receive / adjust, dispense, retail sale and GRN still take base
+   units directly (no unit awareness yet — can move in a follow-up phase).
 8. **Structured discharge plan + nursing chart** — observation chart
    series, nursing care plan, consumable chart, structured discharge plan
-   with APPROVED state, deceased + referral structured notes.
+   with APPROVED state, deceased + referral structured notes. Phase 22a
+   delivered the unified `DischargePlan` aggregate (DISCHARGE / DECEASED
+   / REFERRAL kinds) with the PENDING → APPROVED gate that drives the
+   admission closure. Phase 22b added the observation chart
+   (`AdmissionVitalsEntry`), nursing care plan
+   (`NursingCarePlanItem`) and dressing chart
+   (`DressingChartEntry`). Consumable chart still pending — needs a
+   ward→pharmacy issue path first.
 9. **Procurement gates + supplier price list** — add VERIFIED / APPROVED
-   PO states, per-supplier item catalog.
+   PO states, per-supplier item catalog. Phase 23a delivered the LPO
+   gate chain (DRAFT → VERIFIED → APPROVED → ORDERED → ...) and the
+   matching GRN workflow (PENDING → VERIFIED → APPROVED with stock
+   credit deferred to APPROVED). Phase 23b added `SupplierItemPrice`
+   with supplier-anchored CRUD and medicine-anchored comparison
+   shopping. Three-way match (PO vs GRN vs supplier invoice) still
+   deferred — no supplier invoice entity yet.
 10. **Theatre + procedure scheduling** — theatre entity, scheduled date /
-    time on procedure orders, operative-record fields.
-11. **Credit notes, refunds, collections** — billing extensions.
-12. **HR module** — employees, payroll, clinician performance.
+    time on procedure orders, operative-record fields. Phase 24 delivered
+    all three: `Theatre` masterdata, scheduling fields on `ClinicalOrder`,
+    and the structured `OperativeRecord` aggregate with surgeon /
+    anaesthetist / timing fields.
+11. **Credit notes, refunds, collections** — billing extensions. Phase 25
+    delivered credit notes + refunds with the invoice settlement
+    semantics (totalCredited + rollback on refund). End-of-day cash
+    collection reconciliation still pending.
+12. **HR module** — employees, payroll, clinician performance. Phase 26
+    delivered the `Employee` aggregate and the live clinician-performance
+    roll-up. Payroll + asset register deferred.
 13. **Reporting** — revenue, IPD register, stock-out, clinician case load.
+    Phase 27 delivered live read-only reports for all five: revenue
+    summary (with per-kind breakdown), IPD register, bed occupancy,
+    stock-out (pharmacy + store), expiring batches. Clinician case load
+    was already covered by Phase 26 clinician-performance.
 14. **Master data polish** — company profile, theatres, consumables,
-    dosage / route / frequency dropdowns, bed availability.
+    dosage / route / frequency dropdowns, bed availability. Phase 28
+    delivered the company profile (singleton), consumables, and the
+    three drug-administration lookups (dosage, route, frequency) with
+    sensible seed data. Theatres were already done in Phase 24. Bed
+    availability (per-bed entity with assignment) still pending — it's
+    a bigger schema change that can be its own phase.
 
 Items above are roughly ordered by dependency. A few independent ones
 (structured discharge plan, credit notes, theatre scheduling) can slot in

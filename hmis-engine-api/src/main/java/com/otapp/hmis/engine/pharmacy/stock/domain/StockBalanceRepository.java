@@ -22,13 +22,36 @@ public interface StockBalanceRepository extends JpaRepository<StockBalance, Long
 
     List<StockBalance> findAllByPharmacyUid(String pharmacyUid);
 
+    /**
+     * Server-side stock search for a pharmacy: optional medicine name/code text,
+     * low-stock-only, and expiring-only (any non-empty batch on/under the cutoff).
+     * All predicates are pushed to the DB so the UI never loads the full balance set.
+     */
     @Query("""
             SELECT b FROM StockBalance b
             WHERE b.pharmacyUid = :pharmacyUid
               AND (:lowStock = FALSE OR b.quantity <= :lowStockThreshold)
+              AND (:search IS NULL OR :search = '' OR EXISTS (
+                    SELECT 1 FROM Medicine m
+                    WHERE m.uid = b.medicineUid
+                      AND (LOWER(m.name) LIKE LOWER(CONCAT('%', :search, '%'))
+                           OR LOWER(m.code) LIKE LOWER(CONCAT('%', :search, '%')))))
+              AND (:expiringOnly = FALSE OR EXISTS (
+                    SELECT 1 FROM StockBatch sb
+                    WHERE sb.pharmacyUid = b.pharmacyUid
+                      AND sb.medicineUid = b.medicineUid
+                      AND sb.quantity > 0
+                      AND sb.expiresAt IS NOT NULL
+                      AND sb.expiresAt <= :expiryCutoff))
             """)
-    Page<StockBalance> search(@Param("pharmacyUid") String pharmacyUid,
-                              @Param("lowStock") boolean lowStock,
-                              @Param("lowStockThreshold") int lowStockThreshold,
-                              Pageable pageable);
+    Page<StockBalance> searchBalances(@Param("pharmacyUid") String pharmacyUid,
+                                      @Param("search") String search,
+                                      @Param("lowStock") boolean lowStock,
+                                      @Param("lowStockThreshold") int lowStockThreshold,
+                                      @Param("expiringOnly") boolean expiringOnly,
+                                      @Param("expiryCutoff") java.time.LocalDate expiryCutoff,
+                                      Pageable pageable);
+
+    /** Balances at or below {@code threshold} across all pharmacies — used by the stock-out report. */
+    List<StockBalance> findByQuantityLessThanEqual(int threshold);
 }

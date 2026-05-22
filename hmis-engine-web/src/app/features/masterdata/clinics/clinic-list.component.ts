@@ -5,6 +5,8 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
+import { ItemPricesComponent } from '../pricing/item-prices.component';
+import { ClinicCliniciansComponent } from './clinic-clinicians.component';
 import { ClinicFormComponent } from './clinic-form.component';
 import { ClinicService } from './clinic.service';
 import { CLINIC_TYPES, Clinic, ClinicType } from './clinic.types';
@@ -135,6 +137,20 @@ export class ClinicListComponent {
     const ref = this.modal.open(ClinicFormComponent, { size: 'lg', backdrop: 'static' });
     (ref.componentInstance as ClinicFormComponent).existing = clinic;
     ref.closed.subscribe(() => this.refresh$.next());
+  }
+
+  openClinicians(clinic: Clinic): void {
+    const ref = this.modal.open(ClinicCliniciansComponent, { size: 'lg', backdrop: 'static' });
+    (ref.componentInstance as ClinicCliniciansComponent).clinic = clinic;
+  }
+
+  openPrices(clinic: Clinic): void {
+    // Manage this clinic's consultation prices (cash + plans, per currency, with band).
+    const ref = this.modal.open(ItemPricesComponent, { size: 'lg', backdrop: 'static' });
+    const inst = ref.componentInstance as ItemPricesComponent;
+    inst.kind = 'CONSULTATION';
+    inst.serviceUid = clinic.uid;
+    inst.serviceLabel = `${clinic.name} (${clinic.code})`;
   }
 
   toggleActive(clinic: Clinic): void {

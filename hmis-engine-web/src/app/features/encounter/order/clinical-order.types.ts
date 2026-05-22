@@ -6,10 +6,12 @@ export const CLINICAL_ORDER_KINDS: { value: ClinicalOrderKind; label: string; ic
   { value: 'PROCEDURE', label: 'Procedure', icon: 'bi-scissors' }
 ];
 
-export type ClinicalOrderStatus = 'REQUESTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type ClinicalOrderStatus = 'REQUESTED' | 'ACCEPTED' | 'APPROVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
 export const CLINICAL_ORDER_STATUSES: { value: ClinicalOrderStatus; label: string; badgeClass: string }[] = [
   { value: 'REQUESTED',   label: 'Requested',   badgeClass: 'text-bg-info-subtle text-info-emphasis border border-info-subtle' },
+  { value: 'ACCEPTED',    label: 'Accepted',    badgeClass: 'text-bg-info-subtle text-info-emphasis border border-info-subtle' },
+  { value: 'APPROVED',    label: 'Approved',    badgeClass: 'text-bg-primary-subtle text-primary border border-primary-subtle' },
   { value: 'IN_PROGRESS', label: 'In progress', badgeClass: 'text-bg-primary-subtle text-primary border border-primary-subtle' },
   { value: 'COMPLETED',   label: 'Completed',   badgeClass: 'text-bg-success-subtle text-success-emphasis border border-success-subtle' },
   { value: 'CANCELLED',   label: 'Cancelled',   badgeClass: 'text-bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle' }

@@ -8,8 +8,9 @@ import { InvoiceService } from '../billing/invoice.service';
 import { RecordPaymentComponent } from '../billing/record-payment.component';
 import { INVOICE_STATUSES, Invoice, InvoiceStatus } from '../billing/invoice.types';
 import { ConsultationService } from '../encounter/consultation/consultation.service';
+import { SendToDoctorModalComponent } from '../encounter/consultation/send-to-doctor-modal.component';
 import {
-  CONSULTATION_STATUSES, ConsultationStatus, ConsultationSummary
+  CONSULTATION_STATUSES, Consultation, ConsultationStatus, ConsultationSummary
 } from '../encounter/consultation/consultation.types';
 import { AddOrderComponent } from '../encounter/order/add-order.component';
 import { AddPrescriptionComponent } from '../encounter/prescription/add-prescription.component';
@@ -36,6 +37,8 @@ export class PatientDetailComponent {
   readonly patient = signal<Patient | null>(null);
   readonly recentConsultations = signal<ConsultationSummary[]>([]);
   readonly outsiderInvoice = signal<Invoice | null>(null);
+  readonly registrationInvoice = signal<Invoice | null>(null);
+  readonly registrationBusy = signal(false);
   readonly invoiceBusy = signal(false);
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
@@ -73,15 +76,29 @@ export class PatientDetailComponent {
     }
     forkJoin({
       patient: this.patientService.findByUid(uid),
-      recent: this.consultationService.recentForPatient(uid)
+      recent: this.consultationService.recentForPatient(uid),
+      registration: this.invoiceService.findRegistrationFee(uid)
     }).pipe(finalize(() => this.loading.set(false))).subscribe({
-      next: ({ patient, recent }) => {
+      next: ({ patient, recent, registration }) => {
         this.patient.set(patient);
         this.recentConsultations.set(recent);
+        this.registrationInvoice.set(registration);
         if (patient.type === 'OUTSIDER') this.refreshOutsiderInvoice();
       },
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load patient.')
     });
+  }
+
+  refreshRegistrationFee(): void {
+    const p = this.patient();
+    if (!p || this.registrationBusy()) return;
+    this.registrationBusy.set(true);
+    this.invoiceService.ensureRegistrationFee(p.uid)
+      .pipe(finalize(() => this.registrationBusy.set(false)))
+      .subscribe({
+        next: (inv) => { this.registrationInvoice.set(inv); this.actionMessage.set('Registration fee invoice ready.'); },
+        error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load registration fee.')
+      });
   }
 
   private refreshOutsiderInvoice(): void {
@@ -221,11 +238,23 @@ export class PatientDetailComponent {
     return this.invoiceStatuses.find((x) => x.value === s)?.label ?? s;
   }
 
-  startConsultation(): void {
+  /**
+   * "Send to doctor" — opens the clinic/clinician picker and auto-creates the
+   * consultation (legacy reception action). The doctor then picks it up from
+   * the reception queue. Only valid for OUTPATIENTs; OUTSIDERs use direct orders.
+   */
+  sendToDoctor(): void {
     const p = this.patient();
     if (!p) return;
-    void this.router.navigate(['/encounters', 'consultations', 'new'], {
-      queryParams: { patientUid: p.uid }
+    const ref = this.modal.open(SendToDoctorModalComponent, { size: 'lg', backdrop: 'static' });
+    (ref.componentInstance as SendToDoctorModalComponent).patient = p;
+    ref.closed.subscribe((created: Consultation | undefined) => {
+      if (!created) return;
+      this.actionMessage.set(`Consultation ${created.consultationNo} created — sent to ${created.clinicianName || created.clinicianUsername}.`);
+      this.consultationService.recentForPatient(p.uid).subscribe({
+        next: (recent) => this.recentConsultations.set(recent),
+        error: () => { /* keep previous */ }
+      });
     });
   }
 

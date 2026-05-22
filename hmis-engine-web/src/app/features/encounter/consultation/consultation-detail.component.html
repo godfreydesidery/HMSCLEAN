@@ -31,6 +31,16 @@
             <i class="bi bi-check2-all"></i>Complete
           </button>
         }
+        @if (canTransfer()) {
+          <button type="button" class="btn btn-warning d-flex align-items-center gap-2" (click)="openTransfer()">
+            <i class="bi bi-arrow-right"></i>Transfer
+          </button>
+        }
+        @if (canFollowUp()) {
+          <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="scheduleFollowUp()">
+            <i class="bi bi-calendar-plus"></i>Schedule follow-up
+          </button>
+        }
         @if (canCancel()) {
           <button type="button" class="btn btn-light border text-danger d-flex align-items-center gap-2" (click)="cancel()">
             <i class="bi bi-x-circle"></i>Cancel
@@ -38,6 +48,25 @@
         }
       </div>
     </div>
+
+    @if (c.followUpOfConsultationUid || c.transferredFromConsultationUid || c.transferredToConsultationUid) {
+      <div class="alert alert-light border d-flex flex-wrap align-items-center gap-3 small">
+        @if (c.followUpOfConsultationUid) {
+          <span><i class="bi bi-arrow-return-right me-1 hmis-muted"></i>Follow-up of
+            <a class="hmis-code ms-1" [routerLink]="['/encounters/consultations', c.followUpOfConsultationUid]">{{ c.followUpOfConsultationUid }}</a></span>
+        }
+        @if (c.transferredFromConsultationUid) {
+          <span><i class="bi bi-box-arrow-in-right me-1 hmis-muted"></i>Transferred from
+            <a class="hmis-code ms-1" [routerLink]="['/encounters/consultations', c.transferredFromConsultationUid]">{{ c.transferredFromConsultationUid }}</a></span>
+        }
+        @if (c.transferredToConsultationUid) {
+          <span><i class="bi bi-box-arrow-right me-1 hmis-muted"></i>Transferred to
+            <a class="hmis-code ms-1" [routerLink]="['/encounters/consultations', c.transferredToConsultationUid]">{{ c.transferredToConsultationUid }}</a>
+            @if (c.transferReason) { · <span class="hmis-muted">{{ c.transferReason }}</span> }
+          </span>
+        }
+      </div>
+    }
 
     <ul class="nav nav-tabs consultation-detail__tabs mb-3">
       <li class="nav-item">
@@ -311,59 +340,66 @@
                 </div>
               </div>
             </div>
-            <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0 hmis-table">
-                <thead>
-                  <tr>
-                    <th>#</th><th>Type</th><th>Service</th><th>Urgency</th><th>Status</th><th>Requested</th><th>Result</th><th class="text-end">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @if (orders().length === 0) {
-                    <tr><td colspan="8"><div class="hmis-empty"><i class="bi bi-card-list"></i><div class="small">No orders raised yet.</div></div></td></tr>
-                  } @else {
-                    @for (o of orders(); track o.uid) {
+            @if (orders().length === 0) {
+              <div class="p-3"><div class="hmis-empty"><i class="bi bi-card-list"></i><div class="small">No orders raised yet.</div></div></div>
+            } @else {
+              @for (g of orderGroups(); track g.kind; let last = $last) {
+                <div [class.mb-4]="!last">
+                <div class="px-3 py-2 border-top bg-body-tertiary d-flex align-items-center gap-2">
+                  <i class="bi {{ g.icon }} fs-4 text-accent"></i>
+                  <span class="h5 fw-bold mb-0">{{ g.label }}</span>
+                  <span class="badge rounded-pill text-bg-secondary ms-auto">{{ g.rows.length }}</span>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle mb-0 hmis-table">
+                    <thead>
                       <tr>
-                        <td><span class="hmis-code">{{ o.orderNo }}</span></td>
-                        <td>
-                          <span class="badge text-bg-light border d-inline-flex align-items-center gap-1">
-                            <i class="bi {{ orderKindIcon(o.kind) }}"></i>{{ orderKindLabel(o.kind) }}
-                          </span>
-                        </td>
-                        <td>
-                          <div class="fw-semibold">{{ o.serviceName || o.serviceUid }}</div>
-                          @if (o.instructions) { <div class="hmis-muted small text-truncate" style="max-width:260px;">{{ o.instructions }}</div> }
-                        </td>
-                        <td><span [class]="urgencyBadgeClass(o.urgency)">{{ o.urgency }}</span></td>
-                        <td><span [class]="orderStatusBadgeClass(o.status)">{{ orderStatusLabel(o.status) }}</span></td>
-                        <td class="hmis-muted small">{{ o.requestedAt | date:'short' }}</td>
-                        <td class="hmis-muted small text-truncate" style="max-width:220px;">{{ o.result || '—' }}</td>
-                        <td class="text-end">
-                          <div ngbDropdown placement="bottom-end" class="d-inline-block">
-                            <button type="button" class="btn btn-sm btn-light border" ngbDropdownToggle aria-label="Actions"><i class="bi bi-three-dots"></i></button>
-                            <div ngbDropdownMenu class="shadow-sm">
-                              @if (o.status === 'REQUESTED') {
-                                <button type="button" ngbDropdownItem (click)="startOrder(o)"><i class="bi bi-play-fill me-2"></i>Start</button>
-                              }
-                              @if (o.status === 'REQUESTED' || o.status === 'IN_PROGRESS') {
-                                <button type="button" ngbDropdownItem (click)="enterResult(o)"><i class="bi bi-clipboard2-data me-2"></i>Enter result / Complete</button>
-                                <button type="button" ngbDropdownItem class="text-danger" (click)="cancelOrder(o)"><i class="bi bi-x-circle me-2"></i>Cancel</button>
-                              }
-                              @if (o.status === 'COMPLETED') {
-                                <button type="button" ngbDropdownItem (click)="enterResult(o)"><i class="bi bi-clipboard2-pulse me-2"></i>View / amend result</button>
-                              }
-                              @if (o.status === 'CANCELLED') {
-                                <button type="button" ngbDropdownItem disabled><i class="bi bi-lock me-2"></i>Cancelled</button>
-                              }
-                            </div>
-                          </div>
-                        </td>
+                        <th>#</th><th>Service</th><th>Urgency</th><th>Status</th><th>Requested</th><th>Result</th><th class="text-end">Actions</th>
                       </tr>
-                    }
-                  }
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody>
+                      @for (o of g.rows; track o.uid) {
+                        <tr>
+                          <td><span class="hmis-code">{{ o.orderNo }}</span></td>
+                          <td>
+                            <div class="fw-semibold">{{ o.serviceName || o.serviceUid }}</div>
+                            @if (o.instructions) { <div class="hmis-muted small text-truncate" style="max-width:260px;">{{ o.instructions }}</div> }
+                          </td>
+                          <td><span [class]="urgencyBadgeClass(o.urgency)">{{ o.urgency }}</span></td>
+                          <td><span [class]="orderStatusBadgeClass(o.status)">{{ orderStatusLabel(o.status) }}</span></td>
+                          <td class="hmis-muted small">{{ o.requestedAt | date:'short' }}</td>
+                          <td class="hmis-muted small text-truncate" style="max-width:220px;">{{ o.result || '—' }}</td>
+                          <td class="text-end">
+                            <div ngbDropdown placement="bottom-end" container="body" class="d-inline-block">
+                              <button type="button" class="btn btn-sm btn-light border" ngbDropdownToggle aria-label="Actions"><i class="bi bi-three-dots"></i></button>
+                              <div ngbDropdownMenu class="shadow-sm">
+                                @if (o.status === 'REQUESTED') {
+                                  <button type="button" ngbDropdownItem (click)="passOrderGate(o)"><i class="bi bi-check2-circle me-2"></i>{{ orderGateLabel(o) }}</button>
+                                  <button type="button" ngbDropdownItem class="text-danger" (click)="cancelOrder(o)"><i class="bi bi-x-circle me-2"></i>Cancel</button>
+                                }
+                                @if (o.status === 'ACCEPTED' || o.status === 'APPROVED' || o.status === 'IN_PROGRESS') {
+                                  <button type="button" ngbDropdownItem (click)="enterResult(o)"><i class="bi bi-clipboard2-data me-2"></i>Enter result / Complete</button>
+                                  <button type="button" ngbDropdownItem class="text-danger" (click)="cancelOrder(o)"><i class="bi bi-x-circle me-2"></i>Cancel</button>
+                                }
+                                @if (o.status === 'COMPLETED') {
+                                  <button type="button" ngbDropdownItem (click)="enterResult(o)"><i class="bi bi-clipboard2-pulse me-2"></i>View / amend result</button>
+                                }
+                                @if (o.status === 'CANCELLED') {
+                                  <button type="button" ngbDropdownItem disabled><i class="bi bi-lock me-2"></i>Cancelled</button>
+                                }
+                                <div class="dropdown-divider"></div>
+                                <button type="button" ngbDropdownItem (click)="openAttachments(o)"><i class="bi bi-paperclip me-2"></i>Attachments…</button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                </div>
+              }
+            }
           </div>
         </div>
 
@@ -408,7 +444,7 @@
                         <td>{{ p.quantity ?? '—' }}</td>
                         <td><span [class]="prescriptionStatusBadgeClass(p.status)">{{ prescriptionStatusLabel(p.status) }}</span></td>
                         <td class="text-end">
-                          <div ngbDropdown placement="bottom-end" class="d-inline-block">
+                          <div ngbDropdown placement="bottom-end" container="body" class="d-inline-block">
                             <button type="button" class="btn btn-sm btn-light border" ngbDropdownToggle aria-label="Actions"><i class="bi bi-three-dots"></i></button>
                             <div ngbDropdownMenu class="shadow-sm">
                               @if (p.status === 'PENDING') {

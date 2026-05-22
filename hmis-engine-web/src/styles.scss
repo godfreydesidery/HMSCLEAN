@@ -1,32 +1,50 @@
 // =========================================================================
 //  HMIS Engine — global theme
-//  Bootstrap 5 with premium variable overrides + Inter typography.
+//  "Warm editorial" — parchment surfaces, navy ink, an amber accent, a
+//  Fraunces serif display face for headings and a mono face for eyebrow
+//  labels. Built on Bootstrap 5 variable overrides.
 // =========================================================================
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+// ----- Brand palette -------------------------------------------------------
+$ink:            #14171f;   // near-black navy — primary text + dark buttons
+$ink-soft:       #514838;   // warm muted text — kept dark so it stays legible
+$accent:         #cf6315;   // amber accent — brand, active nav, highlights
+$paper:          #f4eee3;   // page background (warm parchment)
+$surface:        #fdfbf6;   // cards / sidebar (lighter cream)
+$surface-2:      #ece2d0;   // subtle fills
+$line:           #e1d6c0;   // warm hairline borders
 
 // ----- Bootstrap variable overrides (must come BEFORE Bootstrap import) ----
-$primary:        #2563eb;
-$secondary:      #64748b;
-$success:        #16a34a;
-$danger:         #dc2626;
-$warning:        #d97706;
-$info:           #0891b2;
-$light:          #f8fafc;
-$dark:           #0f172a;
+$primary:        $ink;       // primary buttons / links read as deep navy ink
+$secondary:      #6b7280;     // neutral cool grey — visible on light & dark
+$success:        #2f8f5b;
+$danger:         #c0492f;
+$warning:        $accent;
+$info:           #3f7a86;
+$light:          $surface;
+$dark:           $ink;
 
-$body-bg:        #f8fafc;
-$body-color:     #0f172a;
-$body-secondary-color: #64748b;
-$border-color:   #e2e8f0;
+$body-bg:        $paper;
+$body-color:     $ink;
+$body-secondary-color: $ink-soft;
+$border-color:   $line;
 
 $font-family-sans-serif:
   'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
   'Helvetica Neue', Arial, sans-serif;
+$font-family-monospace:
+  'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', monospace;
+// Fraunces display serif for headings — warm, editorial, with real italics.
+$headings-font-family:
+  'Fraunces', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
 
-$font-size-base: 0.9rem;
+$font-size-base: 0.925rem;
 $line-height-base: 1.55;
 $headings-font-weight: 600;
+$headings-color: $ink;
+$body-emphasis-color: $ink;
 
 $enable-shadows: true;
 $enable-rounded: true;
@@ -45,29 +63,36 @@ $btn-border-radius:    0.5rem;
 $btn-border-radius-sm: 0.4rem;
 $btn-border-radius-lg: 0.625rem;
 
+$input-bg:           $surface;
 $input-padding-y:    0.55rem;
 $input-padding-x:    0.85rem;
 $input-border-radius: 0.5rem;
-$input-focus-border-color: rgba(37, 99, 235, 0.45);
-$input-focus-box-shadow:   0 0 0 0.18rem rgba(37, 99, 235, 0.18);
+$input-border-color: $line;
+$input-focus-border-color: rgba(226, 117, 42, 0.55);
+$input-focus-box-shadow:   0 0 0 0.18rem rgba(226, 117, 42, 0.16);
 
-$card-border-color:  $border-color;
-$card-border-radius: 0.75rem;
-$card-cap-bg:        #fff;
+$card-bg:            $surface;
+$card-border-color:  $line;
+$card-border-radius: 0.85rem;
+$card-cap-bg:        $surface;
 $card-spacer-y:      1rem;
 $card-spacer-x:      1.25rem;
 
-$modal-content-border-radius: 0.85rem;
+$modal-content-bg:            $surface;
+$modal-content-border-radius: 0.95rem;
 $modal-content-border-color:  transparent;
 
-$table-color:    #0f172a;
+$dropdown-bg:        $surface;
+$dropdown-border-color: $line;
+
+$table-color:    $ink;
 $table-bg:       transparent;
-$table-border-color: $border-color;
+$table-border-color: $line;
 $table-cell-padding-y: 0.75rem;
 $table-cell-padding-x: 1rem;
 
-$nav-link-color:        #cbd5e1;
-$nav-link-hover-color:  #ffffff;
+$nav-link-color:        $ink-soft;
+$nav-link-hover-color:  $ink;
 
 @import 'bootstrap/scss/bootstrap';
 @import 'bootstrap-icons/font/bootstrap-icons.css';
@@ -77,17 +102,246 @@ $nav-link-hover-color:  #ffffff;
 //  Bootstrap utility classes in templates).
 // =========================================================================
 
+// ----- Theme-independent tokens -------------------------------------------
 :root {
-  --hmis-sidebar-bg:       #0f172a;
-  --hmis-sidebar-bg-hover: rgba(255, 255, 255, 0.06);
-  --hmis-sidebar-active:   #2563eb;
-  --hmis-surface:          #ffffff;
-  --hmis-surface-2:        #f1f5f9;
-  --hmis-border:           #e2e8f0;
-  --hmis-text-muted:       #64748b;
-  --hmis-shadow-sm:        0 1px 2px rgba(15, 23, 42, 0.06);
-  --hmis-shadow-md:        0 4px 14px rgba(15, 23, 42, 0.06);
-  --hmis-shadow-lg:        0 24px 60px rgba(15, 23, 42, 0.18);
+  --hmis-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  --hmis-serif: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --hmis-sans: #{$font-family-sans-serif};
+  // Native OS UI font — used by the Desktop theme so it reads like a desktop app.
+  --hmis-system: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --hmis-shadow-sm: 0 1px 2px rgba(20, 23, 31, 0.06);
+  --hmis-shadow-md: 0 6px 20px rgba(20, 23, 31, 0.08);
+  --hmis-shadow-lg: 0 24px 60px rgba(20, 23, 31, 0.16);
+}
+
+// =========================================================================
+//  Themes — user-selectable via [data-theme] on <html>. Each block bridges
+//  both the app's --hmis-* tokens and the Bootstrap --bs-* runtime variables
+//  so the whole UI re-skins live. Dark themes also flip data-bs-theme.
+// =========================================================================
+
+@mixin hmis-theme(
+  $ink, $ink-soft, $accent, $accent-soft,
+  $paper, $surface, $surface-2, $line,
+  $sidebar, $sidebar-hover,
+  $primary-bg, $primary-fg,
+  $headings-weight, $headings-font,
+  $radius: 0.5rem, $card-shadow: none
+) {
+  // App tokens
+  --hmis-ink:              #{$ink};
+  --hmis-text-muted:       #{$ink-soft};
+  --hmis-accent:           #{$accent};
+  --hmis-accent-soft:      #{$accent-soft};
+  --hmis-paper:            #{$paper};
+  --hmis-surface:          #{$surface};
+  --hmis-surface-2:        #{$surface-2};
+  --hmis-border:           #{$line};
+  --hmis-sidebar-bg:       #{$sidebar};
+  --hmis-sidebar-bg-hover: #{$sidebar-hover};
+  --hmis-sidebar-active:   #{$accent};
+  --hmis-heading-font:     #{$headings-font};
+
+  // Bootstrap runtime bridges
+  --bs-body-bg:            #{$paper};
+  --bs-body-color:         #{$ink};
+  --bs-emphasis-color:     #{$ink};
+  --bs-secondary-color:    #{$ink-soft};
+  --bs-tertiary-bg:        #{$surface-2};
+  --bs-border-color:       #{$line};
+  --bs-heading-color:      #{$ink};
+  --bs-card-bg:            #{$surface};
+  --bs-card-cap-bg:        #{$surface};
+  --bs-link-color:         #{$accent};
+  --bs-link-hover-color:   #{$accent};
+
+  // Component bridges (descendants of the themed root)
+  .card            { background-color: #{$surface}; border-color: #{$line}; box-shadow: #{$card-shadow}; }
+  .modal-content   { background-color: #{$surface}; }
+  .dropdown-menu {
+    --bs-dropdown-bg: #{$surface};
+    --bs-dropdown-border-color: #{$line};
+    --bs-dropdown-link-color: #{$ink};
+    --bs-dropdown-link-hover-bg: #{$surface-2};
+    --bs-dropdown-link-hover-color: #{$ink};
+  }
+  .form-control, .form-select {
+    background-color: #{$surface}; color: #{$ink}; border-color: #{$line};
+  }
+  .table { --bs-table-color: #{$ink}; --bs-table-border-color: #{$line}; }
+  .btn-primary {
+    --bs-btn-bg: #{$primary-bg};            --bs-btn-border-color: #{$primary-bg};
+    --bs-btn-color: #{$primary-fg};
+    --bs-btn-hover-bg: #{mix(#fff, $primary-bg, 10%)};
+    --bs-btn-hover-border-color: #{mix(#fff, $primary-bg, 10%)};
+    --bs-btn-hover-color: #{$primary-fg};
+    --bs-btn-active-bg: #{mix(#000, $primary-bg, 10%)};
+    --bs-btn-active-color: #{$primary-fg};
+  }
+  h1, h2, h3, h4, h5, h6, .hmis-page-title {
+    font-family: #{$headings-font};
+    font-weight: #{$headings-weight};
+  }
+}
+
+// Web — modern web app: clean cool/white surfaces, airy spacing, rounded
+// corners, soft card elevation, Inter sans, an indigo accent + colored CTAs.
+:root,
+[data-theme='web'] {
+  @include hmis-theme(
+    #0f172a, #334155, #4f46e5, rgba(79, 70, 229, 0.10),
+    #f7f8fb, #ffffff, #f1f5f9, #e6eaf1,
+    #ffffff, rgba(15, 23, 42, 0.05),
+    #4f46e5, #ffffff,
+    700, var(--hmis-sans)
+  );
+  --hmis-brand-bg: #4f46e5;
+  --hmis-brand-fg: #ffffff;
+
+  // Rounded + softly elevated, the modern-web card feel.
+  --bs-border-radius: 0.6rem;
+  --bs-border-radius-sm: 0.45rem;
+  --bs-border-radius-lg: 0.85rem;
+  --bs-border-radius-xl: 1rem;
+
+  .card {
+    --bs-card-border-radius: 0.85rem;
+    box-shadow: var(--hmis-shadow-md);
+    border-color: var(--hmis-border);
+  }
+  .btn { --bs-btn-border-radius: 0.6rem; }
+  .form-control, .form-select { --bs-border-radius: 0.6rem; }
+  .dropdown-menu { --bs-dropdown-border-radius: 0.85rem; }
+  .modal-content { --bs-modal-border-radius: 1rem; }
+
+  h1, h2, h3, h4, h5, h6, .hmis-page-title {
+    font-family: var(--hmis-sans);
+    letter-spacing: -0.02em;
+  }
+}
+
+// Web-only: recolour the semantic "warning" off the burnt amber to a cool-
+// friendly dark gold, so the indigo Web theme has no orange. Standalone block
+// (NOT shared with :root) so Desktop/Midnight keep their amber warning.
+[data-theme='web'] {
+  --bs-warning: #a16207;
+  --bs-warning-rgb: 161, 98, 7;
+  --bs-warning-text-emphasis: #713f12;
+  --bs-warning-bg-subtle: #fbf1d3;
+  --bs-warning-border-subtle: #ecd9a3;
+
+  .btn-warning {
+    --bs-btn-bg: #a16207;
+    --bs-btn-border-color: #a16207;
+    --bs-btn-color: #fff;
+    --bs-btn-hover-bg: #8a5306;
+    --bs-btn-hover-border-color: #8a5306;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-active-bg: #713f12;
+    --bs-btn-active-color: #fff;
+  }
+  .text-bg-warning { background-color: #a16207 !important; color: #fff !important; }
+  .table-warning { --bs-table-bg: #fbf1d3; --bs-table-color: var(--hmis-ink); }
+}
+
+// Desktop — looks like a native desktop application: OS UI font, dense layout,
+// compact controls, tight radii, flat hairline surfaces. The strong default.
+[data-theme='desktop'] {
+  @include hmis-theme(
+    #11141a, #2b313b, #bd672a, rgba(189, 103, 42, 0.11),
+    #eef0f3, #ffffff, #e6e9ee, #d3d8e0,
+    #f7f8fa, rgba(20, 23, 28, 0.05),
+    #11141a, #fff,
+    600, var(--hmis-system),
+    0.3rem, none
+  );
+  --hmis-brand-bg: #11141a;
+  --hmis-brand-fg: #ffffff;
+
+  // Native font + tighter density throughout. Near-square corners — desktop
+  // controls are rectangular, not the rounded pills of the web.
+  --bs-body-font-family: var(--hmis-system);
+  --bs-body-font-size: 0.82rem;
+  --bs-border-radius: 3px;
+  --bs-border-radius-sm: 2px;
+  --bs-border-radius-lg: 4px;
+  --bs-border-radius-xl: 5px;
+
+  font-family: var(--hmis-system);
+
+  // Flat, crisp panels (no soft float) divided by hairlines.
+  .card {
+    --bs-card-border-radius: 4px;
+    box-shadow: none;
+  }
+
+  // Compact rectangular controls.
+  .btn {
+    --bs-btn-border-radius: 3px;
+    --bs-btn-padding-y: 0.32rem;
+    --bs-btn-padding-x: 0.7rem;
+    --bs-btn-font-size: 0.82rem;
+  }
+  .btn-sm {
+    --bs-btn-border-radius: 2px;
+    --bs-btn-padding-y: 0.18rem;
+    --bs-btn-padding-x: 0.5rem;
+    --bs-btn-font-size: 0.78rem;
+  }
+  .btn-lg { --bs-btn-font-size: 0.9rem; }
+  // Pills look web-y — square them off into normal buttons.
+  .rounded-pill, .btn.rounded-pill { border-radius: 3px !important; }
+
+  .form-control, .form-select {
+    --bs-border-radius: 3px;
+    padding-top: 0.34rem;
+    padding-bottom: 0.34rem;
+    font-size: 0.82rem;
+  }
+  .form-control-sm, .form-select-sm { font-size: 0.78rem; }
+
+  // Thin, crisp focus outline (not the web's big glow).
+  .form-control:focus, .form-select:focus, .form-check-input:focus {
+    box-shadow: 0 0 0 2px var(--hmis-accent-soft);
+  }
+
+  // Dense data grids with full gridlines — the desktop "list/table view".
+  .table {
+    font-size: 0.82rem;
+    --bs-table-border-color: var(--hmis-border);
+    border: 1px solid var(--hmis-border);
+  }
+  .table > :not(caption) > * > * {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--hmis-border);
+  }
+  .table > thead { --bs-table-bg: var(--hmis-surface-2); }
+
+  .dropdown-menu { --bs-dropdown-border-radius: 4px; font-size: 0.82rem; }
+  .modal-content { --bs-modal-border-radius: 5px; }
+  .badge { --bs-badge-border-radius: 2px; }
+  .input-group-text { font-size: 0.82rem; }
+  .nav-link { font-size: 0.82rem; }
+
+  h1, h2, h3, h4, h5, h6, .hmis-page-title {
+    font-family: var(--hmis-system);
+    letter-spacing: -0.01em;
+  }
+  .hmis-page-title { font-size: 1.35rem; font-weight: 600; }
+}
+
+// Midnight — dark desktop: slate background, light text, amber accent.
+[data-theme='midnight'] {
+  @include hmis-theme(
+    #f1f4f9, #ccd4e0, #e0922f, rgba(224, 146, 47, 0.15),
+    #0f1216, #181c23, #232831, #2b313b,
+    #0c0e12, rgba(255, 255, 255, 0.06),
+    #e0922f, #14171c,
+    650, var(--hmis-sans),
+    0.5rem, var(--hmis-shadow-md)
+  );
+  --hmis-brand-bg: #232831;
+  --hmis-brand-fg: #f1f4f9;
 }
 
 * {
@@ -107,10 +361,19 @@ html, body {
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.35);
+  background: rgba(120, 110, 90, 0.35);
   border-radius: 8px;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.55); }
+::-webkit-scrollbar-thumb:hover { background: rgba(120, 110, 90, 0.55); }
+
+// Fraunces reads best with optical sizing on for display headings.
+h1, h2, h3, h4, h5, h6, .hmis-page-title {
+  font-optical-sizing: auto;
+  letter-spacing: -0.005em;
+}
+
+// Amber accent helper.
+.text-accent { color: var(--hmis-accent) !important; }
 
 // Reusable surface utilities
 .hmis-surface {
@@ -129,8 +392,12 @@ html, body {
 }
 
 .hmis-page-title {
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-family: var(--hmis-sans);
+  font-weight: 700;
+  font-size: 1.8rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--hmis-ink);
   margin: 0;
 }
 
@@ -142,6 +409,17 @@ html, body {
   margin-bottom: 1.25rem;
 }
 
+// Mono uppercase "eyebrow" label — the small tracked kicker above a title or
+// inside a stat card (e.g. "— REPORTING-SERVICE · DASHBOARD", "GROSS BOOKINGS").
+.hmis-eyebrow {
+  font-family: var(--hmis-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--hmis-text-muted);
+}
+
 .hmis-empty {
   text-align: center;
   padding: 3rem 1.5rem;
@@ -149,7 +427,7 @@ html, body {
 
   i {
     font-size: 2.5rem;
-    color: #cbd5e1;
+    color: #c9bda6;
     margin-bottom: 0.75rem;
   }
 }
@@ -157,49 +435,51 @@ html, body {
 .form-label {
   font-weight: 500;
   font-size: 0.825rem;
-  color: #334155;
+  color: var(--hmis-ink);
   margin-bottom: 0.35rem;
 }
 
 // ------- Shared masterdata list styling -----------------------------------
 
 .hmis-code {
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  font-family: var(--hmis-mono);
   font-size: 0.78rem;
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--hmis-surface-2);
+  color: var(--hmis-text-muted);
   padding: 0.15rem 0.45rem;
   border-radius: 0.35rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--hmis-border);
   letter-spacing: 0.02em;
 }
 
 .hmis-table {
   thead th {
-    font-size: 0.72rem;
+    font-family: var(--hmis-mono);
+    font-size: 0.7rem;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: #64748b;
-    font-weight: 600;
-    background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
-    padding: 0.75rem 1rem;
+    letter-spacing: 0.1em;
+    color: var(--hmis-text-muted);
+    font-weight: 500;
+    background: var(--hmis-surface-2);
+    border-bottom: 1px solid var(--hmis-border);
+    padding: 0.7rem 1rem;
   }
 
   tbody td {
     padding: 0.85rem 1rem;
-    border-color: #f1f5f9;
+    border-color: var(--hmis-border);
   }
 
   tbody tr:hover {
-    background: #fafbfc;
+    background: var(--hmis-surface-2);
   }
 }
 
-.hmis-skeleton-row .hmis-skeleton {
+.hmis-skeleton-row .hmis-skeleton,
+.skeleton {
   display: inline-block;
   height: 0.85rem;
-  background: linear-gradient(90deg, #e2e8f0 0%, #f1f5f9 50%, #e2e8f0 100%);
+  background: linear-gradient(90deg, #e7ddca 0%, #f2ebdc 50%, #e7ddca 100%);
   background-size: 200% 100%;
   animation: hmisSkeletonShimmer 1.4s ease-in-out infinite;
   border-radius: 0.25rem;
@@ -208,4 +488,44 @@ html, body {
 @keyframes hmisSkeletonShimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+// =========================================================================
+//  Dark-mode reconciliation — many templates use light Bootstrap utilities
+//  (.bg-white, .bg-light, .btn-light) that don't follow Bootstrap's dark
+//  mode. Remap them to themed surfaces so dark themes are fully dark.
+// =========================================================================
+
+[data-bs-theme='dark'] {
+  .bg-white { background-color: var(--hmis-surface) !important; }
+
+  .bg-light,
+  .text-bg-light {
+    background-color: var(--hmis-surface-2) !important;
+    color: var(--hmis-ink) !important;
+  }
+
+  .btn-light {
+    --bs-btn-bg: var(--hmis-surface-2);
+    --bs-btn-border-color: var(--hmis-border);
+    --bs-btn-color: var(--hmis-ink);
+    --bs-btn-hover-bg: var(--hmis-border);
+    --bs-btn-hover-border-color: var(--hmis-border);
+    --bs-btn-hover-color: var(--hmis-ink);
+    --bs-btn-active-bg: var(--hmis-border);
+    --bs-btn-active-color: var(--hmis-ink);
+  }
+
+  .table-light {
+    --bs-table-bg: var(--hmis-surface-2);
+    --bs-table-color: var(--hmis-ink);
+    --bs-table-border-color: var(--hmis-border);
+  }
+
+  .hmis-skeleton-row .hmis-skeleton,
+  .skeleton {
+    background: linear-gradient(90deg, #232831 0%, #2c333d 50%, #232831 100%);
+  }
+
+  .hmis-empty i { color: #3a414d; }
 }

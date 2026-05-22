@@ -32,5 +32,13 @@ public record CreatePatientRequest(
 
         @Size(max = 160) String kinFullName,
         @Size(max = 80)  String kinRelationship,
-        @Size(max = 40)  String kinPhoneNo) {
+        @Size(max = 40)  String kinPhoneNo,
+
+        @Size(max = 160) String kin2FullName,
+        @Size(max = 80)  String kin2Relationship,
+        @Size(max = 40)  String kin2PhoneNo,
+
+        @Size(max = 160) String kin3FullName,
+        @Size(max = 80)  String kin3Relationship,
+        @Size(max = 40)  String kin3PhoneNo) {
 }

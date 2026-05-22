@@ -5,6 +5,7 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Human Resources",
-        allowedDependencies = {"common", "common.*", "iam"}
+        allowedDependencies = {"common", "iam", "encounter"},
+        type = org.springframework.modulith.ApplicationModule.Type.OPEN
 )
 package com.otapp.hmis.engine.hr;

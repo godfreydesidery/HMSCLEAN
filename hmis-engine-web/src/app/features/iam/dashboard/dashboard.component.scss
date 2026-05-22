@@ -29,7 +29,7 @@
   &__stat-value {
     font-size: 1.45rem;
     font-weight: 600;
-    color: #0f172a;
+    color: var(--hmis-ink);
     letter-spacing: -0.01em;
     line-height: 1.1;
   }
@@ -43,16 +43,16 @@
     gap: 0.5rem;
     background: repeating-linear-gradient(
       45deg,
-      #f8fafc,
-      #f8fafc 10px,
-      #f1f5f9 10px,
-      #f1f5f9 20px
+      var(--hmis-surface),
+      var(--hmis-surface) 10px,
+      var(--hmis-surface-2) 10px,
+      var(--hmis-surface-2) 20px
     );
     border-radius: 0.65rem;
 
     i {
       font-size: 2.5rem;
-      color: #cbd5e1;
+      color: var(--hmis-text-muted);
     }
   }
 
@@ -71,12 +71,12 @@
     font-size: 0.72rem;
     padding: 0.25rem 0.55rem;
     border-radius: 999px;
-    background: #f1f5f9;
-    color: #334155;
-    border: 1px solid #e2e8f0;
+    background: var(--hmis-surface-2);
+    color: var(--hmis-ink);
+    border: 1px solid var(--hmis-border);
 
     i {
-      color: #16a34a;
+      color: var(--bs-success);
       font-size: 0.85rem;
     }
   }
@@ -89,4 +89,14 @@
   30% { transform: rotate(14deg); }
   40% { transform: rotate(-4deg); }
   50% { transform: rotate(10deg); }
+}
+
+// Desktop theme: drop the web-style hover "lift" — keep cards flat & static.
+:host-context([data-theme='desktop']) .dashboard__stat-card {
+  transition: none;
+
+  &:hover {
+    transform: none;
+    box-shadow: none;
+  }
 }

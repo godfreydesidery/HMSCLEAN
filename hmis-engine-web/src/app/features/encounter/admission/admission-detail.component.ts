@@ -8,15 +8,23 @@ import { finalize, forkJoin } from 'rxjs';
 import { RecordPaymentComponent } from '../../billing/record-payment.component';
 import { InvoiceService } from '../../billing/invoice.service';
 import { INVOICE_STATUSES, Invoice, InvoiceStatus } from '../../billing/invoice.types';
+import { ConsumableIssueService } from '../../consumables/consumable.service';
+import { ConsumableIssue } from '../../consumables/consumable.types';
+import { IssueConsumableModalComponent } from '../../consumables/issue-consumable-modal.component';
 import { WardService } from '../../masterdata/wards/ward.service';
 import { Ward } from '../../masterdata/wards/ward.types';
 import { PAYMENT_TYPES, PaymentType } from '../../patient/patient.types';
 import { AdmissionService } from './admission.service';
 import { ADMISSION_STATUSES, Admission, AdmissionStatus } from './admission.types';
+import { DischargePlanModalComponent } from './discharge-plan-modal.component';
+import { DischargePlan } from './discharge-plan.types';
+import { MedicationAdminService } from './medication-admin.service';
+import { MedicationAdministration } from './medication-admin.types';
+import { RecordAdministrationModalComponent } from './record-administration-modal.component';
 import { ProgressNoteService } from './progress-note.service';
 import { PROGRESS_NOTE_KINDS, ProgressNote, ProgressNoteKind } from './progress-note.types';
 
-type TabKey = 'overview' | 'notes' | 'billing';
+type TabKey = 'overview' | 'notes' | 'meds' | 'consumables' | 'billing';
 
 @Component({
   selector: 'app-admission-detail',
@@ -31,6 +39,8 @@ export class AdmissionDetailComponent {
   private readonly wardService = inject(WardService);
   private readonly noteService = inject(ProgressNoteService);
   private readonly invoiceService = inject(InvoiceService);
+  private readonly consumableIssueService = inject(ConsumableIssueService);
+  private readonly medAdminService = inject(MedicationAdminService);
   private readonly modal = inject(NgbModal);
   private readonly fb = inject(FormBuilder);
 
@@ -43,6 +53,9 @@ export class AdmissionDetailComponent {
   readonly wards = signal<Ward[]>([]);
   readonly notes = signal<ProgressNote[]>([]);
   readonly invoice = signal<Invoice | null>(null);
+  readonly consumables = signal<ConsumableIssue[]>([]);
+  readonly meds = signal<MedicationAdministration[]>([]);
+  readonly medsLoaded = signal(false);
 
   readonly loading = signal(true);
   readonly notesLoading = signal(false);
@@ -58,9 +71,6 @@ export class AdmissionDetailComponent {
   readonly transferForm = this.fb.nonNullable.group({
     wardUid: ['', [Validators.required]],
     bedLabel: ['', [Validators.maxLength(32)]]
-  });
-  readonly dischargeForm = this.fb.nonNullable.group({
-    summary: ['', [Validators.maxLength(1000)]]
   });
   readonly cancelForm = this.fb.nonNullable.group({
     reason: ['', [Validators.maxLength(255)]]
@@ -90,22 +100,57 @@ export class AdmissionDetailComponent {
     forkJoin({
       admission: this.admissionService.findByUid(uid),
       notes: this.noteService.list(uid),
-      invoice: this.invoiceService.findForAdmission(uid)
+      invoice: this.invoiceService.findForAdmission(uid),
+      consumables: this.consumableIssueService.listForAdmission(uid)
     }).pipe(finalize(() => {
       this.loading.set(false);
       this.notesLoading.set(false);
       this.invoiceLoading.set(false);
     })).subscribe({
-      next: ({ admission, notes, invoice }) => {
+      next: ({ admission, notes, invoice, consumables }) => {
         this.admission.set(admission);
         this.notes.set(notes);
         this.invoice.set(invoice);
+        this.consumables.set(consumables);
       },
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load admission.')
     });
   }
 
-  setTab(tab: TabKey): void { this.activeTab.set(tab); }
+  setTab(tab: TabKey): void {
+    this.activeTab.set(tab);
+    if (tab === 'meds' && !this.medsLoaded()) this.loadMeds();
+  }
+
+  private loadMeds(): void {
+    const a = this.admission(); if (!a) return;
+    this.medAdminService.list(a.uid).subscribe({
+      next: (rows) => { this.meds.set(rows); this.medsLoaded.set(true); },
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load the medication record.')
+    });
+  }
+
+  openRecordAdministration(): void {
+    const a = this.admission(); if (!a) return;
+    const ref = this.modal.open(RecordAdministrationModalComponent, { size: 'lg', backdrop: 'static' });
+    const inst = ref.componentInstance as RecordAdministrationModalComponent;
+    inst.admissionUid = a.uid;
+    inst.consultationUid = a.consultationUid;
+    ref.closed.subscribe((rec?: MedicationAdministration) => {
+      if (rec) this.meds.update((rows) => [rec, ...rows]);
+    });
+  }
+
+  openIssueConsumable(): void {
+    const a = this.admission();
+    if (!a) return;
+    const ref = this.modal.open(IssueConsumableModalComponent, { size: 'lg', backdrop: 'static' });
+    const inst = ref.componentInstance as IssueConsumableModalComponent;
+    inst.admissionUid = a.uid;
+    ref.closed.subscribe((saved?: ConsumableIssue) => {
+      if (saved) this.consumables.update((rows) => [...rows, saved]);
+    });
+  }
 
   // ----- ward transfer / discharge / cancel --------------------------------
 
@@ -128,24 +173,24 @@ export class AdmissionDetailComponent {
       });
   }
 
-  openDischarge(content: unknown, kind: 'discharge' | 'deceased' | 'transferOut'): void {
+  /**
+   * Discharge / deceased / referral all go through the structured discharge
+   * plan (PROCESS_MISMATCHES.md M17): author the plan, then a different user
+   * approves it — approval is what closes the admission. The direct
+   * discharge endpoints are gated server-side on an APPROVED plan.
+   */
+  openDischargePlan(): void {
     const a = this.admission(); if (!a) return;
-    this.dischargeForm.reset({ summary: a.dischargeSummary ?? '' });
-    this.modal.open(content, { centered: true }).result.then((action) => {
-      if (action === kind) this.confirmDischarge(a, kind);
-    }, () => {});
-  }
-
-  private confirmDischarge(a: Admission, kind: 'discharge' | 'deceased' | 'transferOut'): void {
-    if (this.dischargeForm.invalid) return;
-    const summary = this.dischargeForm.controls.summary.value.trim() || null;
-    this.busy.set(true);
-    const obs = kind === 'discharge' ? this.admissionService.discharge(a.uid, summary)
-              : kind === 'deceased' ? this.admissionService.markDeceased(a.uid, summary)
-              : this.admissionService.transferOut(a.uid, summary);
-    obs.pipe(finalize(() => this.busy.set(false))).subscribe({
-      next: (updated) => { this.admission.set(updated); this.actionMessage.set('Admission closed.'); },
-      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Action failed.')
+    const ref = this.modal.open(DischargePlanModalComponent, { size: 'lg', backdrop: 'static', scrollable: true });
+    (ref.componentInstance as DischargePlanModalComponent).admissionUid = a.uid;
+    ref.closed.subscribe((plan: DischargePlan | undefined) => {
+      if (!plan) return;
+      // Approval closed the admission — refresh the view.
+      this.actionMessage.set('Discharge plan approved — admission closed.');
+      this.admissionService.findByUid(a.uid).subscribe({
+        next: (updated) => this.admission.set(updated),
+        error: () => { /* keep previous */ }
+      });
     });
   }
 

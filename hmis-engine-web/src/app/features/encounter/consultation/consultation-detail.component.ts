@@ -15,8 +15,10 @@ import {
 } from '../diagnosis/consultation-diagnosis.types';
 import { ClinicalNoteService } from '../note/clinical-note.service';
 import { ClinicalNote } from '../note/clinical-note.types';
+import { AttachmentsModalComponent } from '../attachment/attachments-modal.component';
 import { AddOrderComponent } from '../order/add-order.component';
 import { ClinicalOrderService } from '../order/clinical-order.service';
+import { TransferConsultationModalComponent } from './transfer-consultation-modal.component';
 import {
   CLINICAL_ORDER_KINDS, CLINICAL_ORDER_STATUSES, ClinicalOrder, ClinicalOrderKind, ClinicalOrderStatus,
   ORDER_URGENCIES, OrderUrgency
@@ -93,6 +95,14 @@ export class ConsultationDetailComponent {
     const s = this.consultation()?.status;
     return s === 'BOOKED' || s === 'IN_PROGRESS';
   });
+  readonly canTransfer = computed(() => {
+    const c = this.consultation();
+    if (!c) return false;
+    const s = c.status;
+    return (s === 'BOOKED' || s === 'IN_PROGRESS') && !c.transferredToConsultationUid;
+  });
+  /** Once a visit is complete the next visit is a follow-up; before then it's just the current one. */
+  readonly canFollowUp = computed(() => this.consultation()?.status === 'COMPLETED');
   readonly isEditable = computed(() => {
     const s = this.consultation()?.status;
     return s === 'BOOKED' || s === 'IN_PROGRESS';
@@ -100,6 +110,14 @@ export class ConsultationDetailComponent {
 
   readonly workingDiagnoses = computed(() => this.diagnoses().filter((d) => d.kind === 'WORKING'));
   readonly finalDiagnoses = computed(() => this.diagnoses().filter((d) => d.kind === 'FINAL'));
+
+  /** Clinical orders grouped into a separate table per kind (lab / radiology / procedure). */
+  readonly orderGroups = computed(() => {
+    const all = this.orders();
+    return this.orderKinds
+      .map((k) => ({ kind: k.value, label: k.label, icon: k.icon, rows: all.filter((o) => o.kind === k.value) }))
+      .filter((g) => g.rows.length > 0);
+  });
 
   constructor() {
     const uid = this.route.snapshot.paramMap.get('uid');
@@ -260,10 +278,14 @@ export class ConsultationDetailComponent {
     ref.closed.subscribe(() => this.refreshOrders());
   }
 
-  startOrder(o: ClinicalOrder): void {
-    this.orderService.start(o.uid).subscribe({
+  /** The accept (lab/radiology) or approve (procedure) gate before the order can be worked. */
+  orderGateLabel(o: ClinicalOrder): string { return o.kind === 'PROCEDURE' ? 'Approve' : 'Accept'; }
+
+  passOrderGate(o: ClinicalOrder): void {
+    const op = o.kind === 'PROCEDURE' ? this.orderService.approve(o.uid) : this.orderService.accept(o.uid);
+    op.subscribe({
       next: () => this.refreshOrders(),
-      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not start order.')
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not advance order.')
     });
   }
 
@@ -279,6 +301,34 @@ export class ConsultationDetailComponent {
     this.orderService.cancel(o.uid, reason).subscribe({
       next: () => this.refreshOrders(),
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not cancel order.')
+    });
+  }
+
+  openAttachments(o: ClinicalOrder): void {
+    const ref = this.modal.open(AttachmentsModalComponent, { size: 'lg', backdrop: 'static' });
+    const inst = ref.componentInstance as AttachmentsModalComponent;
+    inst.orderUid = o.uid;
+    inst.orderLabel = `${o.kind} · ${o.orderNo}`;
+  }
+
+  // ----- Phase 44: transfer + follow-up linkage --------------------------
+
+  openTransfer(): void {
+    const c = this.consultation();
+    if (!c) return;
+    const ref = this.modal.open(TransferConsultationModalComponent, { size: 'lg', backdrop: 'static' });
+    const inst = ref.componentInstance as TransferConsultationModalComponent;
+    inst.sourceUid = c.uid;
+    ref.closed.subscribe((receiver) => {
+      if (receiver?.uid) void this.router.navigate(['/encounters/consultations', receiver.uid]);
+    });
+  }
+
+  scheduleFollowUp(): void {
+    const c = this.consultation();
+    if (!c) return;
+    void this.router.navigate(['/encounters/consultations/new'], {
+      queryParams: { patientUid: c.patientUid, followUpOf: c.uid }
     });
   }
 

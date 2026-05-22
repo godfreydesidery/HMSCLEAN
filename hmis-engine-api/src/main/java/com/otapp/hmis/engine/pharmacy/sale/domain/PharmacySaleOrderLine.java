@@ -55,6 +55,14 @@ public class PharmacySaleOrderLine extends AuditableEntity {
     @Column(nullable = false, length = 16)
     private PharmacySaleLineStatus status = PharmacySaleLineStatus.PENDING;
 
+    // ----- multi-pharmacy dispense (Phase 37) ------------------------------
+    // Both populated when the line moves to SOLD. The sale-order header
+    // carries the issuing pharmacy; this captures any cross-pharmacy stock
+    // pull so the legacy {@code issuePharmacy / salesPharmacy} split is
+    // preserved without an explicit transfer document.
+    @Setter @Column(name = "issue_pharmacy_uid", length = 26) private String issuePharmacyUid;
+    @Setter @Column(name = "sales_pharmacy_uid", length = 26) private String salesPharmacyUid;
+
     @Column(name = "created_at_line", nullable = false) private Instant createdAtLine;
     @Setter @Column(name = "accepted_at")  private Instant acceptedAt;
     @Setter @Column(name = "held_at")      private Instant heldAt;

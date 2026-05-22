@@ -48,25 +48,33 @@ public class Invoice extends AuditableEntity {
     @Setter @Column(nullable = false, length = 3) private String currency;
     @Setter @Column(nullable = false, precision = 14, scale = 2) private BigDecimal subtotal = BigDecimal.ZERO;
     @Setter @Column(name = "total_paid", nullable = false, precision = 14, scale = 2) private BigDecimal totalPaid = BigDecimal.ZERO;
+    /** Sum of applied credit notes — write-downs that reduce the patient's outstanding balance. */
+    @Setter @Column(name = "total_credited", nullable = false, precision = 14, scale = 2) private BigDecimal totalCredited = BigDecimal.ZERO;
 
     @Setter
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private InvoiceStatus status = InvoiceStatus.DRAFT;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private InvoiceScope scope;
+
     @Setter @Column(name = "issued_at")    private Instant issuedAt;
     @Setter @Column(name = "paid_at")      private Instant paidAt;
     @Setter @Column(name = "cancelled_at") private Instant cancelledAt;
     @Setter @Column(name = "cancel_reason", length = 255) private String cancelReason;
 
-    private Invoice(String invoiceNo, String consultationUid, String admissionUid, String patientUid,
-                    PaymentType paymentType, String insurancePlanUid, String currency) {
+    @SuppressWarnings("java:S107") // private constructor; the 4 named factories keep the public surface narrow
+    private Invoice(String invoiceNo, InvoiceScope scope, String consultationUid, String admissionUid,
+                    String patientUid, PaymentType paymentType, String insurancePlanUid, String currency) {
         if (consultationUid != null && admissionUid != null) {
             throw new BusinessRuleException(
                     "An invoice cannot reference both a consultation and an admission");
         }
-        // both null is allowed — that's an OUTSIDER (walk-in) invoice keyed only by patient.
+        // both null is allowed — that's an OUTSIDER or REGISTRATION invoice keyed only by patient.
         this.invoiceNo = invoiceNo;
+        this.scope = scope;
         this.consultationUid = consultationUid;
         this.admissionUid = admissionUid;
         this.patientUid = patientUid;
@@ -77,26 +85,46 @@ public class Invoice extends AuditableEntity {
 
     public static Invoice forConsultation(String invoiceNo, String consultationUid, String patientUid,
                                           PaymentType paymentType, String insurancePlanUid, String currency) {
-        return new Invoice(invoiceNo, consultationUid, null, patientUid, paymentType, insurancePlanUid, currency);
+        return new Invoice(invoiceNo, InvoiceScope.CONSULTATION,
+                consultationUid, null, patientUid, paymentType, insurancePlanUid, currency);
     }
 
     public static Invoice forAdmission(String invoiceNo, String admissionUid, String patientUid,
                                        PaymentType paymentType, String insurancePlanUid, String currency) {
-        return new Invoice(invoiceNo, null, admissionUid, patientUid, paymentType, insurancePlanUid, currency);
+        return new Invoice(invoiceNo, InvoiceScope.ADMISSION,
+                null, admissionUid, patientUid, paymentType, insurancePlanUid, currency);
     }
 
     /** OUTSIDER walk-in invoice — keyed only by patient, no consultation or admission. */
     public static Invoice forOutsider(String invoiceNo, String patientUid,
                                       PaymentType paymentType, String insurancePlanUid, String currency) {
-        return new Invoice(invoiceNo, null, null, patientUid, paymentType, insurancePlanUid, currency);
+        return new Invoice(invoiceNo, InvoiceScope.OUTSIDER,
+                null, null, patientUid, paymentType, insurancePlanUid, currency);
+    }
+
+    /** Registration fee invoice — one per patient, generated at registration time. */
+    public static Invoice forRegistration(String invoiceNo, String patientUid,
+                                          PaymentType paymentType, String insurancePlanUid, String currency) {
+        return new Invoice(invoiceNo, InvoiceScope.REGISTRATION,
+                null, null, patientUid, paymentType, insurancePlanUid, currency);
     }
 
     public boolean isOutsider() {
-        return consultationUid == null && admissionUid == null;
+        return scope == InvoiceScope.OUTSIDER;
     }
 
+    public boolean isRegistration() {
+        return scope == InvoiceScope.REGISTRATION;
+    }
+
+    /** What the patient still owes: billed amount minus cash received minus authorised write-downs. */
     public BigDecimal balance() {
-        return subtotal.subtract(totalPaid);
+        return subtotal.subtract(totalPaid).subtract(totalCredited);
+    }
+
+    /** Cash received + write-downs — used by status roll-ups so a fully-credited invoice settles. */
+    public BigDecimal settledAmount() {
+        return totalPaid.add(totalCredited);
     }
 
     public void issue() {
@@ -127,11 +155,67 @@ public class Invoice extends AuditableEntity {
             throw new BusinessRuleException("Cannot apply payment to a cancelled invoice");
         }
         BigDecimal newTotal = totalPaid.add(amount);
-        if (newTotal.compareTo(subtotal) > 0) {
+        if (newTotal.add(totalCredited).compareTo(subtotal) > 0) {
             throw new BusinessRuleException("Payment exceeds invoice balance");
         }
         totalPaid = newTotal;
-        if (totalPaid.compareTo(subtotal) >= 0) {
+        recomputeStatusAfterCredit();
+    }
+
+    /**
+     * Applies an authorised write-down. Reduces balance without recording
+     * cash. The caller (CreditNoteService) is responsible for the
+     * {@link com.otapp.hmis.engine.billing.creditnote.domain.CreditNote}
+     * audit record.
+     */
+    public void applyCreditNote(BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0) {
+            throw new BusinessRuleException("Credit-note amount must be positive");
+        }
+        if (status == InvoiceStatus.DRAFT) {
+            throw new BusinessRuleException("Cannot credit a DRAFT invoice (issue it first)");
+        }
+        if (status == InvoiceStatus.CANCELLED) {
+            throw new BusinessRuleException("Cannot credit a cancelled invoice");
+        }
+        BigDecimal newCredited = totalCredited.add(amount);
+        if (newCredited.add(totalPaid).compareTo(subtotal) > 0) {
+            throw new BusinessRuleException("Credit-note exceeds invoice outstanding balance");
+        }
+        totalCredited = newCredited;
+        recomputeStatusAfterCredit();
+    }
+
+    /**
+     * Returns money against this invoice. Reduces {@link #totalPaid} and
+     * may roll the status back from PAID to PARTIALLY_PAID / ISSUED.
+     */
+    public void applyRefund(BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0) {
+            throw new BusinessRuleException("Refund amount must be positive");
+        }
+        if (status == InvoiceStatus.DRAFT) {
+            throw new BusinessRuleException("Cannot refund a DRAFT invoice");
+        }
+        if (status == InvoiceStatus.CANCELLED) {
+            throw new BusinessRuleException("Cannot refund a cancelled invoice");
+        }
+        if (amount.compareTo(totalPaid) > 0) {
+            throw new BusinessRuleException("Refund exceeds amount paid");
+        }
+        totalPaid = totalPaid.subtract(amount);
+        // Status may need to roll back: settled-fully → partially → still issued.
+        if (settledAmount().signum() == 0) {
+            status = InvoiceStatus.ISSUED;
+            paidAt = null;
+        } else if (settledAmount().compareTo(subtotal) < 0) {
+            status = InvoiceStatus.PARTIALLY_PAID;
+            paidAt = null;
+        }
+    }
+
+    private void recomputeStatusAfterCredit() {
+        if (settledAmount().compareTo(subtotal) >= 0) {
             status = InvoiceStatus.PAID;
             paidAt = Instant.now();
         } else {

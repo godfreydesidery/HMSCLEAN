@@ -28,8 +28,34 @@ public final class ClinicalOrderDtos {
             String instructions,
             String result,
             String cancelReason,
+            String theatreUid,
+            String theatreName,
+            Instant scheduledAt,
+            String scheduledByUsername,
             Instant createdAt,
             Instant updatedAt) {}
+
+    /**
+     * Row of the cross-patient Orders &amp; Results worklist. Carries the
+     * resolved patient + service labels so the list renders without N extra
+     * fetches on the client.
+     */
+    public record OrderWorklistDto(
+            String uid,
+            String orderNo,
+            ClinicalOrderKind kind,
+            String serviceCode,
+            String serviceName,
+            ClinicalOrderStatus status,
+            OrderUrgency urgency,
+            Instant requestedAt,
+            Instant completedAt,
+            String patientUid,
+            String patientNo,
+            String patientName,
+            com.otapp.hmis.engine.patient.domain.PatientClassScope patientClass,
+            boolean settled,
+            String consultationUid) {}
 
     public record CreateOrderRequest(
             @NotNull ClinicalOrderKind kind,
@@ -42,4 +68,12 @@ public final class ClinicalOrderDtos {
 
     public record CancelOrderRequest(
             @Size(max = 255) String reason) {}
+
+    /**
+     * Books a theatre + time slot for a PROCEDURE order. Only valid for
+     * procedure orders that are not yet COMPLETED or CANCELLED.
+     */
+    public record ScheduleOrderRequest(
+            @NotBlank @Size(min = 26, max = 26) String theatreUid,
+            @NotNull Instant scheduledAt) {}
 }

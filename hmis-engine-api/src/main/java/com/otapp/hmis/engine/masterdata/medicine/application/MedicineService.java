@@ -9,6 +9,8 @@ import com.otapp.hmis.engine.masterdata.medicine.application.MedicineDtos.Update
 import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineForm;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineRepository;
+import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineUnit;
+import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineUnitRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -18,7 +20,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class MedicineService {
 
+    /** Default base-unit code seeded with every new medicine. */
+    public static final String DEFAULT_BASE_UNIT_CODE = "EACH";
+    public static final String DEFAULT_BASE_UNIT_NAME = "Each";
+
     private final MedicineRepository repo;
+    private final MedicineUnitRepository unitRepo;
 
     @Transactional
     public MedicineDto create(CreateMedicineRequest request) {
@@ -29,6 +36,8 @@ public class MedicineService {
         Medicine m = new Medicine(code, request.name().trim(), request.genericName(),
                 request.strength(), request.form(), request.description());
         repo.save(m);
+        unitRepo.save(new MedicineUnit(
+                m.getUid(), DEFAULT_BASE_UNIT_CODE, DEFAULT_BASE_UNIT_NAME, 1, true));
         return toDto(m);
     }
 

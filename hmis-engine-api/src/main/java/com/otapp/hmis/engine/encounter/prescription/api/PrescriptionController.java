@@ -1,13 +1,18 @@
 package com.otapp.hmis.engine.encounter.prescription.api;
 
+import com.otapp.hmis.engine.common.api.PageResponse;
 import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos.CancelPrescriptionRequest;
 import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos.CreatePrescriptionRequest;
 import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos.PrescriptionDto;
+import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos.PrescriptionWorklistRow;
 import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionService;
+import com.otapp.hmis.engine.encounter.prescription.domain.PrescriptionStatus;
+import com.otapp.hmis.engine.patient.domain.PatientClassScope;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +29,17 @@ public class PrescriptionController {
     @GetMapping("/encounters/consultations/uid/{consultationUid}/prescriptions")
     public ResponseEntity<List<PrescriptionDto>> list(@PathVariable String consultationUid) {
         return ResponseEntity.ok(prescriptionService.listForConsultation(consultationUid));
+    }
+
+    /** Pharmacy dispensing queue — prescriptions awaiting pharmacy action, scoped by patient class. */
+    @GetMapping("/encounters/prescriptions/worklist")
+    @PreAuthorize("hasAuthority('PHARMACY_ACCESS')")
+    public ResponseEntity<PageResponse<PrescriptionWorklistRow>> dispenseWorklist(
+            @RequestParam(required = false) PrescriptionStatus status,
+            @RequestParam(required = false) PatientClassScope patientClass,
+            @RequestParam(defaultValue = "false") boolean settledOnly,
+            Pageable pageable) {
+        return ResponseEntity.ok(prescriptionService.searchDispenseWorklist(status, patientClass, settledOnly, pageable));
     }
 
     @PostMapping("/encounters/consultations/uid/{consultationUid}/prescriptions")

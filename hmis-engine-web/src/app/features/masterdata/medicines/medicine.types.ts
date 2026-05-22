@@ -43,3 +43,15 @@ export interface UpdateMedicineRequest {
 }
 
 export interface MedicineSearchParams { query?: string; active?: boolean; form?: MedicineForm; page?: number; size?: number; sort?: string; }
+
+export interface MedicineUnit {
+  uid: string;
+  medicineUid: string;
+  code: string;
+  name: string;
+  factorToBase: number;
+  base: boolean;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

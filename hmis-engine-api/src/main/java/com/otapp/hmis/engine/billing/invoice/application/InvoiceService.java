@@ -2,9 +2,8 @@ package com.otapp.hmis.engine.billing.invoice.application;
 
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.CancelInvoiceRequest;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceDto;
-import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceLineDto;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceSummary;
-import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.PaymentDto;
+import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.OverrideLinePriceRequest;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.RecordPaymentRequest;
 import com.otapp.hmis.engine.billing.invoice.domain.Invoice;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLine;
@@ -24,6 +23,8 @@ import com.otapp.hmis.engine.encounter.admission.domain.AdmissionRepository;
 import com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
+import com.otapp.hmis.engine.encounter.consumable.domain.ConsumableIssue;
+import com.otapp.hmis.engine.encounter.consumable.domain.ConsumableIssueRepository;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrder;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderKind;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderRepository;
@@ -33,8 +34,6 @@ import com.otapp.hmis.engine.encounter.prescription.domain.PrescriptionRepositor
 import com.otapp.hmis.engine.encounter.prescription.domain.PrescriptionStatus;
 import com.otapp.hmis.engine.masterdata.clinic.domain.Clinic;
 import com.otapp.hmis.engine.masterdata.clinic.domain.ClinicRepository;
-import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlan;
-import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlanRepository;
 import com.otapp.hmis.engine.masterdata.labtest.domain.LabTestType;
 import com.otapp.hmis.engine.masterdata.labtest.domain.LabTestTypeRepository;
 import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
@@ -66,8 +65,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class InvoiceService {
 
-    private static final String DEFAULT_CURRENCY = "TZS";
-
     private final InvoiceRepository invoiceRepository;
     private final InvoiceLineRepository invoiceLineRepository;
     private final PaymentRepository paymentRepository;
@@ -75,6 +72,7 @@ public class InvoiceService {
     private final AdmissionRepository admissionRepository;
     private final ClinicalOrderRepository clinicalOrderRepository;
     private final PrescriptionRepository prescriptionRepository;
+    private final ConsumableIssueRepository consumableIssueRepository;
     private final ClinicRepository clinicRepository;
     private final WardRepository wardRepository;
     private final LabTestTypeRepository labTestTypeRepository;
@@ -82,15 +80,23 @@ public class InvoiceService {
     private final ProcedureTypeRepository procedureTypeRepository;
     private final MedicineRepository medicineRepository;
     private final PatientRepository patientRepository;
-    private final InsurancePlanRepository insurancePlanRepository;
     private final InvoiceNumberGenerator invoiceNumberGenerator;
     private final PaymentNumberGenerator paymentNumberGenerator;
     private final PriceLookup priceLookup;
+    private final InvoiceDtoAssembler dtoAssembler;
+    private final InvoiceLinePricing linePricing;
+    private final SettlementDispatcher settlementDispatcher;
+    private final com.otapp.hmis.engine.masterdata.currency.application.CurrencyService currencyService;
 
     /**
-     * Generates or regenerates the invoice for a consultation. Only allowed
-     * while the existing invoice is still DRAFT; once issued, the lines are
-     * locked. Returns the (possibly fresh) invoice with all its lines.
+     * Tops up the consultation invoice with newly-billable work. The invoice
+     * itself is seeded at booking by {@link ConsultationFeeService} (the
+     * up-front consultation fee), so this is now <b>additive and idempotent</b>:
+     * it ensures the invoice exists, adds the consultation-fee line if missing,
+     * and appends any COMPLETED clinical order / DISPENSED prescription that
+     * hasn't already been billed on this invoice. Charges accrue (legacy
+     * behaviour); existing lines and recorded payments are never discarded, so
+     * it is safe to call on an already-ISSUED / partially-paid invoice.
      */
     @Transactional
     public InvoiceDto generateForConsultation(String consultationUid) {
@@ -98,9 +104,6 @@ public class InvoiceService {
                 .orElseThrow(() -> new NotFoundException("Consultation not found: " + consultationUid));
 
         Invoice invoice = invoiceRepository.findByConsultationUid(consultationUid).orElse(null);
-        if (invoice != null && invoice.getStatus() != InvoiceStatus.DRAFT) {
-            throw new BusinessRuleException("Invoice is already " + invoice.getStatus() + " and cannot be regenerated");
-        }
         if (invoice == null) {
             invoice = Invoice.forConsultation(
                     invoiceNumberGenerator.next(),
@@ -108,22 +111,25 @@ public class InvoiceService {
                     consultation.getPatientUid(),
                     consultation.getPaymentType(),
                     consultation.getInsurancePlanUid(),
-                    DEFAULT_CURRENCY);
+                    currencyService.defaultCode());
             invoiceRepository.save(invoice);
-        } else {
-            invoiceLineRepository.deleteAllByInvoiceUid(invoice.getUid());
-            invoice.setSubtotal(BigDecimal.ZERO);
-            invoice.setPaymentType(consultation.getPaymentType());
-            invoice.setInsurancePlanUid(consultation.getInsurancePlanUid());
+        }
+
+        // What's already on this invoice — never double-bill the same reference.
+        Set<String> billed = new HashSet<>();
+        boolean hasConsultationFeeLine = false;
+        for (InvoiceLine existing : invoiceLineRepository.findAllByInvoiceUidOrderByCreatedAtAsc(invoice.getUid())) {
+            if (existing.getReferenceUid() != null) billed.add(existing.getReferenceUid());
+            if (existing.getKind() == InvoiceLineKind.CONSULTATION) hasConsultationFeeLine = true;
         }
 
         List<InvoiceLine> lines = new ArrayList<>();
-        BigDecimal subtotal = BigDecimal.ZERO;
+        BigDecimal subtotal = invoice.getSubtotal();
         String currency = invoice.getCurrency();
 
-        // 1) Consultation fee
+        // 1) Consultation fee — only if it wasn't already seeded at booking.
         Clinic clinic = clinicRepository.findByUid(consultation.getClinicUid()).orElse(null);
-        if (clinic != null) {
+        if (clinic != null && !hasConsultationFeeLine) {
             PriceLookup.Resolved r = priceLookup.resolve(ServiceKind.CONSULTATION, clinic.getUid(), consultation.getInsurancePlanUid(), currency);
             currency = r.currency();
             lines.add(new InvoiceLine(invoice.getUid(), InvoiceLineKind.CONSULTATION,
@@ -136,6 +142,7 @@ public class InvoiceService {
         // 2) Clinical orders that are COMPLETED — actually billed only when service is rendered
         for (ClinicalOrder order : clinicalOrderRepository.findAllByConsultationUidOrderByRequestedAtDesc(consultationUid)) {
             if (order.getStatus() != ClinicalOrderStatus.COMPLETED) continue;
+            if (billed.contains(order.getUid())) continue;
             InvoiceLineKind lineKind = mapKind(order.getKind());
             ServiceKind serviceKind = mapServiceKind(order.getKind());
             String serviceName = resolveOrderServiceName(order);
@@ -151,6 +158,7 @@ public class InvoiceService {
         // 3) Prescriptions that are DISPENSED — quantity-based
         for (Prescription rx : prescriptionRepository.findAllByConsultationUidOrderByRequestedAtDesc(consultationUid)) {
             if (rx.getStatus() != PrescriptionStatus.SOLD) continue;
+            if (billed.contains(rx.getUid())) continue;
             Medicine medicine = medicineRepository.findByUid(rx.getMedicineUid()).orElse(null);
             PriceLookup.Resolved r = priceLookup.resolve(ServiceKind.MEDICINE, rx.getMedicineUid(), consultation.getInsurancePlanUid(), currency);
             currency = r.currency();
@@ -196,7 +204,7 @@ public class InvoiceService {
                     admission.getPatientUid(),
                     admission.getPaymentType(),
                     admission.getInsurancePlanUid(),
-                    DEFAULT_CURRENCY);
+                    currencyService.defaultCode());
             invoiceRepository.save(invoice);
         } else {
             invoiceLineRepository.deleteAllByInvoiceUid(invoice.getUid());
@@ -221,6 +229,18 @@ public class InvoiceService {
                     ward.getUid(), admission.getUid(),
                     "Ward stay — " + ward.getName() + " (" + days + " day" + (days.compareTo(BigDecimal.ONE) == 0 ? "" : "s") + ")",
                     days, r.amount(), amount));
+            subtotal = subtotal.add(amount);
+        }
+
+        // 2) Patient consumable chart — every consumable issued against this
+        // admission becomes a CONSUMABLE line using the snapshot unit cost.
+        for (ConsumableIssue issue : consumableIssueRepository.findAllByAdmissionUidOrderByIssuedAtAsc(admissionUid)) {
+            BigDecimal qty = BigDecimal.valueOf(issue.getQuantity());
+            BigDecimal amount = issue.lineAmount();
+            lines.add(new InvoiceLine(invoice.getUid(), InvoiceLineKind.CONSUMABLE,
+                    issue.getConsumableUid(), issue.getUid(),
+                    "Consumable — " + issue.getConsumableUid() + " ×" + issue.getQuantity(),
+                    qty, issue.getUnitCost(), amount));
             subtotal = subtotal.add(amount);
         }
 
@@ -261,7 +281,7 @@ public class InvoiceService {
                     patient.getUid(),
                     patient.getPaymentType(),
                     patient.getInsurancePlanUid(),
-                    DEFAULT_CURRENCY);
+                    currencyService.defaultCode());
             invoiceRepository.save(invoice);
         } else {
             invoiceLineRepository.deleteAllByInvoiceUid(invoice.getUid());
@@ -348,6 +368,38 @@ public class InvoiceService {
         return toDto(invoice);
     }
 
+    /**
+     * Negotiate the unit price of a single line within the service's
+     * {@code [min, max]} band (M: enforced negotiable pricing). Allowed only
+     * while the invoice is still open and unpaid; the line amount and invoice
+     * subtotal are recomputed from the new unit price.
+     */
+    @Transactional
+    public InvoiceDto overrideLinePrice(String invoiceUid, String lineUid, OverrideLinePriceRequest request) {
+        Invoice invoice = loadOrThrow(invoiceUid);
+        if (!linePricing.overridable(invoice)) {
+            throw new BusinessRuleException(
+                    "Line prices can only be changed before any payment is taken (current status: "
+                            + invoice.getStatus() + ")");
+        }
+        InvoiceLine line = invoiceLineRepository.findByUid(lineUid)
+                .orElseThrow(() -> new NotFoundException("Invoice line not found: " + lineUid));
+        if (!invoice.getUid().equals(line.getInvoiceUid())) {
+            throw new BusinessRuleException("Line does not belong to invoice " + invoice.getInvoiceNo());
+        }
+
+        PriceLookup.Resolved band = linePricing.bandFor(line, invoice.getInsurancePlanUid(), invoice.getCurrency());
+        linePricing.validateOverride(request.unitPrice(), band);
+
+        line.setUnitPrice(request.unitPrice());
+        line.setAmount(request.unitPrice().multiply(line.getQuantity()));
+
+        BigDecimal subtotal = invoiceLineRepository.findAllByInvoiceUidOrderByCreatedAtAsc(invoice.getUid())
+                .stream().map(InvoiceLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        invoice.setSubtotal(subtotal);
+        return toDto(invoice);
+    }
+
     @Transactional
     public InvoiceDto recordPayment(String uid, RecordPaymentRequest request) {
         Invoice invoice = loadOrThrow(uid);
@@ -365,6 +417,9 @@ public class InvoiceService {
                 emptyToNull(request.note()));
         paymentRepository.save(payment);
         invoice.applyPayment(request.amount());
+        // If this payment fully settled the invoice, push the settled state to
+        // the encounter module (consultation-fee gate, dispensed prescriptions).
+        settlementDispatcher.onInvoiceMaybeSettled(invoice);
         return toDto(invoice);
     }
 
@@ -427,37 +482,7 @@ public class InvoiceService {
     }
 
     private InvoiceDto toDto(Invoice invoice) {
-        List<InvoiceLine> lines = invoiceLineRepository.findAllByInvoiceUidOrderByCreatedAtAsc(invoice.getUid());
-        List<Payment> payments = paymentRepository.findAllByInvoiceUidOrderByReceivedAtAsc(invoice.getUid());
-        Patient patient = patientRepository.findByUid(invoice.getPatientUid()).orElse(null);
-        InsurancePlan plan = invoice.getInsurancePlanUid() == null
-                ? null
-                : insurancePlanRepository.findByUid(invoice.getInsurancePlanUid()).orElse(null);
-
-        return new InvoiceDto(
-                invoice.getUid(),
-                invoice.getInvoiceNo(),
-                invoice.getConsultationUid(),
-                invoice.getAdmissionUid(),
-                invoice.getPatientUid(),
-                patient == null ? null : patient.fullName(),
-                patient == null ? null : patient.getPatientNo(),
-                invoice.getPaymentType(),
-                invoice.getInsurancePlanUid(),
-                plan == null ? null : plan.getName(),
-                invoice.getCurrency(),
-                invoice.getSubtotal(),
-                invoice.getTotalPaid(),
-                invoice.balance(),
-                invoice.getStatus(),
-                invoice.getIssuedAt(),
-                invoice.getPaidAt(),
-                invoice.getCancelledAt(),
-                invoice.getCancelReason(),
-                invoice.getCreatedAt(),
-                invoice.getUpdatedAt(),
-                lines.stream().map(InvoiceService::toLineDto).toList(),
-                payments.stream().map(InvoiceService::toPaymentDto).toList());
+        return dtoAssembler.toDto(invoice);
     }
 
     private InvoiceSummary toSummary(Invoice i) {
@@ -465,6 +490,7 @@ public class InvoiceService {
         return new InvoiceSummary(
                 i.getUid(),
                 i.getInvoiceNo(),
+                i.getScope(),
                 i.getConsultationUid(),
                 i.getAdmissionUid(),
                 i.getPatientUid(),
@@ -478,31 +504,6 @@ public class InvoiceService {
                 i.getCurrency(),
                 i.getIssuedAt(),
                 i.getCreatedAt());
-    }
-
-    private static InvoiceLineDto toLineDto(InvoiceLine l) {
-        return new InvoiceLineDto(
-                l.getUid(),
-                l.getKind(),
-                l.getServiceUid(),
-                l.getReferenceUid(),
-                l.getDescription(),
-                l.getQuantity(),
-                l.getUnitPrice(),
-                l.getAmount());
-    }
-
-    private static PaymentDto toPaymentDto(Payment p) {
-        return new PaymentDto(
-                p.getUid(),
-                p.getPaymentNo(),
-                p.getMethod(),
-                p.getAmount(),
-                p.getCurrency(),
-                p.getReference(),
-                p.getNote(),
-                p.getReceivedAt(),
-                p.getCreatedAt());
     }
 
     private static String emptyToNull(String s) {

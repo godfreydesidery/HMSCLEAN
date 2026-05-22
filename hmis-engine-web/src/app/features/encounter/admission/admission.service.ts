@@ -25,6 +25,15 @@ export class AdmissionService {
     return this.http.get<PageResponse<AdmissionSummary>>(this.base, { params: p });
   }
 
+  /** Nurse worklist — currently-admitted patients, optionally filtered by ward. */
+  nurseWorklist(params: { wardUid?: string; page?: number; size?: number } = {}): Observable<PageResponse<AdmissionSummary>> {
+    let p = new HttpParams();
+    if (params.wardUid) p = p.set('wardUid', params.wardUid);
+    if (params.page !== undefined) p = p.set('page', String(params.page));
+    if (params.size !== undefined) p = p.set('size', String(params.size));
+    return this.http.get<PageResponse<AdmissionSummary>>(`${this.base}/nurse-worklist`, { params: p });
+  }
+
   findByUid(uid: string): Observable<Admission> { return this.http.get<Admission>(`${this.base}/uid/${uid}`); }
   admit(req: AdmitPatientRequest): Observable<Admission> { return this.http.post<Admission>(this.base, req); }
   transferWard(uid: string, req: TransferWardRequest): Observable<Admission> {

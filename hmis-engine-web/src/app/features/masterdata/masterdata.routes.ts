@@ -54,6 +54,10 @@ export const MASTERDATA_ROUTES: Routes = [
       {
         path: 'pricing',
         loadComponent: () => import('./pricing/price-list.component').then((m) => m.PriceListComponent)
+      },
+      {
+        path: 'currencies',
+        loadComponent: () => import('./currencies/currency-list.component').then((m) => m.CurrencyListComponent)
       }
     ]
   }

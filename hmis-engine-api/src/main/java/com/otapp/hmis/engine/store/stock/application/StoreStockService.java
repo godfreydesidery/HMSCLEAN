@@ -8,6 +8,7 @@ import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineRepository;
 import com.otapp.hmis.engine.masterdata.store.domain.Store;
 import com.otapp.hmis.engine.masterdata.store.domain.StoreRepository;
 import com.otapp.hmis.engine.store.stock.application.StoreStockDtos.AdjustStoreStockRequest;
+import com.otapp.hmis.engine.store.stock.application.StoreStockDtos.BatchPickResult;
 import com.otapp.hmis.engine.store.stock.application.StoreStockDtos.ReceiveStoreStockRequest;
 import com.otapp.hmis.engine.store.stock.application.StoreStockDtos.StoreStockBalanceDto;
 import com.otapp.hmis.engine.store.stock.application.StoreStockDtos.StoreStockBatchDto;
@@ -71,6 +72,40 @@ public class StoreStockService {
                 emptyToNull(referenceUid), emptyToNull(note));
     }
 
+    /**
+     * Cross-module entry point used by the pharmacy-to-store return service
+     * when a return is completed. Same machinery as
+     * {@link #receiveFromProcurement} but records a {@code RETURN}
+     * movement so finance can split returns from real procurement in
+     * reports.
+     */
+    @Transactional
+    public StoreStockBatchDto receiveFromPharmacyReturn(String storeUid, String medicineUid,
+                                                        String batchNo, LocalDate expiresAt,
+                                                        int quantity, String referenceUid, String note) {
+        if (quantity <= 0) {
+            throw new BusinessRuleException("Return quantity must be positive");
+        }
+        Store store = activeStore(storeUid);
+        Medicine medicine = activeMedicine(medicineUid);
+
+        StoreStockBatch batch = batchRepository
+                .findByStoreUidAndMedicineUidAndBatchNo(store.getUid(), medicine.getUid(), batchNo)
+                .orElseGet(() -> batchRepository.save(
+                        new StoreStockBatch(store.getUid(), medicine.getUid(), batchNo, expiresAt)));
+        if (expiresAt != null && !expiresAt.equals(batch.getExpiresAt())) {
+            batch.setExpiresAt(expiresAt);
+        }
+        batch.applyDelta(quantity);
+
+        StoreStockBalance balance = lockOrCreateBalance(store.getUid(), medicine.getUid());
+        balance.applyDelta(quantity);
+
+        recordMovement(balance, batch, StoreStockMovementKind.RETURN, quantity,
+                emptyToNull(referenceUid), emptyToNull(note));
+        return toBatchDto(batch, medicine);
+    }
+
     private StoreStockBatchDto doReceive(String storeUid, String medicineUid, String batchNo,
                                          LocalDate expiresAt, int quantity, String referenceUid, String note) {
         Store store = activeStore(storeUid);
@@ -90,6 +125,60 @@ public class StoreStockService {
 
         recordMovement(balance, batch, StoreStockMovementKind.RECEIPT, quantity, referenceUid, note);
         return toBatchDto(batch, medicine);
+    }
+
+    // ----- issue to pharmacy (cross-module entry) ---------------------------
+
+    /**
+     * FEFO-walk the store's batches for {@code medicineUid}, decrementing
+     * each in turn until {@code requested} units have been pulled. Returns
+     * one {@link BatchPickResult} per batch consumed so the caller (the
+     * pharmacy↔store transfer service) can persist matching pick rows and
+     * propagate batch metadata to the receiving pharmacy.
+     *
+     * <p>The destination pharmacy's stock is NOT touched here — that
+     * happens later when the pharmacy signs the RN.
+     */
+    @Transactional
+    public List<BatchPickResult> issueToPharmacy(String storeUid, String medicineUid,
+                                                 int requested, String referenceUid, String note) {
+        if (requested <= 0) {
+            throw new BusinessRuleException("Issue quantity must be positive");
+        }
+        Store store = activeStore(storeUid);
+        Medicine medicine = activeMedicine(medicineUid);
+
+        List<StoreStockBatch> batches = batchRepository.lockFefoForIssue(store.getUid(), medicine.getUid());
+        int onHand = batches.stream().mapToInt(StoreStockBatch::getQuantity).sum();
+        if (onHand < requested) {
+            throw new BusinessRuleException(
+                    "Insufficient store stock: on hand " + onHand + ", requested " + requested);
+        }
+
+        StoreStockBalance balance = balanceRepository.lockByStoreUidAndMedicineUid(store.getUid(), medicine.getUid())
+                .orElseThrow(() -> new BusinessRuleException("No balance row for medicine"));
+
+        List<BatchPickResult> picks = new ArrayList<>();
+        int remaining = requested;
+        for (StoreStockBatch batch : batches) {
+            if (remaining <= 0) break;
+            int take = Math.min(remaining, batch.getQuantity());
+            if (take > 0) {
+                batch.applyDelta(-take);
+                balance.applyDelta(-take);
+                StoreStockMovement movement = recordMovement(balance, batch,
+                        StoreStockMovementKind.ISSUE, -take,
+                        emptyToNull(referenceUid), emptyToNull(note));
+                picks.add(new BatchPickResult(
+                        batch.getUid(), batch.getBatchNo(), batch.getExpiresAt(),
+                        take, movement.getUid()));
+                remaining -= take;
+            }
+        }
+        if (remaining > 0) {
+            throw new BusinessRuleException("Could not fulfil " + requested + ": " + remaining + " short");
+        }
+        return picks;
     }
 
     // ----- adjust -----------------------------------------------------------
@@ -117,6 +206,48 @@ public class StoreStockService {
     }
 
     // ----- read paths -------------------------------------------------------
+
+    private static final int LOW_STOCK_THRESHOLD = 10;
+    private static final int EXPIRY_WINDOW_DAYS = 30;
+
+    /**
+     * Server-side, paginated store stock list: filters by medicine name/code,
+     * low-stock-only and expiring-only at the DB, then rolls up the page's
+     * balance rows with their batch details.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<StoreStockBalanceDto> searchBalances(String storeUid, String query,
+                                                             boolean lowOnly, boolean expiringOnly,
+                                                             Pageable pageable) {
+        Store store = storeRepository.findByUid(storeUid)
+                .orElseThrow(() -> new NotFoundException("Store not found: " + storeUid));
+        String search = emptyToNull(query);
+        LocalDate cutoff = LocalDate.now().plusDays(EXPIRY_WINDOW_DAYS);
+        return PageResponse.from(
+                balanceRepository.searchBalances(store.getUid(), search, lowOnly, LOW_STOCK_THRESHOLD,
+                        expiringOnly, cutoff, pageable)
+                        .map(bal -> toBalanceDto(store, bal)));
+    }
+
+    private StoreStockBalanceDto toBalanceDto(Store store, StoreStockBalance bal) {
+        Medicine medicine = medicineRepository.findByUid(bal.getMedicineUid()).orElse(null);
+        List<StoreStockBatch> rows = batchRepository
+                .findAllByStoreUidAndMedicineUid(store.getUid(), bal.getMedicineUid());
+        LocalDate earliest = rows.stream().map(StoreStockBatch::getExpiresAt).filter(d -> d != null)
+                .min(Comparator.naturalOrder()).orElse(null);
+        List<StoreStockBatchDto> batchDtos = rows.stream().map(b -> toBatchDto(b, medicine)).toList();
+        return new StoreStockBalanceDto(
+                store.getUid(),
+                store.getName(),
+                bal.getMedicineUid(),
+                medicine == null ? null : medicine.getCode(),
+                medicine == null ? null : medicine.getName(),
+                medicine == null ? null : medicine.getStrength(),
+                bal.getQuantity(),
+                rows.size(),
+                earliest,
+                batchDtos);
+    }
 
     @Transactional(readOnly = true)
     public List<StoreStockBalanceDto> listBalances(String storeUid) {

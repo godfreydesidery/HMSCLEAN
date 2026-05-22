@@ -5,6 +5,7 @@
  * and other building blocks that must not depend on any business module.
  */
 @org.springframework.modulith.ApplicationModule(
-        displayName = "Common (shared kernel)"
+        displayName = "Common (shared kernel)",
+        type = org.springframework.modulith.ApplicationModule.Type.OPEN
 )
 package com.otapp.hmis.engine.common;

@@ -1,0 +1,84 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">Lab batches</h1>
+    <p class="hmis-muted mb-0 small">Group same-test orders for a single bench run.</p>
+  </div>
+  <div class="ms-auto">
+    <a class="btn btn-primary" routerLink="new"><i class="bi bi-plus-lg me-1"></i> New batch</a>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <fieldset class="btn-group btn-group-sm border-0 p-0 m-0">
+      <legend class="visually-hidden">Status filter</legend>
+      <button type="button" class="btn btn-outline-secondary" [class.active]="statusFilter() === 'ALL'" (click)="setStatusFilter('ALL')">All</button>
+      @for (s of statuses; track s.value) {
+        <button type="button" class="btn btn-outline-secondary" [class.active]="statusFilter() === s.value" (click)="setStatusFilter(s.value)">{{ s.label }}</button>
+      }
+    </fieldset>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 hmis-table">
+      <thead><tr><th>Batch #</th><th>Test</th><th>Status</th><th class="text-end">Members</th><th>Opened</th><th class="text-end"></th></tr></thead>
+      <tbody>
+        @if (loading()) {
+          @for (i of [1,2,3,4,5]; track i) {
+            <tr class="hmis-skeleton-row">
+              <td><span class="hmis-skeleton" style="width:120px;"></span></td>
+              <td><span class="hmis-skeleton" style="width:200px;"></span></td>
+              <td><span class="hmis-skeleton" style="width:80px;"></span></td>
+              <td class="text-end"><span class="hmis-skeleton" style="width:40px;"></span></td>
+              <td><span class="hmis-skeleton" style="width:140px;"></span></td>
+              <td class="text-end"><span class="hmis-skeleton" style="width:60px;"></span></td>
+            </tr>
+          }
+        } @else if (items().length === 0) {
+          <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-collection"></i><div class="fw-semibold mb-1">No lab batches</div><div class="small">Create a batch to group identical lab tests for a single bench run.</div></div></td></tr>
+        } @else {
+          @for (b of items(); track b.uid) {
+            <tr (click)="view(b)" style="cursor:pointer;">
+              <td><a class="hmis-code" [routerLink]="['/encounters/lab-batches', b.uid]" (click)="$event.stopPropagation()">{{ b.batchNo }}</a></td>
+              <td>
+                <div class="fw-semibold">{{ b.labTestName || b.labTestTypeUid }}</div>
+                @if (b.labTestCode) { <div class="hmis-muted small">{{ b.labTestCode }}</div> }
+              </td>
+              <td><span [class]="statusBadgeClass(b.status)">{{ statusLabel(b.status) }}</span></td>
+              <td class="text-end">{{ b.memberCount }}</td>
+              <td class="hmis-muted small">{{ b.openedAt | date:'short' }}</td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-light border" [routerLink]="['/encounters/lab-batches', b.uid]" (click)="$event.stopPropagation()">Open <i class="bi bi-arrow-right ms-1"></i></a>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (!loading() && items().length > 0) {
+    <div class="card-footer bg-white d-flex flex-wrap align-items-center gap-2">
+      <div class="hmis-muted small">Showing {{ items().length }} of {{ totalElements() }}</div>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <label class="hmis-muted small mb-0" for="lab-batch-page-size">Rows</label>
+        <select id="lab-batch-page-size" name="pageSize" class="form-select form-select-sm" style="width:auto;" [value]="pageSize()" (change)="changePageSize(+$any($event.target).value)">
+          <option [value]="10">10</option><option [value]="15">15</option><option [value]="25">25</option><option [value]="50">50</option>
+        </select>
+        <nav aria-label="Pagination" class="ms-2">
+          <ul class="pagination pagination-sm mb-0">
+            <li class="page-item" [class.disabled]="page() === 0"><button type="button" class="page-link" (click)="goToPage(page() - 1)" aria-label="Previous"><i class="bi bi-chevron-left"></i></button></li>
+            @for (p of pageWindow(); track p) { <li class="page-item" [class.active]="p === page()"><button type="button" class="page-link" (click)="goToPage(p)">{{ p + 1 }}</button></li> }
+            <li class="page-item" [class.disabled]="page() >= totalPages() - 1"><button type="button" class="page-link" (click)="goToPage(page() + 1)" aria-label="Next"><i class="bi bi-chevron-right"></i></button></li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+  }
+</div>

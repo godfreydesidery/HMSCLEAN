@@ -2,10 +2,12 @@ import { CommonModule } from '@angular/common';
 import { Component, Input, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { Observable, finalize } from 'rxjs';
+import { Observable, finalize, of } from 'rxjs';
 
 import { PageResponse } from '../../../core/http/page.types';
 import { ClinicService } from '../clinics/clinic.service';
+import { CurrencyService } from '../currencies/currency.service';
+import { Currency } from '../currencies/currency.types';
 import { InsurancePlanService } from '../insurance-plans/insurance-plan.service';
 import { InsurancePlan } from '../insurance-plans/insurance-plan.types';
 import { LabTestTypeService } from '../lab-tests/lab-test.service';
@@ -14,7 +16,7 @@ import { ProcedureTypeService } from '../procedures/procedure.service';
 import { RadiologyTypeService } from '../radiology/radiology.service';
 import { WardService } from '../wards/ward.service';
 import { ServicePriceService } from './service-price.service';
-import { SERVICE_KINDS, ServiceKind, ServicePrice } from './service-price.types';
+import { REGISTRATION_SERVICE_UID, SERVICE_KINDS, ServiceKind, ServicePrice } from './service-price.types';
 
 interface ServiceOption {
   uid: string;
@@ -30,9 +32,15 @@ interface ServiceOption {
 export class PriceFormComponent implements OnInit {
   @Input() existing: ServicePrice | null = null;
 
+  /** Optional pre-scoping for a "set price for this service" shortcut (e.g. a clinic's consultation fee). */
+  @Input() presetKind: ServiceKind | null = null;
+  @Input() presetServiceUid: string | null = null;
+  @Input() presetServiceLabel: string | null = null;
+
   private readonly fb = inject(FormBuilder);
   private readonly priceService = inject(ServicePriceService);
   private readonly planService = inject(InsurancePlanService);
+  private readonly currencyService = inject(CurrencyService);
 
   private readonly clinicService = inject(ClinicService);
   private readonly labService = inject(LabTestTypeService);
@@ -45,6 +53,7 @@ export class PriceFormComponent implements OnInit {
 
   readonly serviceKinds = SERVICE_KINDS;
   readonly plans = signal<InsurancePlan[]>([]);
+  readonly currencies = signal<Currency[]>([]);
   readonly serviceOptions = signal<ServiceOption[]>([]);
   readonly servicesLoading = signal(false);
   readonly submitting = signal(false);
@@ -55,6 +64,8 @@ export class PriceFormComponent implements OnInit {
     kind: ['CONSULTATION' as ServiceKind, [Validators.required]],
     serviceUid: ['', [Validators.required]],
     amount: [0, [Validators.required, Validators.min(0)]],
+    minAmount: [null as number | null, [Validators.min(0)]],
+    maxAmount: [null as number | null, [Validators.min(0)]],
     currency: ['TZS', [Validators.required, Validators.pattern(/^[A-Z]{3}$/)]],
     note: ['', [Validators.maxLength(255)]]
   });
@@ -62,6 +73,17 @@ export class PriceFormComponent implements OnInit {
   ngOnInit(): void {
     this.planService.search({ active: true, size: 200, sort: 'name,asc' }).subscribe({
       next: (res) => this.plans.set(res.content),
+      error: () => { /* ignore */ }
+    });
+    this.currencyService.search({ active: true, size: 200, sort: 'code,asc' }).subscribe({
+      next: (res) => {
+        this.currencies.set(res.content);
+        // Default a brand-new entry to the system default currency.
+        if (!this.existing) {
+          const def = res.content.find((c) => c.isDefault) ?? res.content[0];
+          if (def) this.form.controls.currency.setValue(def.code);
+        }
+      },
       error: () => { /* ignore */ }
     });
 
@@ -72,24 +94,44 @@ export class PriceFormComponent implements OnInit {
         kind: e.kind,
         serviceUid: e.serviceUid,
         amount: e.amount,
+        minAmount: e.minAmount,
+        maxAmount: e.maxAmount,
         currency: e.currency,
         note: e.note ?? ''
       });
       this.form.controls.kind.disable();
       this.form.controls.serviceUid.disable();
       this.form.controls.planUid.disable();
+      this.form.controls.currency.disable();   // currency is part of the price key — edit amount/band, not currency
       this.loadServiceOptions(e.kind, e.serviceUid, e.serviceName ?? '');
+    } else if (this.presetServiceUid && this.presetKind) {
+      // Pre-scoped to a specific service (e.g. a clinic): lock kind + service, allow plan/amount/band.
+      this.form.patchValue({ kind: this.presetKind, serviceUid: this.presetServiceUid });
+      this.form.controls.kind.disable();
+      this.form.controls.serviceUid.disable();
+      this.loadServiceOptions(this.presetKind, this.presetServiceUid, this.presetServiceLabel ?? '');
     } else {
       this.loadServiceOptions(this.form.controls.kind.value);
       this.form.controls.kind.valueChanges.subscribe((k) => {
-        this.form.controls.serviceUid.setValue('');
+        if (k === 'REGISTRATION') {
+          // Singleton service — auto-select the sentinel and lock the picker.
+          this.form.controls.serviceUid.setValue(REGISTRATION_SERVICE_UID);
+          this.form.controls.serviceUid.disable();
+        } else {
+          this.form.controls.serviceUid.enable();
+          this.form.controls.serviceUid.setValue('');
+        }
         this.loadServiceOptions(k);
       });
     }
   }
 
   get isEdit(): boolean { return !!this.existing; }
-  get title(): string { return this.isEdit ? 'Edit price' : 'Set price'; }
+  get title(): string {
+    if (this.isEdit) return 'Edit price';
+    if (this.presetServiceLabel) return `Set price — ${this.presetServiceLabel}`;
+    return 'Set price';
+  }
 
   private loadServiceOptions(kind: ServiceKind, ensureUid?: string, ensureLabel?: string): void {
     this.servicesLoading.set(true);
@@ -126,6 +168,12 @@ export class PriceFormComponent implements OnInit {
       case 'WARD':
         return this.wardService.search({ active: true, size: 200, sort: 'name,asc' }).pipe(
           mapToOptions((w) => ({ uid: w.uid, label: `${w.name} (${w.code})` })));
+      case 'REGISTRATION':
+        // Singleton — no catalogue; the one "service" is the registration fee itself.
+        return of({
+          content: [{ uid: REGISTRATION_SERVICE_UID, label: 'Patient registration fee' }],
+          page: 0, size: 1, totalElements: 1, totalPages: 1
+        });
     }
   }
 
@@ -134,16 +182,24 @@ export class PriceFormComponent implements OnInit {
     this.submitting.set(true);
     this.errorMessage.set(null);
     const raw = this.form.getRawValue();
-    const payload = {
-      planUid: raw.planUid ? raw.planUid : null,
-      kind: raw.kind,
-      serviceUid: raw.serviceUid,
-      amount: Number(raw.amount),
-      currency: raw.currency.toUpperCase(),
-      note: raw.note?.trim() || null
-    };
-    this.priceService.setPrice(payload)
-      .pipe(finalize(() => this.submitting.set(false)))
+    const min = raw.minAmount === null || raw.minAmount === undefined ? null : Number(raw.minAmount);
+    const max = raw.maxAmount === null || raw.maxAmount === undefined ? null : Number(raw.maxAmount);
+    const existing = this.existing;
+    const req$ = existing
+      ? this.priceService.update(existing.uid, {
+          amount: Number(raw.amount), minAmount: min, maxAmount: max, note: raw.note?.trim() || null
+        })
+      : this.priceService.create({
+          planUid: raw.planUid ? raw.planUid : null,
+          kind: raw.kind,
+          serviceUid: raw.serviceUid,
+          amount: Number(raw.amount),
+          minAmount: min,
+          maxAmount: max,
+          currency: raw.currency.toUpperCase(),
+          note: raw.note?.trim() || null
+        });
+    req$.pipe(finalize(() => this.submitting.set(false)))
       .subscribe({
         next: (p) => this.activeModal.close(p),
         error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not save price.')

@@ -1,0 +1,108 @@
+@if (loading()) {
+  <div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading employee…</div></div>
+} @else if (!employee()) {
+  <div class="alert alert-danger">{{ errorMessage() ?? 'Employee not found.' }}</div>
+} @else {
+  @if (employee(); as e) {
+    <div class="hmis-page-header">
+      <div>
+        <h1 class="hmis-page-title">
+          {{ e.fullName }}
+          <span class="ms-2" [class]="statusBadgeClass(e.employmentStatus)">{{ statusLabel(e.employmentStatus) }}</span>
+        </h1>
+        <p class="hmis-muted mb-0 small">
+          <span class="hmis-code me-2">{{ e.employeeNo }}</span>
+          @if (e.designation) { · {{ e.designation }} }
+          @if (e.department) { · {{ e.department }} }
+        </p>
+      </div>
+      <div class="ms-auto d-flex gap-2 flex-wrap">
+        <a class="btn btn-light border" routerLink="/hr/employees"><i class="bi bi-arrow-left me-1"></i> Back</a>
+        @if (canEdit()) {
+          <button type="button" class="btn btn-light border" (click)="edit()"><i class="bi bi-pencil-square me-1"></i> Edit</button>
+        }
+        @if (!isTerminated()) {
+          <div class="btn-group">
+            <button type="button" class="btn btn-light border dropdown-toggle" data-bs-toggle="dropdown" [disabled]="busy()" aria-expanded="false">
+              <i class="bi bi-toggle2-on me-1"></i> Status
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              @for (s of settableStatuses; track s.value) {
+                <li><button type="button" class="dropdown-item" [disabled]="e.employmentStatus === s.value" (click)="setStatus($any(s.value))">Set {{ s.label }}</button></li>
+              }
+            </ul>
+          </div>
+        }
+        @if (canTerminate()) {
+          <button type="button" class="btn btn-danger" (click)="openTerminate()" [disabled]="busy()"><i class="bi bi-person-x me-1"></i> Terminate</button>
+        }
+      </div>
+    </div>
+
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+    }
+
+    <div class="row g-3">
+      <div class="col-lg-7">
+        <div class="card mb-3">
+          <div class="card-header bg-white"><h2 class="h6 mb-0">Identity</h2></div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-4">First name</dt><dd class="col-sm-8">{{ e.firstName }}</dd>
+              <dt class="col-sm-4">Middle name</dt><dd class="col-sm-8">{{ e.middleName || '—' }}</dd>
+              <dt class="col-sm-4">Last name</dt><dd class="col-sm-8">{{ e.lastName }}</dd>
+              <dt class="col-sm-4">Gender</dt><dd class="col-sm-8">{{ e.gender || '—' }}</dd>
+              <dt class="col-sm-4">Date of birth</dt><dd class="col-sm-8">{{ e.dateOfBirth || '—' }}</dd>
+              <dt class="col-sm-4">National ID</dt><dd class="col-sm-8 hmis-code">{{ e.nationalId || '—' }}</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-header bg-white"><h2 class="h6 mb-0">Contact</h2></div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-4">Phone</dt><dd class="col-sm-8">{{ e.phone || '—' }}</dd>
+              <dt class="col-sm-4">Email</dt><dd class="col-sm-8">{{ e.email || '—' }}</dd>
+              <dt class="col-sm-4">Address</dt><dd class="col-sm-8" style="white-space:pre-line">{{ e.address || '—' }}</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="card mb-3">
+          <div class="card-header bg-white"><h2 class="h6 mb-0">Employment</h2></div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-5">System username</dt><dd class="col-sm-7 hmis-code">{{ e.username || '—' }}</dd>
+              <dt class="col-sm-5">Designation</dt><dd class="col-sm-7">{{ e.designation || '—' }}</dd>
+              <dt class="col-sm-5">Department</dt><dd class="col-sm-7">{{ e.department || '—' }}</dd>
+              <dt class="col-sm-5">Hire date</dt><dd class="col-sm-7">{{ e.hireDate | date:'mediumDate' }}</dd>
+            </dl>
+          </div>
+        </div>
+
+        @if (e.employmentStatus === 'TERMINATED') {
+          <div class="card mb-3">
+            <div class="card-header bg-white"><h2 class="h6 mb-0">Termination</h2></div>
+            <div class="card-body">
+              <dl class="row mb-0">
+                <dt class="col-sm-5">Date</dt><dd class="col-sm-7">{{ e.terminationDate || '—' }}</dd>
+                <dt class="col-sm-5">Reason</dt><dd class="col-sm-7">{{ e.terminationReason || '—' }}</dd>
+              </dl>
+            </div>
+          </div>
+        }
+
+        <div class="card">
+          <div class="card-body">
+            <div class="hmis-muted small">Registered {{ e.createdAt | date:'medium' }}</div>
+            <div class="hmis-muted small">Last updated {{ e.updatedAt | date:'medium' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+}

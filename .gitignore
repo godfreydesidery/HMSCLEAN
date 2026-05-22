@@ -5,7 +5,6 @@ Thumbs.db
 *.swo
 .idea/
 .vscode/*
-!.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
@@ -53,3 +52,6 @@ yarn-error.log*
 
 # --- Docker volumes ---
 .docker-data/
+
+# --- QA deploy state (instance ids, public dns) ---
+deploy/.qa-state

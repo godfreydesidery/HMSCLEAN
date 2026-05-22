@@ -88,6 +88,7 @@ export interface PurchaseOrderSearchParams {
 export interface ReceiveLineRequest {
   poLineUid: string;
   quantity: number;
+  unitUid?: string | null;
   batchNo: string;
   expiresAt: string | null;
 }

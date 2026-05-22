@@ -7,22 +7,28 @@ import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.ConsultationDto;
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.ConsultationSummary;
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.StartConsultationRequest;
+import com.otapp.hmis.engine.encounter.consultation.application.event.ConsultationBookedEvent;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationStatus;
 import com.otapp.hmis.engine.encounter.consultation.infrastructure.ConsultationNumberGenerator;
+import com.otapp.hmis.engine.iam.application.StaffDirectoryService;
 import com.otapp.hmis.engine.iam.domain.User;
 import com.otapp.hmis.engine.iam.domain.UserRepository;
 import com.otapp.hmis.engine.masterdata.clinic.domain.Clinic;
 import com.otapp.hmis.engine.masterdata.clinic.domain.ClinicRepository;
+import com.otapp.hmis.engine.masterdata.clinicstaff.application.ClinicStaffService;
 import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlan;
 import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlanRepository;
+import com.otapp.hmis.engine.patient.application.PatientService;
 import com.otapp.hmis.engine.patient.domain.Patient;
 import com.otapp.hmis.engine.patient.domain.PatientRepository;
 import com.otapp.hmis.engine.patient.domain.PaymentType;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,10 +38,16 @@ public class ConsultationService {
 
     private final ConsultationRepository consultationRepository;
     private final PatientRepository patientRepository;
+    private final PatientService patientService;
     private final ClinicRepository clinicRepository;
     private final InsurancePlanRepository insurancePlanRepository;
     private final UserRepository userRepository;
+    private final ClinicStaffService clinicStaffService;
+    private final StaffDirectoryService staffDirectoryService;
     private final ConsultationNumberGenerator numberGenerator;
+    private final ApplicationEventPublisher eventPublisher;
+
+    private static final String CLINICIAN_ROLE = "CLINICIAN";
 
     @Transactional
     public ConsultationDto book(StartConsultationRequest request) {
@@ -58,6 +70,7 @@ public class ConsultationService {
         if (!clinician.isEnabled()) {
             throw new BusinessRuleException("Clinician account is disabled");
         }
+        requireClinicianOfClinic(clinician, clinic);
 
         boolean needsPlan = request.paymentType() == PaymentType.INSURANCE
                 || request.paymentType() == PaymentType.MIXED;
@@ -71,6 +84,16 @@ public class ConsultationService {
                     .orElseThrow(() -> new NotFoundException("Insurance plan not found: " + planUid));
         }
 
+        // Optional follow-up linkage — must reference an existing consultation for the same patient.
+        String followUpOf = emptyToNull(request.followUpOfConsultationUid());
+        if (followUpOf != null) {
+            Consultation source = consultationRepository.findByUid(followUpOf)
+                    .orElseThrow(() -> new NotFoundException("Source consultation not found: " + followUpOf));
+            if (!source.getPatientUid().equals(patient.getUid())) {
+                throw new BusinessRuleException("Follow-up source consultation belongs to a different patient");
+            }
+        }
+
         Consultation consultation = new Consultation(
                 numberGenerator.next(),
                 patient.getUid(),
@@ -79,15 +102,78 @@ public class ConsultationService {
                 request.paymentType(),
                 planUid,
                 emptyToNull(request.reason()));
+        consultation.setFollowUpOfConsultationUid(followUpOf);
         consultationRepository.save(consultation);
+        patientService.touchLastVisit(patient.getUid());
+
+        // Hand off to billing (after-commit) to seed the consultation-fee invoice —
+        // the legacy "send to doctor creates the consultation bill" step.
+        eventPublisher.publishEvent(new ConsultationBookedEvent(
+                consultation.getUid(), patient.getUid(), consultation.getPaymentType(),
+                consultation.getInsurancePlanUid(), followUpOf != null));
         return toDto(consultation);
+    }
+
+    /**
+     * Hand the patient off to another clinic / clinician. The original
+     * consultation closes as TRANSFERRED; a new BOOKED consultation is
+     * created at the target. Both reference each other for audit.
+     */
+    @Transactional
+    public ConsultationDto transfer(String uid,
+                                    com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.TransferConsultationRequest request) {
+        Consultation source = loadOrThrow(uid);
+        Clinic targetClinic = clinicRepository.findByUid(request.targetClinicUid())
+                .orElseThrow(() -> new NotFoundException("Target clinic not found: " + request.targetClinicUid()));
+        if (!targetClinic.isActive()) {
+            throw new BusinessRuleException("Target clinic is not active: " + targetClinic.getName());
+        }
+        User targetClinician = userRepository.findByUsername(request.targetClinicianUsername())
+                .orElseThrow(() -> new NotFoundException("Target clinician not found: " + request.targetClinicianUsername()));
+        if (!targetClinician.isEnabled()) {
+            throw new BusinessRuleException("Target clinician account is disabled");
+        }
+        requireClinicianOfClinic(targetClinician, targetClinic);
+
+        Consultation receiver = new Consultation(
+                numberGenerator.next(),
+                source.getPatientUid(),
+                targetClinic.getUid(),
+                targetClinician.getUsername(),
+                source.getPaymentType(),
+                source.getInsurancePlanUid(),
+                source.getReason());
+        receiver.setTransferredFromConsultationUid(source.getUid());
+        // Inherit the fee-settled state — a transfer keeps the original
+        // consultation bill; the receiving clinic does not re-charge.
+        if (source.isFeeSettled()) {
+            receiver.markFeeSettled();
+        }
+        consultationRepository.save(receiver);
+
+        source.markTransferredTo(receiver.getUid(), emptyToNull(request.reason()));
+        return toDto(receiver);
     }
 
     @Transactional
     public ConsultationDto start(String uid) {
         Consultation c = loadOrThrow(uid);
+        // Legacy gate: the doctor cannot open a CASH consultation until its
+        // fee is settled. Non-CASH (insurance / corporate) is treated as
+        // COVERED. Follow-up / plan-waived consultations are settled at booking.
+        if (c.getPaymentType() == PaymentType.CASH && !c.isFeeSettled()) {
+            throw new BusinessRuleException(
+                    "Consultation fee not settled — the cashier must collect the consultation fee "
+                    + "before the doctor can open this consultation");
+        }
         c.start();
         return toDto(c);
+    }
+
+    /** Idempotent — flips the consultation-fee gate. Called by the billing settlement dispatcher. */
+    @Transactional
+    public void markFeeSettled(String consultationUid) {
+        consultationRepository.findByUid(consultationUid).ifPresent(Consultation::markFeeSettled);
     }
 
     @Transactional
@@ -131,9 +217,45 @@ public class ConsultationService {
                         .map(this::toSummary));
     }
 
+    /**
+     * The doctor's "from reception" queue: their BOOKED consultations whose
+     * fee is settled (CASH paid, or non-CASH treated as COVERED), oldest
+     * first. Unpaid CASH consultations are hidden until the cashier collects.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<ConsultationSummary> receptionQueue(Pageable pageable) {
+        return PageResponse.from(
+                consultationRepository.findReceptionQueueFor(currentUsername(), pageable)
+                        .map(this::toSummary));
+    }
+
     private Consultation loadOrThrow(String uid) {
         return consultationRepository.findByUid(uid)
                 .orElseThrow(() -> new NotFoundException("Consultation not found: " + uid));
+    }
+
+    /**
+     * Legacy fidelity gate: a consultation may only be routed to a clinician
+     * who holds the {@code CLINICIAN} role <em>and</em> is affiliated with the
+     * chosen clinic ({@code Clinician.clinics}). Defense-in-depth + the
+     * enforceable booking rule.
+     */
+    private void requireClinicianOfClinic(User clinician, Clinic clinic) {
+        if (!staffDirectoryService.isUserInRole(clinician.getUsername(), CLINICIAN_ROLE)) {
+            throw new BusinessRuleException("User " + clinician.getUsername() + " is not a clinician");
+        }
+        if (!clinicStaffService.isAssigned(clinic.getUid(), clinician.getUsername())) {
+            throw new BusinessRuleException(
+                    "Clinician " + clinician.getUsername() + " is not assigned to clinic " + clinic.getName());
+        }
+    }
+
+    private static String currentUsername() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null) {
+            throw new BusinessRuleException("Authenticated user required");
+        }
+        return auth.getName();
     }
 
     // ----- mapping -----------------------------------------------------------
@@ -166,6 +288,11 @@ public class ConsultationService {
                 c.getCompletedAt(),
                 c.getCancelledAt(),
                 c.getCancelReason(),
+                c.getFollowUpOfConsultationUid(),
+                c.getTransferredToConsultationUid(),
+                c.getTransferredFromConsultationUid(),
+                c.getTransferReason(),
+                c.getTransferredAt(),
                 c.getCreatedAt(),
                 c.getUpdatedAt());
     }
@@ -183,6 +310,8 @@ public class ConsultationService {
                 clinic == null ? null : clinic.getName(),
                 clinician == null ? null : clinician.getFirstName() + " " + clinician.getLastName(),
                 c.getStatus(),
+                c.getPaymentType(),
+                c.isFeeSettled(),
                 c.getBookedAt(),
                 c.getStartedAt());
     }

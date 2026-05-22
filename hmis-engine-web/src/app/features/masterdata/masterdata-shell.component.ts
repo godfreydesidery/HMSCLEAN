@@ -79,6 +79,7 @@ export class MasterdataShellComponent {
     { label: 'Medicines',        path: 'medicines',        icon: 'bi-capsule' },
     { label: 'Insurance',        path: 'insurance',        icon: 'bi-shield-check' },
     { label: 'Insurance plans',  path: 'insurance-plans',  icon: 'bi-card-checklist' },
-    { label: 'Pricing',          path: 'pricing',          icon: 'bi-cash-stack' }
+    { label: 'Pricing',          path: 'pricing',          icon: 'bi-cash-stack' },
+    { label: 'Currencies',       path: 'currencies',       icon: 'bi-currency-exchange' }
   ];
 }

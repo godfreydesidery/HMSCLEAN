@@ -3,6 +3,16 @@ import { Routes } from '@angular/router';
 export const ENCOUNTER_ROUTES: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'consultations' },
   {
+    path: 'reception-queue',
+    loadComponent: () =>
+      import('./consultation/reception-queue.component').then((m) => m.ReceptionQueueComponent)
+  },
+  {
+    path: 'nurse-queue',
+    loadComponent: () =>
+      import('./nurse-queue/nurse-queue.component').then((m) => m.NurseQueueComponent)
+  },
+  {
     path: 'consultations',
     loadComponent: () =>
       import('./consultation/consultation-list.component').then((m) => m.ConsultationListComponent)
@@ -31,5 +41,9 @@ export const ENCOUNTER_ROUTES: Routes = [
     path: 'admissions/:uid',
     loadComponent: () =>
       import('./admission/admission-detail.component').then((m) => m.AdmissionDetailComponent)
+  },
+  {
+    path: 'lab-batches',
+    loadChildren: () => import('./lab-batch/lab-batch.routes').then((m) => m.LAB_BATCH_ROUTES)
   }
 ];

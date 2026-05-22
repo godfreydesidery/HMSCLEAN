@@ -1,0 +1,90 @@
+@if (loading()) {
+  <div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading batch…</div></div>
+} @else if (!batch()) {
+  <div class="alert alert-danger">{{ errorMessage() ?? 'Batch not found.' }}</div>
+} @else {
+  @if (batch(); as b) {
+    <div class="hmis-page-header">
+      <div>
+        <h1 class="hmis-page-title">
+          {{ b.batchNo }}
+          <span class="ms-2" [class]="statusBadgeClass(b.status)">{{ statusLabel(b.status) }}</span>
+        </h1>
+        <p class="hmis-muted mb-0 small">
+          {{ b.labTestName || b.labTestTypeUid }}
+          @if (b.labTestCode) { · <span class="hmis-code">{{ b.labTestCode }}</span> }
+          · opened {{ b.openedAt | date:'short' }} by {{ b.openedByUsername }}
+        </p>
+      </div>
+      <div class="ms-auto d-flex gap-2 flex-wrap">
+        <button type="button" class="btn btn-light border" (click)="back()"><i class="bi bi-arrow-left me-1"></i> Back</button>
+        @if (canProcess()) {
+          <button type="button" class="btn btn-primary" (click)="markProcessing()" [disabled]="busy()"><i class="bi bi-play-circle me-1"></i> Mark processing</button>
+        }
+        @if (canComplete()) {
+          <button type="button" class="btn btn-success" (click)="markCompleted()" [disabled]="busy()"><i class="bi bi-check-circle me-1"></i> Complete</button>
+        }
+        @if (canCancel()) {
+          <button type="button" class="btn btn-outline-danger" (click)="cancelBatch()" [disabled]="busy()"><i class="bi bi-x-circle me-1"></i> Cancel</button>
+        }
+      </div>
+    </div>
+
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+    }
+
+    @if (b.note) {
+      <div class="alert alert-light border small"><i class="bi bi-sticky me-2 hmis-muted"></i>{{ b.note }}</div>
+    }
+
+    <div class="card mb-3">
+      <div class="card-header bg-white d-flex align-items-center">
+        <h2 class="h6 mb-0">Members ({{ b.memberCount }})</h2>
+      </div>
+      <ul class="list-group list-group-flush">
+        @if (b.memberOrderUids.length === 0) {
+          <li class="list-group-item hmis-muted">No orders in this batch yet.</li>
+        }
+        @for (orderUid of b.memberOrderUids; track orderUid) {
+          <li class="list-group-item d-flex align-items-center">
+            <a class="hmis-code" [routerLink]="['/orders', orderUid]">{{ orderUid }}</a>
+            <div class="ms-auto">
+              @if (isOpen()) {
+                <button type="button" class="btn btn-sm btn-light border" (click)="removeOrder(orderUid)" [disabled]="busy()" aria-label="Remove from batch">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+      @if (isOpen()) {
+        <div class="card-footer bg-white">
+          <form (ngSubmit)="addOrder()" class="d-flex gap-2 align-items-start">
+            <div class="flex-grow-1">
+              <label for="newOrderUid" class="visually-hidden">Order to add</label>
+              <select id="newOrderUid" name="newOrderUid" class="form-select form-select-sm" [formControl]="selectedOrderUid" [class.is-invalid]="selectedOrderUid.invalid && selectedOrderUid.touched">
+                <option value="" disabled>{{ candidates().length ? '— pick an eligible order —' : 'No eligible orders' }}</option>
+                @for (o of candidates(); track o.orderUid) {
+                  <option [value]="o.orderUid">{{ o.orderNo }} · {{ o.patientName || o.patientUid }}@if (o.patientNo) { <span> ({{ o.patientNo }})</span> }</option>
+                }
+              </select>
+              <div class="form-text small">Requested orders for this test that aren't already in a batch.</div>
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy() || selectedOrderUid.invalid || candidates().length === 0"><i class="bi bi-plus-lg me-1"></i> Add</button>
+          </form>
+        </div>
+      }
+    </div>
+
+    @if (b.cancelReason) {
+      <div class="card mb-3">
+        <div class="card-body small">
+          <div class="hmis-muted">Cancelled {{ b.cancelledAt | date:'medium' }}</div>
+          <div>{{ b.cancelReason }}</div>
+        </div>
+      </div>
+    }
+  }
+}

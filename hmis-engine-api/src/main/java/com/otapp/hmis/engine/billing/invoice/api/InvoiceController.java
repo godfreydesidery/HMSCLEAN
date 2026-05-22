@@ -3,8 +3,12 @@ package com.otapp.hmis.engine.billing.invoice.api;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.CancelInvoiceRequest;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceDto;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceSummary;
+import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.OverrideLinePriceRequest;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.RecordPaymentRequest;
+import com.otapp.hmis.engine.billing.invoice.application.ConsultationFeeService;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceService;
+import com.otapp.hmis.engine.billing.invoice.application.RegistrationFeeService;
+import com.otapp.hmis.engine.billing.invoice.application.ServiceChargeService;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceStatus;
 import com.otapp.hmis.engine.common.api.PageResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,6 +27,9 @@ import org.springframework.web.bind.annotation.*;
 public class InvoiceController {
 
     private final InvoiceService invoiceService;
+    private final RegistrationFeeService registrationFeeService;
+    private final ConsultationFeeService consultationFeeService;
+    private final ServiceChargeService serviceChargeService;
 
     @GetMapping("/billing/invoices")
     public ResponseEntity<PageResponse<InvoiceSummary>> search(
@@ -49,6 +56,26 @@ public class InvoiceController {
         return ResponseEntity.ok(invoiceService.generateForConsultation(consultationUid));
     }
 
+    /** Idempotent recovery: seed the up-front consultation-fee invoice if the booking listener missed it. */
+    @PostMapping("/billing/consultations/uid/{consultationUid}/consultation-fee")
+    public ResponseEntity<InvoiceDto> ensureConsultationFee(@PathVariable String consultationUid) {
+        return ResponseEntity.ok(consultationFeeService.ensureFor(consultationUid));
+    }
+
+    /** Idempotent recovery: bill a consultation order onto its invoice if the raise listener missed it (M13). */
+    @PostMapping("/billing/orders/uid/{orderUid}/charge")
+    public ResponseEntity<Void> chargeOrder(@PathVariable String orderUid) {
+        serviceChargeService.billOrder(orderUid);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Idempotent recovery: bill a consultation prescription onto its invoice if the raise listener missed it (M13). */
+    @PostMapping("/billing/prescriptions/uid/{prescriptionUid}/charge")
+    public ResponseEntity<Void> chargePrescription(@PathVariable String prescriptionUid) {
+        serviceChargeService.billPrescription(prescriptionUid);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/billing/admissions/uid/{admissionUid}/invoice")
     public ResponseEntity<InvoiceDto> findForAdmission(@PathVariable String admissionUid) {
         InvoiceDto dto = invoiceService.findForAdmission(admissionUid);
@@ -71,6 +98,17 @@ public class InvoiceController {
         return ResponseEntity.ok(invoiceService.generateForOutsider(patientUid));
     }
 
+    @GetMapping("/billing/patients/uid/{patientUid}/registration-fee")
+    public ResponseEntity<InvoiceDto> findRegistrationFee(@PathVariable String patientUid) {
+        InvoiceDto dto = registrationFeeService.findFor(patientUid);
+        return dto == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(dto);
+    }
+
+    @PostMapping("/billing/patients/uid/{patientUid}/registration-fee")
+    public ResponseEntity<InvoiceDto> ensureRegistrationFee(@PathVariable String patientUid) {
+        return ResponseEntity.ok(registrationFeeService.ensureFor(patientUid));
+    }
+
     @PostMapping("/billing/invoices/uid/{invoiceUid}/issue")
     public ResponseEntity<InvoiceDto> issue(@PathVariable String invoiceUid) {
         return ResponseEntity.ok(invoiceService.issue(invoiceUid));
@@ -86,5 +124,13 @@ public class InvoiceController {
     public ResponseEntity<InvoiceDto> recordPayment(@PathVariable String invoiceUid,
                                                     @Valid @RequestBody RecordPaymentRequest request) {
         return ResponseEntity.ok(invoiceService.recordPayment(invoiceUid, request));
+    }
+
+    /** Negotiate a line's unit price within the service's [min, max] band. */
+    @PutMapping("/billing/invoices/uid/{invoiceUid}/lines/uid/{lineUid}/price")
+    public ResponseEntity<InvoiceDto> overrideLinePrice(@PathVariable String invoiceUid,
+                                                        @PathVariable String lineUid,
+                                                        @Valid @RequestBody OverrideLinePriceRequest request) {
+        return ResponseEntity.ok(invoiceService.overrideLinePrice(invoiceUid, lineUid, request));
     }
 }

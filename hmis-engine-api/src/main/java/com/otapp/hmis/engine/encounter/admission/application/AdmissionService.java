@@ -15,8 +15,14 @@ import com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus;
 import com.otapp.hmis.engine.encounter.admission.infrastructure.AdmissionNumberGenerator;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
+import com.otapp.hmis.engine.encounter.discharge.domain.DischargePlan;
+import com.otapp.hmis.engine.encounter.discharge.domain.DischargePlanKind;
+import com.otapp.hmis.engine.encounter.discharge.domain.DischargePlanRepository;
+import com.otapp.hmis.engine.encounter.discharge.domain.DischargePlanStatus;
 import com.otapp.hmis.engine.iam.domain.User;
 import com.otapp.hmis.engine.iam.domain.UserRepository;
+import com.otapp.hmis.engine.masterdata.bed.domain.Bed;
+import com.otapp.hmis.engine.masterdata.bed.domain.BedRepository;
 import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlan;
 import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlanRepository;
 import com.otapp.hmis.engine.masterdata.ward.domain.Ward;
@@ -36,10 +42,13 @@ public class AdmissionService {
 
     private final AdmissionRepository admissionRepository;
     private final PatientRepository patientRepository;
+    private final com.otapp.hmis.engine.patient.application.PatientService patientService;
     private final WardRepository wardRepository;
+    private final BedRepository bedRepository;
     private final InsurancePlanRepository insurancePlanRepository;
     private final UserRepository userRepository;
     private final ConsultationRepository consultationRepository;
+    private final DischargePlanRepository dischargePlanRepository;
     private final AdmissionNumberGenerator numberGenerator;
 
     @Transactional
@@ -93,6 +102,17 @@ public class AdmissionService {
                 consultationUid,
                 emptyToNull(request.admissionReason()));
         admissionRepository.save(admission);
+
+        // Optional bed assignment — if a typed Bed is given, claim it
+        // and overwrite the free-text label with the canonical Bed.label.
+        String bedUid = emptyToNull(request.bedUid());
+        if (bedUid != null) {
+            Bed bed = loadBedInWard(bedUid, ward.getUid());
+            bed.claim(admission.getUid());
+            admission.setBedUid(bed.getUid());
+            admission.setBedLabel(bed.getLabel());
+        }
+        patientService.touchLastVisit(patient.getUid());
         return toDto(admission);
     }
 
@@ -104,36 +124,84 @@ public class AdmissionService {
         if (!ward.isActive()) {
             throw new BusinessRuleException("Ward is not active: " + ward.getName());
         }
+        // Release the prior bed (if any) before flipping wards. The
+        // transferWard guard on the entity still enforces status=ADMITTED.
+        releaseCurrentBed(admission);
         admission.transferWard(ward.getUid(), emptyToNull(request.bedLabel()));
+        admission.setBedUid(null);
+
+        String bedUid = emptyToNull(request.bedUid());
+        if (bedUid != null) {
+            Bed bed = loadBedInWard(bedUid, ward.getUid());
+            bed.claim(admission.getUid());
+            admission.setBedUid(bed.getUid());
+            admission.setBedLabel(bed.getLabel());
+        }
         return toDto(admission);
     }
 
     @Transactional
     public AdmissionDto discharge(String uid, DischargeRequest request) {
         Admission admission = loadOrThrow(uid);
+        requireApprovedPlan(uid, DischargePlanKind.DISCHARGE);
         admission.discharge(emptyToNull(request == null ? null : request.summary()));
+        releaseCurrentBed(admission);
         return toDto(admission);
     }
 
     @Transactional
     public AdmissionDto markDeceased(String uid, DischargeRequest request) {
         Admission admission = loadOrThrow(uid);
+        requireApprovedPlan(uid, DischargePlanKind.DECEASED);
         admission.markDeceased(emptyToNull(request == null ? null : request.summary()));
+        releaseCurrentBed(admission);
         return toDto(admission);
     }
 
     @Transactional
     public AdmissionDto transferOut(String uid, DischargeRequest request) {
         Admission admission = loadOrThrow(uid);
+        requireApprovedPlan(uid, DischargePlanKind.REFERRAL);
         admission.transferOut(emptyToNull(request == null ? null : request.summary()));
+        releaseCurrentBed(admission);
         return toDto(admission);
+    }
+
+    /**
+     * Legacy gate (PROCESS_MISMATCHES.md M17): an admission may only be closed
+     * once a discharge plan of the matching kind has been APPROVED by the ward
+     * administrator. The discharge-plan approval path drives closure through
+     * here, so the plan is APPROVED by the time this runs.
+     */
+    private void requireApprovedPlan(String admissionUid, DischargePlanKind kind) {
+        DischargePlan plan = dischargePlanRepository.findByAdmissionUid(admissionUid).orElse(null);
+        if (plan == null || plan.getStatus() != DischargePlanStatus.APPROVED || plan.getKind() != kind) {
+            throw new BusinessRuleException(
+                    "An APPROVED " + kind + " discharge plan is required before closing the admission");
+        }
     }
 
     @Transactional
     public AdmissionDto cancel(String uid, CancelAdmissionRequest request) {
         Admission admission = loadOrThrow(uid);
         admission.cancel(emptyToNull(request == null ? null : request.reason()));
+        releaseCurrentBed(admission);
         return toDto(admission);
+    }
+
+    private Bed loadBedInWard(String bedUid, String wardUid) {
+        Bed bed = bedRepository.findByUid(bedUid)
+                .orElseThrow(() -> new NotFoundException("Bed not found: " + bedUid));
+        if (!bed.getWardUid().equals(wardUid)) {
+            throw new BusinessRuleException(
+                    "Bed " + bed.getLabel() + " is not in the target ward");
+        }
+        return bed;
+    }
+
+    private void releaseCurrentBed(Admission admission) {
+        if (admission.getBedUid() == null) return;
+        bedRepository.findByUid(admission.getBedUid()).ifPresent(Bed::release);
     }
 
     @Transactional(readOnly = true)
@@ -146,6 +214,17 @@ public class AdmissionService {
         return admissionRepository.findTop10ByPatientUidOrderByAdmittedAtDesc(patientUid).stream()
                 .map(this::toSummary)
                 .toList();
+    }
+
+    /**
+     * The nurse worklist: currently-ADMITTED patients (optionally filtered to a
+     * ward) whose nursing chart, vitals and consumables are open for entry.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<AdmissionSummary> nurseWorklist(String wardUid, Pageable pageable) {
+        return PageResponse.from(
+                admissionRepository.nurseWorklist(emptyToNull(wardUid), pageable)
+                        .map(this::toSummary));
     }
 
     @Transactional(readOnly = true)
@@ -187,6 +266,7 @@ public class AdmissionService {
                 patient == null ? null : patient.fullName(),
                 a.getWardUid(),
                 ward == null ? null : ward.getName(),
+                a.getBedUid(),
                 a.getBedLabel(),
                 a.getAdmittingClinicianUsername(),
                 clinician == null ? null : clinician.getFirstName() + " " + clinician.getLastName(),

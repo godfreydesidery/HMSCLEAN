@@ -5,6 +5,7 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
+import { ItemPricesComponent } from '../pricing/item-prices.component';
 import { RadiologyFormComponent } from './radiology-form.component';
 import { RadiologyTypeService } from './radiology.service';
 import { RADIOLOGY_MODALITIES, RadiologyModality, RadiologyType } from './radiology.types';
@@ -76,6 +77,11 @@ export class RadiologyListComponent {
 
   openCreate(): void { const r = this.modal.open(RadiologyFormComponent, { size: 'lg', backdrop: 'static' }); r.closed.subscribe(() => this.refresh$.next()); }
   openEdit(rt: RadiologyType): void { const r = this.modal.open(RadiologyFormComponent, { size: 'lg', backdrop: 'static' }); (r.componentInstance as RadiologyFormComponent).existing = rt; r.closed.subscribe(() => this.refresh$.next()); }
+  openPrices(rt: RadiologyType): void {
+    const r = this.modal.open(ItemPricesComponent, { size: 'lg', backdrop: 'static' });
+    const inst = r.componentInstance as ItemPricesComponent;
+    inst.kind = 'RADIOLOGY'; inst.serviceUid = rt.uid; inst.serviceLabel = `${rt.name} (${rt.code})`;
+  }
 
   toggleActive(rt: RadiologyType): void {
     this.service.setActive(rt.uid, !rt.active).subscribe({

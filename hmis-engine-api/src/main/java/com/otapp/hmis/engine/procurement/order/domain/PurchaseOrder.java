@@ -43,8 +43,12 @@ public class PurchaseOrder extends AuditableEntity {
 
     @Setter @Column(length = 500) private String notes;
 
+    @Setter @Column(name = "verified_at")  private Instant verifiedAt;
+    @Setter @Column(name = "approved_at")  private Instant approvedAt;
     @Setter @Column(name = "ordered_at")   private Instant orderedAt;
     @Setter @Column(name = "received_at")  private Instant receivedAt;
+    @Setter @Column(name = "rejected_at")  private Instant rejectedAt;
+    @Setter @Column(name = "reject_reason", length = 255) private String rejectReason;
     @Setter @Column(name = "cancelled_at") private Instant cancelledAt;
     @Setter @Column(name = "cancel_reason", length = 255) private String cancelReason;
 
@@ -57,12 +61,41 @@ public class PurchaseOrder extends AuditableEntity {
         this.notes = notes;
     }
 
-    public void markOrdered() {
+    public void verify() {
         if (status != PurchaseOrderStatus.DRAFT) {
-            throw new BusinessRuleException("Only DRAFT purchase orders can be ordered (current: " + status + ")");
+            throw new BusinessRuleException("Only DRAFT purchase orders can be verified (current: " + status + ")");
+        }
+        status = PurchaseOrderStatus.VERIFIED;
+        verifiedAt = Instant.now();
+    }
+
+    public void approve() {
+        if (status != PurchaseOrderStatus.VERIFIED) {
+            throw new BusinessRuleException("Only VERIFIED purchase orders can be approved (current: " + status + ")");
+        }
+        status = PurchaseOrderStatus.APPROVED;
+        approvedAt = Instant.now();
+    }
+
+    public void markOrdered() {
+        if (status != PurchaseOrderStatus.APPROVED) {
+            throw new BusinessRuleException(
+                    "Only APPROVED purchase orders can be sent to the supplier (current: " + status + ")");
         }
         status = PurchaseOrderStatus.ORDERED;
         orderedAt = Instant.now();
+    }
+
+    public void reject(String reason) {
+        if (status != PurchaseOrderStatus.DRAFT
+                && status != PurchaseOrderStatus.VERIFIED
+                && status != PurchaseOrderStatus.APPROVED) {
+            throw new BusinessRuleException(
+                    "Only pre-submission orders can be rejected (current: " + status + ")");
+        }
+        status = PurchaseOrderStatus.REJECTED;
+        rejectedAt = Instant.now();
+        rejectReason = reason;
     }
 
     /**

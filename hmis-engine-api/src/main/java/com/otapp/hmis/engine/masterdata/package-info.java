@@ -5,6 +5,7 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Master Data",
-        allowedDependencies = {"common", "common.*", "iam"}
+        allowedDependencies = {"common", "iam"},
+        type = org.springframework.modulith.ApplicationModule.Type.OPEN
 )
 package com.otapp.hmis.engine.masterdata;

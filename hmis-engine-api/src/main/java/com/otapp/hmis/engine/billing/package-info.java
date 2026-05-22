@@ -3,6 +3,7 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Billing",
-        allowedDependencies = {"common", "common.*", "iam", "masterdata", "patient", "encounter"}
+        allowedDependencies = {"common", "iam", "masterdata", "patient", "encounter"},
+        type = org.springframework.modulith.ApplicationModule.Type.OPEN
 )
 package com.otapp.hmis.engine.billing;

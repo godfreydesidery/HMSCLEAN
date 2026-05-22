@@ -6,6 +6,7 @@ import com.otapp.hmis.engine.procurement.order.application.PurchaseOrderDtos.Can
 import com.otapp.hmis.engine.procurement.order.application.PurchaseOrderDtos.CreatePurchaseOrderRequest;
 import com.otapp.hmis.engine.procurement.order.application.PurchaseOrderDtos.PurchaseOrderDto;
 import com.otapp.hmis.engine.procurement.order.application.PurchaseOrderDtos.PurchaseOrderSummary;
+import com.otapp.hmis.engine.procurement.order.application.PurchaseOrderDtos.RejectPurchaseOrderRequest;
 import com.otapp.hmis.engine.procurement.order.application.PurchaseOrderDtos.UpdateLineRequest;
 import com.otapp.hmis.engine.procurement.order.application.PurchaseOrderService;
 import com.otapp.hmis.engine.procurement.order.domain.PurchaseOrderStatus;
@@ -70,9 +71,27 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(purchaseOrderService.removeLine(purchaseOrderUid, lineUid));
     }
 
+    @PostMapping("/uid/{purchaseOrderUid}/verify")
+    @PreAuthorize("hasAuthority('PROCUREMENT_VERIFY')")
+    public ResponseEntity<PurchaseOrderDto> verify(@PathVariable String purchaseOrderUid) {
+        return ResponseEntity.ok(purchaseOrderService.verifyOrder(purchaseOrderUid));
+    }
+
+    @PostMapping("/uid/{purchaseOrderUid}/approve")
+    @PreAuthorize("hasAuthority('PROCUREMENT_APPROVE')")
+    public ResponseEntity<PurchaseOrderDto> approve(@PathVariable String purchaseOrderUid) {
+        return ResponseEntity.ok(purchaseOrderService.approveOrder(purchaseOrderUid));
+    }
+
     @PostMapping("/uid/{purchaseOrderUid}/order")
     public ResponseEntity<PurchaseOrderDto> markOrdered(@PathVariable String purchaseOrderUid) {
         return ResponseEntity.ok(purchaseOrderService.markOrdered(purchaseOrderUid));
+    }
+
+    @PostMapping("/uid/{purchaseOrderUid}/reject")
+    public ResponseEntity<PurchaseOrderDto> reject(@PathVariable String purchaseOrderUid,
+                                                   @Valid @RequestBody(required = false) RejectPurchaseOrderRequest request) {
+        return ResponseEntity.ok(purchaseOrderService.rejectOrder(purchaseOrderUid, request));
     }
 
     @PostMapping("/uid/{purchaseOrderUid}/cancel")

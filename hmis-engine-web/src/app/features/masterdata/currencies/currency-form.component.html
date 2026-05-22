@@ -1,0 +1,51 @@
+<div class="modal-header">
+  <h5 class="modal-title d-flex align-items-center gap-2">
+    <i class="bi" [class.bi-pencil-square]="isEdit" [class.bi-plus-circle]="!isEdit"></i>
+    {{ title }}
+  </h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss()"></button>
+</div>
+
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-body">
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3" role="alert">
+        <i class="bi bi-exclamation-circle"></i><span class="small">{{ errorMessage() }}</span>
+      </div>
+    }
+
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label" for="cur-code">Code <span class="text-danger">*</span></label>
+        <input id="cur-code" name="code" type="text" maxlength="3" class="form-control text-uppercase" formControlName="code" autocomplete="off" placeholder="e.g. USD">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="cur-name">Name <span class="text-danger">*</span></label>
+        <input id="cur-name" name="name" type="text" class="form-control" formControlName="name" autocomplete="off" placeholder="e.g. US Dollar">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="cur-symbol">Symbol</label>
+        <input id="cur-symbol" name="symbol" type="text" maxlength="8" class="form-control" formControlName="symbol" autocomplete="off" placeholder="e.g. $">
+      </div>
+      @if (!isEdit) {
+        <div class="col-12">
+          <div class="form-check">
+            <input id="cur-default" name="makeDefault" type="checkbox" class="form-check-input" formControlName="makeDefault">
+            <label class="form-check-label" for="cur-default">Set as system default currency</label>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+    <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting()">
+      @if (submitting()) {
+        <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output>Saving…
+      } @else {
+        <i class="bi bi-check2"></i>{{ isEdit ? 'Save changes' : 'Create currency' }}
+      }
+    </button>
+  </div>
+</form>

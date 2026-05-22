@@ -1,0 +1,6 @@
+# Files that run on Linux must keep LF endings regardless of core.autocrlf,
+# so the shell scripts shipped to the QA EC2 host don't get CRLF (which breaks
+# the shebang / `set -e`).
+*.sh            text eol=lf
+deploy/Dockerfile text eol=lf
+deploy/nginx.conf  text eol=lf

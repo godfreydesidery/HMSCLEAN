@@ -74,10 +74,22 @@ public class Patient extends AuditableEntity {
     @Setter @Column(name = "national_id",  length = 64)  private String nationalId;
     @Setter @Column(name = "passport_no",  length = 64)  private String passportNo;
 
-    // Next of kin
+    // Next of kin — legacy supports up to 3 contacts; columns kept on Patient
+    // to avoid a child table for what's almost always 0..3 short rows.
     @Setter @Column(name = "kin_full_name",    length = 160) private String kinFullName;
     @Setter @Column(name = "kin_relationship", length = 80)  private String kinRelationship;
     @Setter @Column(name = "kin_phone_no",     length = 40)  private String kinPhoneNo;
+
+    @Setter @Column(name = "kin2_full_name",    length = 160) private String kin2FullName;
+    @Setter @Column(name = "kin2_relationship", length = 80)  private String kin2Relationship;
+    @Setter @Column(name = "kin2_phone_no",     length = 40)  private String kin2PhoneNo;
+
+    @Setter @Column(name = "kin3_full_name",    length = 160) private String kin3FullName;
+    @Setter @Column(name = "kin3_relationship", length = 80)  private String kin3Relationship;
+    @Setter @Column(name = "kin3_phone_no",     length = 40)  private String kin3PhoneNo;
+
+    /** Set by ConsultationService.book / AdmissionService.admit so the registry can show recency. */
+    @Setter @Column(name = "last_visit_at") private java.time.Instant lastVisitAt;
 
     @Setter @Column(nullable = false) private boolean active = true;
 

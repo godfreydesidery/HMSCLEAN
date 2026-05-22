@@ -21,6 +21,7 @@ public final class AdmissionDtos {
 
             String wardUid,
             String wardName,
+            String bedUid,
             String bedLabel,
 
             String admittingClinicianUsername,
@@ -60,6 +61,9 @@ public final class AdmissionDtos {
     public record AdmitPatientRequest(
             @NotBlank @Size(min = 26, max = 26) String patientUid,
             @NotBlank @Size(min = 26, max = 26) String wardUid,
+            /** Optional — when set, claims the bed and overrides bedLabel from {@code Bed.label}. */
+            @Size(min = 26, max = 26) String bedUid,
+            /** Free-text bed label used only when {@code bedUid} is null. */
             @Size(max = 32) String bedLabel,
             @NotBlank @Size(max = 64) String admittingClinicianUsername,
             @NotNull PaymentType paymentType,
@@ -69,6 +73,8 @@ public final class AdmissionDtos {
 
     public record TransferWardRequest(
             @NotBlank @Size(min = 26, max = 26) String wardUid,
+            /** Optional — when set, claims the bed in the target ward and overrides bedLabel. */
+            @Size(min = 26, max = 26) String bedUid,
             @Size(max = 32) String bedLabel) {}
 
     public record DischargeRequest(@Size(max = 1000) String summary) {}

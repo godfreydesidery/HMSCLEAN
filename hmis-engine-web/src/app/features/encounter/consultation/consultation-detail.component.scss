@@ -1,10 +1,10 @@
 .consultation-detail__tabs {
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--hmis-border);
 
   .nav-link {
     background: transparent;
     border: none;
-    color: #64748b;
+    color: var(--hmis-text-muted);
     font-weight: 500;
     font-size: 0.85rem;
     padding: 0.6rem 0.9rem;
@@ -12,13 +12,13 @@
     margin-bottom: -1px;
 
     &:hover {
-      color: #0f172a;
+      color: var(--hmis-ink);
     }
 
     &.active {
-      color: #2563eb;
-      background: #fff;
-      border-bottom-color: #2563eb;
+      color: var(--hmis-accent);
+      background: var(--hmis-surface);
+      border-bottom-color: var(--hmis-accent);
     }
   }
 }
@@ -26,7 +26,7 @@
 .patient-detail__dl {
   dt {
     font-weight: 500;
-    color: #64748b;
+    color: var(--hmis-text-muted);
     font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -35,6 +35,6 @@
   dd {
     margin-bottom: 0;
     padding: 0.4rem 0;
-    color: #0f172a;
+    color: var(--hmis-ink);
   }
 }

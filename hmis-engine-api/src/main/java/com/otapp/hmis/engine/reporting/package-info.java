@@ -5,6 +5,7 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Reporting",
-        allowedDependencies = {"common", "common.*", "iam", "masterdata", "patient", "encounter", "orders", "pharmacy", "procurement", "billing", "hr"}
+        allowedDependencies = {"common", "iam", "masterdata", "patient", "encounter", "orders", "pharmacy", "procurement", "billing", "hr", "store", "transfer"},
+        type = org.springframework.modulith.ApplicationModule.Type.OPEN
 )
 package com.otapp.hmis.engine.reporting;

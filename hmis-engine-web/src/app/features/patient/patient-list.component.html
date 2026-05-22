@@ -3,10 +3,25 @@
     <h1 class="hmis-page-title">Patients</h1>
     <p class="hmis-muted mb-0 small">Registered patients across the facility.</p>
   </div>
-  <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="register()">
-    <i class="bi bi-person-plus"></i>Register patient
-  </button>
+  <div class="ms-auto d-flex gap-2 align-items-stretch">
+    <form (ngSubmit)="findByNo()" class="d-flex" role="search">
+      <div class="input-group input-group-sm" style="width: 240px;">
+        <span class="input-group-text bg-white"><i class="bi bi-upc-scan"></i></span>
+        <input type="text" name="findByNo" class="form-control hmis-code" placeholder="PT-2026-000123 (scan / paste)" [formControl]="findByNoControl" autocomplete="off" aria-label="Find by patient number">
+        <button type="submit" class="btn btn-outline-secondary" [disabled]="findByNoBusy()" aria-label="Open">
+          @if (findByNoBusy()) { <span class="spinner-border spinner-border-sm"></span> }
+          @else { <i class="bi bi-arrow-right"></i> }
+        </button>
+      </div>
+    </form>
+    <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="register()">
+      <i class="bi bi-person-plus"></i>Register patient
+    </button>
+  </div>
 </div>
+@if (findByNoError()) {
+  <div class="alert alert-warning d-flex align-items-center gap-2 small"><i class="bi bi-exclamation-triangle"></i><span>{{ findByNoError() }}</span></div>
+}
 
 <div class="card mb-3">
   <div class="card-body py-3">
@@ -62,7 +77,7 @@
 <div class="card">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0 hmis-table">
-      <thead><tr><th>Patient #</th><th>Name</th><th>Gender</th><th>Age</th><th>Payment</th><th>Phone</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+      <thead><tr><th>Patient #</th><th>Name</th><th>Gender</th><th>Age</th><th>Payment</th><th>Phone</th><th>Last visit</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
       <tbody>
         @if (loading()) {
           @for (i of [1,2,3,4,5,6]; track i) {
@@ -73,12 +88,13 @@
               <td><span class="hmis-skeleton" style="width:40px;"></span></td>
               <td><span class="hmis-skeleton" style="width:90px;"></span></td>
               <td><span class="hmis-skeleton" style="width:120px;"></span></td>
+              <td><span class="hmis-skeleton" style="width:90px;"></span></td>
               <td><span class="hmis-skeleton" style="width:70px;"></span></td>
               <td class="text-end"><span class="hmis-skeleton" style="width:80px;"></span></td>
             </tr>
           }
         } @else if (items().length === 0) {
-          <tr><td colspan="8"><div class="hmis-empty"><i class="bi bi-people"></i><div class="fw-semibold mb-1">No patients found</div><div class="small">Register a new patient or adjust your filters.</div></div></td></tr>
+          <tr><td colspan="9"><div class="hmis-empty"><i class="bi bi-people"></i><div class="fw-semibold mb-1">No patients found</div><div class="small">Register a new patient or adjust your filters.</div></div></td></tr>
         } @else {
           @for (p of items(); track p.uid) {
             <tr>
@@ -98,6 +114,10 @@
               <td>{{ age(p.dateOfBirth) }}</td>
               <td><span class="badge text-bg-light border">{{ paymentLabel(p.paymentType) }}</span></td>
               <td class="hmis-muted">{{ p.phoneNo || '—' }}</td>
+              <td class="hmis-muted small">
+                @if (p.lastVisitAt) { {{ p.lastVisitAt | date:'mediumDate' }} }
+                @else { <span title="No clinic visits yet">—</span> }
+              </td>
               <td>
                 @if (p.active) { <span class="badge text-bg-success-subtle text-success-emphasis border border-success-subtle"><i class="bi bi-circle-fill me-1" style="font-size:0.5rem;"></i>Active</span> }
                 @else { <span class="badge text-bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle"><i class="bi bi-circle me-1" style="font-size:0.5rem;"></i>Inactive</span> }

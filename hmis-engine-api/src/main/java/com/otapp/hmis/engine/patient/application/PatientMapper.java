@@ -22,6 +22,7 @@ final class PatientMapper {
                 p.getType(),
                 p.getPaymentType(),
                 p.getPhoneNo(),
+                p.getLastVisitAt(),
                 p.isActive());
     }
 
@@ -49,6 +50,13 @@ final class PatientMapper {
                 p.getKinFullName(),
                 p.getKinRelationship(),
                 p.getKinPhoneNo(),
+                p.getKin2FullName(),
+                p.getKin2Relationship(),
+                p.getKin2PhoneNo(),
+                p.getKin3FullName(),
+                p.getKin3Relationship(),
+                p.getKin3PhoneNo(),
+                p.getLastVisitAt(),
                 p.isActive(),
                 p.getCreatedAt(),
                 p.getUpdatedAt());

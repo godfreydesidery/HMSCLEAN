@@ -26,6 +26,10 @@ export class PatientService {
   }
 
   findByUid(uid: string): Observable<Patient> { return this.http.get<Patient>(`${this.base}/uid/${uid}`); }
+  /** Card-scan / barcode lookup by the human-readable patient_no. */
+  findByPatientNo(patientNo: string): Observable<Patient> {
+    return this.http.get<Patient>(`${this.base}/by-no/${encodeURIComponent(patientNo)}`);
+  }
   register(req: CreatePatientRequest): Observable<Patient> { return this.http.post<Patient>(this.base, req); }
   update(uid: string, req: UpdatePatientRequest): Observable<Patient> { return this.http.put<Patient>(`${this.base}/uid/${uid}`, req); }
   setActive(uid: string, active: boolean): Observable<Patient> { return this.http.put<Patient>(`${this.base}/uid/${uid}/active`, { active }); }

@@ -6,8 +6,10 @@ import com.otapp.hmis.engine.common.error.NotFoundException;
 import com.otapp.hmis.engine.encounter.prescription.domain.Prescription;
 import com.otapp.hmis.engine.encounter.prescription.domain.PrescriptionRepository;
 import com.otapp.hmis.engine.encounter.prescription.domain.PrescriptionStatus;
+import com.otapp.hmis.engine.masterdata.medicine.application.UnitConversionService;
 import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineRepository;
+import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineUnit;
 import com.otapp.hmis.engine.masterdata.pharmacy.domain.Pharmacy;
 import com.otapp.hmis.engine.masterdata.pharmacy.domain.PharmacyRepository;
 import com.otapp.hmis.engine.pharmacy.sale.domain.PharmacySaleLineStatus;
@@ -16,10 +18,12 @@ import com.otapp.hmis.engine.pharmacy.sale.domain.PharmacySaleOrderLine;
 import com.otapp.hmis.engine.pharmacy.sale.domain.PharmacySaleOrderLineRepository;
 import com.otapp.hmis.engine.pharmacy.sale.domain.PharmacySaleOrderRepository;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.AdjustStockRequest;
+import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.BatchPickResult;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.ReceiveStockRequest;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.StockBalanceDto;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.StockBatchDto;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.StockMovementDto;
+import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.WriteOffStockRequest;
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockBalance;
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockBalanceRepository;
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockBatch;
@@ -27,6 +31,7 @@ import com.otapp.hmis.engine.pharmacy.stock.domain.StockBatchRepository;
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockMovement;
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockMovementKind;
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockMovementRepository;
+import com.otapp.hmis.engine.pharmacy.stock.domain.WastageReason;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -57,6 +62,7 @@ public class StockService {
     private final PrescriptionRepository prescriptionRepository;
     private final PharmacySaleOrderRepository saleRepository;
     private final PharmacySaleOrderLineRepository saleLineRepository;
+    private final UnitConversionService unitConversion;
 
     // ----- receive ----------------------------------------------------------
 
@@ -65,13 +71,32 @@ public class StockService {
         if (request.quantity() <= 0) {
             throw new BusinessRuleException("Receipt quantity must be positive");
         }
+        MedicineUnit unit = unitConversion.resolveUnit(request.medicineUid(), request.unitUid());
+        int baseQty = unitConversion.toBaseQuantity(unit, request.quantity());
         return doReceive(pharmacyUid, request.medicineUid(), request.batchNo(),
-                request.expiresAt(), request.quantity(),
-                null, emptyToNull(request.note()));
+                request.expiresAt(), baseQty,
+                StockMovementKind.RECEIPT, null, emptyToNull(request.note()));
+    }
+
+    /**
+     * Cross-module entry point used by the pharmacy↔store transfer service
+     * when an RN is completed. Records a {@code TRANSFER_IN} movement
+     * referencing the source TO so the stock card explains the receipt.
+     */
+    @Transactional
+    public StockBatchDto receiveFromStore(String pharmacyUid, String medicineUid,
+                                          String batchNo, LocalDate expiresAt,
+                                          int quantity, String referenceUid, String note) {
+        if (quantity <= 0) {
+            throw new BusinessRuleException("Receipt quantity must be positive");
+        }
+        return doReceive(pharmacyUid, medicineUid, batchNo, expiresAt, quantity,
+                StockMovementKind.TRANSFER_IN, emptyToNull(referenceUid), emptyToNull(note));
     }
 
     private StockBatchDto doReceive(String pharmacyUid, String medicineUid, String batchNo,
-                                    LocalDate expiresAt, int quantity, String referenceUid, String note) {
+                                    LocalDate expiresAt, int quantity, StockMovementKind kind,
+                                    String referenceUid, String note) {
         Pharmacy pharmacy = activePharmacy(pharmacyUid);
         Medicine medicine = activeMedicine(medicineUid);
 
@@ -89,8 +114,85 @@ public class StockService {
         StockBalance balance = lockOrCreateBalance(pharmacy.getUid(), medicine.getUid());
         balance.applyDelta(quantity);
 
-        recordMovement(balance, batch, StockMovementKind.RECEIPT, quantity, referenceUid, note);
+        recordMovement(balance, batch, kind, quantity, referenceUid, note);
         return toBatchDto(batch, medicine);
+    }
+
+    // ----- issue to another pharmacy (cross-module entry) ------------------
+
+    /**
+     * FEFO-walk a source pharmacy's batches for {@code medicineUid},
+     * decrementing each in turn until {@code requested} units have been
+     * pulled. Returns one {@link BatchPickResult} per batch consumed so
+     * the caller (the pharmacy↔pharmacy transfer service) can persist
+     * matching pick rows and propagate batch metadata to the receiving
+     * pharmacy.
+     *
+     * <p>Records {@code TRANSFER_OUT} movements on the source pharmacy.
+     * The destination pharmacy's stock is NOT touched here — that happens
+     * later when the receiver signs the RN via
+     * {@link #receiveFromPharmacy}.
+     */
+    @Transactional
+    public List<BatchPickResult> issueToPharmacy(String sourcePharmacyUid, String medicineUid,
+                                                 int requested, String referenceUid, String note) {
+        if (requested <= 0) {
+            throw new BusinessRuleException("Issue quantity must be positive");
+        }
+        Pharmacy pharmacy = activePharmacy(sourcePharmacyUid);
+        Medicine medicine = activeMedicine(medicineUid);
+
+        List<StockBatch> batches = batchRepository.lockFefoForDispense(pharmacy.getUid(), medicine.getUid());
+        int onHand = batches.stream().mapToInt(StockBatch::getQuantity).sum();
+        if (onHand < requested) {
+            throw new BusinessRuleException(
+                    "Insufficient stock at source pharmacy: on hand " + onHand
+                            + ", requested " + requested);
+        }
+
+        StockBalance balance = balanceRepository
+                .lockByPharmacyUidAndMedicineUid(pharmacy.getUid(), medicine.getUid())
+                .orElseThrow(() -> new BusinessRuleException("No balance row for medicine"));
+
+        List<BatchPickResult> picks = new ArrayList<>();
+        int remaining = requested;
+        for (StockBatch batch : batches) {
+            if (remaining <= 0) break;
+            int take = Math.min(remaining, batch.getQuantity());
+            if (take > 0) {
+                batch.applyDelta(-take);
+                balance.applyDelta(-take);
+                StockMovement movement = recordMovement(balance, batch,
+                        StockMovementKind.TRANSFER_OUT, -take,
+                        emptyToNull(referenceUid), emptyToNull(note));
+                picks.add(new BatchPickResult(
+                        batch.getUid(), batch.getBatchNo(), batch.getExpiresAt(),
+                        take, movement.getUid()));
+                remaining -= take;
+            }
+        }
+        if (remaining > 0) {
+            throw new BusinessRuleException("Could not fulfil " + requested + ": " + remaining + " short");
+        }
+        return picks;
+    }
+
+    /**
+     * Cross-module entry point used by the pharmacy↔pharmacy transfer
+     * service when an RN is completed. Records a {@code TRANSFER_IN}
+     * movement referencing the source TO so the stock card explains the
+     * receipt — same machinery as {@link #receiveFromStore} but used by
+     * the other transfer chain for clearer movement provenance.
+     */
+    @Transactional
+    public StockBatchDto receiveFromPharmacy(String pharmacyUid, String medicineUid,
+                                             String batchNo, LocalDate expiresAt,
+                                             int quantity, String referenceUid, String note) {
+        if (quantity <= 0) {
+            throw new BusinessRuleException("Receipt quantity must be positive");
+        }
+        return doReceive(pharmacyUid, medicineUid, batchNo, expiresAt, quantity,
+                StockMovementKind.TRANSFER_IN, emptyToNull(referenceUid), emptyToNull(note));
     }
 
     // ----- adjust -----------------------------------------------------------
@@ -108,12 +210,52 @@ public class StockService {
         }
         Medicine medicine = activeMedicine(batch.getMedicineUid());
 
-        batch.applyDelta(request.delta());
-        StockBalance balance = lockOrCreateBalance(pharmacy.getUid(), medicine.getUid());
-        balance.applyDelta(request.delta());
+        // Scale magnitude by unit factor, preserve sign. Null unitUid keeps the
+        // legacy "delta is in base units" behaviour for callers that haven't migrated.
+        int baseDelta = request.delta();
+        if (request.unitUid() != null && !request.unitUid().isBlank()) {
+            MedicineUnit unit = unitConversion.resolveUnit(medicine.getUid(), request.unitUid());
+            int magnitude = unitConversion.toBaseQuantity(unit, Math.abs(request.delta()));
+            baseDelta = request.delta() < 0 ? -magnitude : magnitude;
+        }
 
-        recordMovement(balance, batch, StockMovementKind.ADJUSTMENT, request.delta(),
+        batch.applyDelta(baseDelta);
+        StockBalance balance = lockOrCreateBalance(pharmacy.getUid(), medicine.getUid());
+        balance.applyDelta(baseDelta);
+
+        recordMovement(balance, batch, StockMovementKind.ADJUSTMENT, baseDelta,
                 null, emptyToNull(request.note()));
+        return toBatchDto(batch, medicine);
+    }
+
+    // ----- write-off (WASTAGE) ---------------------------------------------
+
+    /**
+     * Pharmacist write-off against a specific batch — expired, damaged,
+     * recalled, lost, etc. Decrements the batch + balance and records a
+     * WASTAGE movement carrying the structured {@link WastageReason} so the
+     * shrinkage report can categorise losses.
+     */
+    @Transactional
+    public StockBatchDto writeOff(String pharmacyUid, WriteOffStockRequest request) {
+        Pharmacy pharmacy = activePharmacy(pharmacyUid);
+        StockBatch batch = batchRepository.findByUid(request.batchUid())
+                .orElseThrow(() -> new NotFoundException("Batch not found: " + request.batchUid()));
+        if (!batch.getPharmacyUid().equals(pharmacy.getUid())) {
+            throw new BusinessRuleException("Batch belongs to a different pharmacy");
+        }
+        Medicine medicine = activeMedicine(batch.getMedicineUid());
+
+        MedicineUnit unit = unitConversion.resolveUnit(medicine.getUid(), request.unitUid());
+        int baseQty = unitConversion.toBaseQuantity(unit, request.quantity());
+
+        batch.applyDelta(-baseQty);
+        StockBalance balance = lockOrCreateBalance(pharmacy.getUid(), medicine.getUid());
+        balance.applyDelta(-baseQty);
+
+        StockMovement movement = recordMovement(balance, batch, StockMovementKind.WASTAGE,
+                -baseQty, null, emptyToNull(request.note()));
+        movement.setWastageReason(request.reason());
         return toBatchDto(batch, medicine);
     }
 
@@ -123,10 +265,20 @@ public class StockService {
      * Decrements stock to fulfil an APPROVED prescription, marks it SOLD,
      * and records DISPENSE movement(s) — one per batch consumed. Walks
      * batches in FEFO order; may span multiple batches for a single dispense.
+     *
+     * <p>{@code salesPharmacyUid} is optional: when set (and different from
+     * {@code pharmacyUid}), the prescription is filled at the issuing
+     * pharmacy but stock is pulled from the sales pharmacy — the legacy
+     * {@code issuePharmacy / salesPharmacy} split. The prescription
+     * records both pharmacies for audit.
      */
     @Transactional
-    public List<StockMovementDto> dispense(String pharmacyUid, String prescriptionUid) {
-        Pharmacy pharmacy = activePharmacy(pharmacyUid);
+    public List<StockMovementDto> dispense(String pharmacyUid, String prescriptionUid, String salesPharmacyUid) {
+        Pharmacy issuePharmacy = activePharmacy(pharmacyUid);
+        Pharmacy salesPharmacy = (salesPharmacyUid == null || salesPharmacyUid.isBlank()
+                || salesPharmacyUid.equals(pharmacyUid))
+                ? issuePharmacy
+                : activePharmacy(salesPharmacyUid);
         Prescription rx = prescriptionRepository.findByUid(prescriptionUid)
                 .orElseThrow(() -> new NotFoundException("Prescription not found: " + prescriptionUid));
         if (rx.getStatus() != PrescriptionStatus.APPROVED) {
@@ -140,13 +292,15 @@ public class StockService {
         Medicine medicine = medicineRepository.findByUid(rx.getMedicineUid())
                 .orElseThrow(() -> new NotFoundException("Medicine not found: " + rx.getMedicineUid()));
 
-        List<StockMovement> movements = fefoDecrement(pharmacy.getUid(), medicine.getUid(),
+        List<StockMovement> movements = fefoDecrement(salesPharmacy.getUid(), medicine.getUid(),
                 rx.getQuantity(), rx.getUid(),
                 "Dispense for " + rx.getPrescriptionNo());
 
+        rx.setIssuePharmacyUid(issuePharmacy.getUid());
+        rx.setSalesPharmacyUid(salesPharmacy.getUid());
         rx.markSold();
 
-        return movements.stream().map(m -> toMovementDto(m, pharmacy, medicine)).toList();
+        return movements.stream().map(m -> toMovementDto(m, salesPharmacy, medicine)).toList();
     }
 
     // ----- dispense (sale line) --------------------------------------------
@@ -155,10 +309,18 @@ public class StockService {
      * Final dispense of an APPROVED retail sale line. Same FEFO mechanics
      * as the prescription path; the sale-order header rolls forward when
      * every line has terminated.
+     *
+     * <p>{@code salesPharmacyUid} works like the prescription overload —
+     * lets stock come from a different pharmacy than the one that opened
+     * the sale.
      */
     @Transactional
-    public List<StockMovementDto> dispenseSaleLine(String pharmacyUid, String saleLineUid) {
-        Pharmacy pharmacy = activePharmacy(pharmacyUid);
+    public List<StockMovementDto> dispenseSaleLine(String pharmacyUid, String saleLineUid, String salesPharmacyUid) {
+        Pharmacy issuePharmacy = activePharmacy(pharmacyUid);
+        Pharmacy salesPharmacy = (salesPharmacyUid == null || salesPharmacyUid.isBlank()
+                || salesPharmacyUid.equals(pharmacyUid))
+                ? issuePharmacy
+                : activePharmacy(salesPharmacyUid);
         PharmacySaleOrderLine line = saleLineRepository.findByUid(saleLineUid)
                 .orElseThrow(() -> new NotFoundException("Sale line not found: " + saleLineUid));
         if (line.getStatus() != PharmacySaleLineStatus.APPROVED) {
@@ -170,21 +332,23 @@ public class StockService {
         }
         PharmacySaleOrder sale = saleRepository.findByUid(line.getSaleUid())
                 .orElseThrow(() -> new NotFoundException("Sale not found: " + line.getSaleUid()));
-        if (!sale.getPharmacyUid().equals(pharmacy.getUid())) {
+        if (!sale.getPharmacyUid().equals(issuePharmacy.getUid())) {
             throw new BusinessRuleException("Sale was opened at a different pharmacy");
         }
         Medicine medicine = medicineRepository.findByUid(line.getMedicineUid())
                 .orElseThrow(() -> new NotFoundException("Medicine not found: " + line.getMedicineUid()));
 
-        List<StockMovement> movements = fefoDecrement(pharmacy.getUid(), medicine.getUid(),
+        List<StockMovement> movements = fefoDecrement(salesPharmacy.getUid(), medicine.getUid(),
                 line.getQuantity(), line.getUid(),
                 "Sale dispense for " + sale.getSaleNo());
 
+        line.setIssuePharmacyUid(issuePharmacy.getUid());
+        line.setSalesPharmacyUid(salesPharmacy.getUid());
         line.markSold();
         long open = saleLineRepository.countBySaleUidAndStatusNotIn(sale.getUid(), TERMINAL_SALE_LINE_STATUSES);
         sale.onLineTransition((int) open);
 
-        return movements.stream().map(m -> toMovementDto(m, pharmacy, medicine)).toList();
+        return movements.stream().map(m -> toMovementDto(m, salesPharmacy, medicine)).toList();
     }
 
     /**
@@ -224,6 +388,48 @@ public class StockService {
     }
 
     // ----- read paths -------------------------------------------------------
+
+    private static final int LOW_STOCK_THRESHOLD = 10;
+    private static final int EXPIRY_WINDOW_DAYS = 30;
+
+    /**
+     * Server-side, paginated stock list for the UI: filters by medicine
+     * name/code, low-stock-only and expiring-only at the DB, then rolls up the
+     * page's balance rows with their batch details.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<StockBalanceDto> searchBalances(String pharmacyUid, String query,
+                                                        boolean lowOnly, boolean expiringOnly,
+                                                        Pageable pageable) {
+        Pharmacy pharmacy = pharmacyRepository.findByUid(pharmacyUid)
+                .orElseThrow(() -> new NotFoundException("Pharmacy not found: " + pharmacyUid));
+        String search = emptyToNull(query);
+        LocalDate cutoff = LocalDate.now().plusDays(EXPIRY_WINDOW_DAYS);
+        return PageResponse.from(
+                balanceRepository.searchBalances(pharmacy.getUid(), search, lowOnly, LOW_STOCK_THRESHOLD,
+                        expiringOnly, cutoff, pageable)
+                        .map(bal -> toBalanceDto(pharmacy, bal)));
+    }
+
+    private StockBalanceDto toBalanceDto(Pharmacy pharmacy, StockBalance bal) {
+        Medicine medicine = medicineRepository.findByUid(bal.getMedicineUid()).orElse(null);
+        List<StockBatch> rows = batchRepository
+                .findAllByPharmacyUidAndMedicineUid(pharmacy.getUid(), bal.getMedicineUid());
+        LocalDate earliest = rows.stream().map(StockBatch::getExpiresAt).filter(d -> d != null)
+                .min(Comparator.naturalOrder()).orElse(null);
+        List<StockBatchDto> batchDtos = rows.stream().map(b -> toBatchDto(b, medicine)).toList();
+        return new StockBalanceDto(
+                pharmacy.getUid(),
+                pharmacy.getName(),
+                bal.getMedicineUid(),
+                medicine == null ? null : medicine.getCode(),
+                medicine == null ? null : medicine.getName(),
+                medicine == null ? null : medicine.getStrength(),
+                bal.getQuantity(),
+                rows.size(),
+                earliest,
+                batchDtos);
+    }
 
     /**
      * One row per medicine, with per-batch details rolled up. Used by the

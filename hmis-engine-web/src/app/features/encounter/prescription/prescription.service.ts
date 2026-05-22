@@ -1,9 +1,12 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../../environments/environment';
-import { CreatePrescriptionRequest, Prescription } from './prescription.types';
+import { PageResponse } from '../../../core/http/page.types';
+import {
+  CreatePrescriptionRequest, DispenseWorklistParams, Prescription, PrescriptionWorklistRow
+} from './prescription.types';
 
 @Injectable({ providedIn: 'root' })
 export class PrescriptionService {
@@ -12,6 +15,17 @@ export class PrescriptionService {
 
   list(consultationUid: string): Observable<Prescription[]> {
     return this.http.get<Prescription[]>(`${this.apiBase}/consultations/uid/${consultationUid}/prescriptions`);
+  }
+
+  /** Pharmacy dispensing queue — prescriptions awaiting pharmacy action, scoped by patient class. */
+  worklist(params: DispenseWorklistParams = {}): Observable<PageResponse<PrescriptionWorklistRow>> {
+    let p = new HttpParams();
+    if (params.status) p = p.set('status', params.status);
+    if (params.patientClass) p = p.set('patientClass', params.patientClass);
+    if (params.settledOnly !== undefined) p = p.set('settledOnly', String(params.settledOnly));
+    if (params.page !== undefined) p = p.set('page', String(params.page));
+    if (params.size !== undefined) p = p.set('size', String(params.size));
+    return this.http.get<PageResponse<PrescriptionWorklistRow>>(`${this.apiBase}/prescriptions/worklist`, { params: p });
   }
 
   prescribe(consultationUid: string, req: CreatePrescriptionRequest): Observable<Prescription> {

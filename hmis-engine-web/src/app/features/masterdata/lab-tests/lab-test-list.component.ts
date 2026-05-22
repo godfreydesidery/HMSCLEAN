@@ -5,6 +5,7 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
+import { ItemPricesComponent } from '../pricing/item-prices.component';
 import { LabTestFormComponent } from './lab-test-form.component';
 import { LabTestTypeService } from './lab-test.service';
 import { LabTestType } from './lab-test.types';
@@ -72,6 +73,11 @@ export class LabTestListComponent {
 
   openCreate(): void { const r = this.modal.open(LabTestFormComponent, { size: 'lg', backdrop: 'static' }); r.closed.subscribe(() => this.refresh$.next()); }
   openEdit(l: LabTestType): void { const r = this.modal.open(LabTestFormComponent, { size: 'lg', backdrop: 'static' }); (r.componentInstance as LabTestFormComponent).existing = l; r.closed.subscribe(() => this.refresh$.next()); }
+  openPrices(l: LabTestType): void {
+    const r = this.modal.open(ItemPricesComponent, { size: 'lg', backdrop: 'static' });
+    const inst = r.componentInstance as ItemPricesComponent;
+    inst.kind = 'LAB_TEST'; inst.serviceUid = l.uid; inst.serviceLabel = `${l.name} (${l.code})`;
+  }
 
   toggleActive(l: LabTestType): void {
     this.service.setActive(l.uid, !l.active).subscribe({

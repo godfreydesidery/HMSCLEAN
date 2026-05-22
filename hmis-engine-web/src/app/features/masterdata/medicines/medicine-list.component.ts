@@ -5,6 +5,7 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
+import { ItemPricesComponent } from '../pricing/item-prices.component';
 import { MedicineFormComponent } from './medicine-form.component';
 import { MedicineService } from './medicine.service';
 import { MEDICINE_FORMS, Medicine, MedicineForm } from './medicine.types';
@@ -76,6 +77,11 @@ export class MedicineListComponent {
 
   openCreate(): void { const r = this.modal.open(MedicineFormComponent, { size: 'lg', backdrop: 'static' }); r.closed.subscribe(() => this.refresh$.next()); }
   openEdit(m: Medicine): void { const r = this.modal.open(MedicineFormComponent, { size: 'lg', backdrop: 'static' }); (r.componentInstance as MedicineFormComponent).existing = m; r.closed.subscribe(() => this.refresh$.next()); }
+  openPrices(m: Medicine): void {
+    const r = this.modal.open(ItemPricesComponent, { size: 'lg', backdrop: 'static' });
+    const inst = r.componentInstance as ItemPricesComponent;
+    inst.kind = 'MEDICINE'; inst.serviceUid = m.uid; inst.serviceLabel = `${m.name}${m.strength ? ' ' + m.strength : ''}`;
+  }
 
   toggleActive(m: Medicine): void {
     this.service.setActive(m.uid, !m.active).subscribe({

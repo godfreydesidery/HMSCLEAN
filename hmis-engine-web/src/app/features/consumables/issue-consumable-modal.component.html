@@ -1,0 +1,78 @@
+<div class="modal-header">
+  <h5 class="modal-title">Issue consumable</h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss('x')"></button>
+</div>
+
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-body">
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+    }
+
+    <div class="mb-3">
+      <label for="issueConsumable" class="form-label">Consumable <span class="text-danger">*</span></label>
+      <select id="issueConsumable" name="consumableUid" class="form-select" formControlName="consumableUid" [class.is-invalid]="form.controls.consumableUid.invalid && form.controls.consumableUid.touched">
+        <option value="" disabled>— pick one —</option>
+        @for (c of consumables(); track c.uid) {
+          <option [value]="c.uid">{{ c.code }} — {{ c.name }}</option>
+        }
+      </select>
+      @if (form.controls.consumableUid.invalid && form.controls.consumableUid.touched) {
+        <div class="invalid-feedback">Pick a consumable.</div>
+      }
+    </div>
+
+    <div class="row g-2 mb-3">
+      <div class="col-md-5">
+        <label class="form-label">Source kind</label>
+        <select name="sourceKind" class="form-select" formControlName="sourceKind" (change)="onSourceKindChange()">
+          @for (k of sourceKinds; track k.value) {
+            <option [value]="k.value">{{ k.label }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-md-7">
+        <label for="issueSourceUid" class="form-label">Location <span class="text-danger">*</span></label>
+        <select id="issueSourceUid" name="sourceLocationUid" class="form-select" formControlName="sourceLocationUid" [class.is-invalid]="form.controls.sourceLocationUid.invalid && form.controls.sourceLocationUid.touched">
+          <option value="" disabled>— pick one —</option>
+          @for (loc of locations; track loc.uid) {
+            <option [value]="loc.uid">{{ loc.label }}</option>
+          }
+        </select>
+        @if (form.controls.sourceLocationUid.invalid && form.controls.sourceLocationUid.touched) {
+          <div class="invalid-feedback">Pick a source.</div>
+        }
+      </div>
+    </div>
+
+    <div class="row g-2 mb-3">
+      <div class="col-md-4">
+        <label for="issueQuantity" class="form-label">Quantity <span class="text-danger">*</span></label>
+        <input id="issueQuantity" name="quantity" type="number" min="1" class="form-control" formControlName="quantity" [class.is-invalid]="form.controls.quantity.invalid && form.controls.quantity.touched">
+        @if (form.controls.quantity.invalid && form.controls.quantity.touched) {
+          <div class="invalid-feedback">Positive integer required.</div>
+        }
+      </div>
+      <div class="col-md-8">
+        <label for="issueUnitCost" class="form-label">Unit cost <span class="text-danger">*</span></label>
+        <input id="issueUnitCost" name="unitCost" type="text" inputmode="decimal" class="form-control" formControlName="unitCost" [class.is-invalid]="form.controls.unitCost.invalid && form.controls.unitCost.touched">
+        @if (form.controls.unitCost.invalid && form.controls.unitCost.touched) {
+          <div class="invalid-feedback">Use up to 2 decimal places (e.g. 2500.00).</div>
+        }
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="issueNote" class="form-label">Note</label>
+      <input id="issueNote" name="note" type="text" class="form-control" formControlName="note" maxlength="500" placeholder="e.g. wound care">
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss('cancel')">Cancel</button>
+    <button type="submit" class="btn btn-primary" [disabled]="submitting()">
+      @if (submitting()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+      <i class="bi bi-plus-lg me-1"></i> Issue
+    </button>
+  </div>
+</form>

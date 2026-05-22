@@ -2,7 +2,7 @@
   min-height: 100vh;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  background: #f8fafc;
+  background: var(--hmis-paper);
 
   @media (max-width: 960px) {
     grid-template-columns: 1fr;
@@ -112,10 +112,10 @@
   width: 100%;
   max-width: 400px;
   padding: 2rem;
-  background: #fff;
+  background: var(--hmis-surface);
   border-radius: 1rem;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--hmis-border);
+  box-shadow: var(--hmis-shadow-lg);
 }
 
 .login__header {
@@ -126,25 +126,25 @@
   font-size: 1.5rem;
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: #0f172a;
+  color: var(--hmis-ink);
   margin: 0 0 0.25rem;
 }
 
 .login__subtitle {
   font-size: 0.9rem;
-  color: #64748b;
+  color: var(--hmis-text-muted);
   margin: 0;
 }
 
 .login__hint {
   margin: 1rem 0 0;
   font-size: 0.78rem;
-  color: #94a3b8;
+  color: var(--hmis-text-muted);
   text-align: center;
 
   code {
-    background: #f1f5f9;
-    color: #1f2937;
+    background: var(--hmis-surface-2);
+    color: var(--hmis-ink);
     padding: 0.05rem 0.35rem;
     border-radius: 0.25rem;
     font-size: 0.78rem;

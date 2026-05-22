@@ -54,7 +54,7 @@ export const routes: Routes = [
       },
       {
         path: 'orders',
-        canActivate: [hasPrivilegeGuard('ORDERS_ACCESS')],
+        canActivate: [hasPrivilegeGuard('ENCOUNTER_ACCESS')],
         loadChildren: () =>
           import('./features/orders/orders.routes').then((m) => m.ORDERS_ROUTES)
       },
@@ -81,6 +81,12 @@ export const routes: Routes = [
         canActivate: [hasPrivilegeGuard('BILLING_ACCESS')],
         loadChildren: () =>
           import('./features/billing/billing.routes').then((m) => m.BILLING_ROUTES)
+      },
+      {
+        path: 'consumables',
+        canActivate: [hasPrivilegeGuard('ENCOUNTER_ACCESS')],
+        loadChildren: () =>
+          import('./features/consumables/consumables.routes').then((m) => m.CONSUMABLES_ROUTES)
       },
       {
         path: 'hr',

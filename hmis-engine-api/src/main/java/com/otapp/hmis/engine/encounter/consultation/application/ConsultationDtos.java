@@ -37,6 +37,12 @@ public final class ConsultationDtos {
             Instant cancelledAt,
             String cancelReason,
 
+            String followUpOfConsultationUid,
+            String transferredToConsultationUid,
+            String transferredFromConsultationUid,
+            String transferReason,
+            Instant transferredAt,
+
             Instant createdAt,
             Instant updatedAt) {}
 
@@ -49,6 +55,8 @@ public final class ConsultationDtos {
             String clinicName,
             String clinicianName,
             ConsultationStatus status,
+            PaymentType paymentType,
+            boolean feeSettled,
             Instant bookedAt,
             Instant startedAt) {}
 
@@ -58,7 +66,15 @@ public final class ConsultationDtos {
             @NotBlank @Size(max = 64) String clinicianUsername,
             @NotNull PaymentType paymentType,
             @Size(min = 26, max = 26) String insurancePlanUid,
-            @Size(max = 500) String reason) {}
+            @Size(max = 500) String reason,
+            /** Optional — when set, marks this visit as a follow-up to the referenced consultation. */
+            @Size(min = 26, max = 26) String followUpOfConsultationUid) {}
 
     public record CancelConsultationRequest(@Size(max = 255) String reason) {}
+
+    /** Hand the patient off to another clinic / clinician. Both fields required for the new consultation. */
+    public record TransferConsultationRequest(
+            @NotBlank @Size(min = 26, max = 26) String targetClinicUid,
+            @NotBlank @Size(max = 64) String targetClinicianUsername,
+            @Size(max = 500) String reason) {}
 }

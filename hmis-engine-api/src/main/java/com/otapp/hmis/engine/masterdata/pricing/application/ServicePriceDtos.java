@@ -38,7 +38,9 @@ public final class ServicePriceDtos {
     public record SetServicePriceRequest(
             @Size(min = 26, max = 26) String planUid,
             @NotNull ServiceKind kind,
-            @NotBlank @Size(min = 26, max = 26) String serviceUid,
+            // Usually a 26-char catalogue uid; the REGISTRATION singleton uses the
+            // sentinel "DEFAULT". The service validates existence per kind.
+            @NotBlank @Size(max = 26) String serviceUid,
             @NotNull @DecimalMin(value = "0.00", inclusive = true) BigDecimal amount,
             @DecimalMin(value = "0.00", inclusive = true) BigDecimal minAmount,
             @DecimalMin(value = "0.00", inclusive = true) BigDecimal maxAmount,

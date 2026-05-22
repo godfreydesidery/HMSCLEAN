@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
-import { finalize, forkJoin } from 'rxjs';
+import { debounceTime, distinctUntilChanged, finalize } from 'rxjs';
 
 import { PharmacyService } from '../../masterdata/pharmacies/pharmacy.service';
 import { Pharmacy } from '../../masterdata/pharmacies/pharmacy.types';
@@ -34,9 +35,13 @@ export class StockListComponent {
   readonly balances = signal<StockBalance[]>([]);
   readonly movements = signal<StockMovement[]>([]);
   readonly expanded = signal<Set<string>>(new Set());
-  readonly query = signal('');
+  readonly query = new FormControl('', { nonNullable: true });
   readonly lowOnly = signal(false);
   readonly expiringOnly = signal(false);
+  readonly page = signal(0);
+  readonly pageSize = signal(15);
+  readonly totalElements = signal(0);
+  readonly totalPages = signal(0);
 
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
@@ -46,28 +51,16 @@ export class StockListComponent {
     pharmacyUid: ['', [Validators.required]]
   });
 
-  readonly filteredBalances = computed(() => {
-    const q = this.query().trim().toLowerCase();
-    let arr = this.balances();
-    if (this.lowOnly()) {
-      arr = arr.filter((b) => b.totalQuantity <= LOW_STOCK_THRESHOLD);
-    }
-    if (this.expiringOnly()) {
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() + 30);
-      arr = arr.filter((b) => b.batchDetails.some((batch) =>
-        batch.expiresAt != null && new Date(batch.expiresAt) <= cutoff));
-    }
-    if (q) {
-      arr = arr.filter((b) =>
-        (b.medicineName ?? '').toLowerCase().includes(q)
-        || (b.medicineCode ?? '').toLowerCase().includes(q));
-    }
-    return arr;
-  });
-
   readonly selectedPharmacy = computed(() =>
     this.pharmacies().find((p) => p.uid === this.selectedPharmacyUid()) ?? null);
+
+  readonly pageWindow = computed(() => {
+    const t = this.totalPages(); const c = this.page();
+    if (t <= 7) return Array.from({ length: t }, (_, i) => i);
+    const w: number[] = []; const s = Math.max(0, c - 2); const e = Math.min(t - 1, c + 2);
+    for (let i = s; i <= e; i++) w.push(i);
+    return w;
+  });
 
   constructor() {
     this.pharmacyService.search({ active: true, size: 200, sort: 'name,asc' })
@@ -76,43 +69,59 @@ export class StockListComponent {
         next: (page) => {
           this.pharmacies.set(page.content);
           if (page.content.length > 0) {
-            const first = page.content[0].uid;
-            this.pharmacyForm.controls.pharmacyUid.setValue(first);
-            this.loadFor(first);
+            this.pharmacyForm.controls.pharmacyUid.setValue(page.content[0].uid);
+            this.selectPharmacy(page.content[0].uid);
           }
         },
         error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load pharmacies.')
       });
 
     this.pharmacyForm.controls.pharmacyUid.valueChanges.subscribe((uid) => {
-      if (uid) this.loadFor(uid);
+      if (uid) this.selectPharmacy(uid);
     });
+
+    this.query.valueChanges.pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed())
+      .subscribe(() => { this.page.set(0); this.loadBalances(); });
   }
 
-  private loadFor(pharmacyUid: string): void {
-    this.selectedPharmacyUid.set(pharmacyUid);
+  private selectPharmacy(uid: string): void {
+    this.selectedPharmacyUid.set(uid);
+    this.page.set(0);
+    this.loadBalances();
+    this.loadMovements();
+  }
+
+  private loadBalances(): void {
+    const uid = this.selectedPharmacyUid();
+    if (!uid) return;
     this.loading.set(true);
     this.errorMessage.set(null);
-    forkJoin({
-      balances: this.stockService.listBalances(pharmacyUid),
-      movements: this.stockService.searchMovements({ pharmacyUid, size: 20, sort: 'occurredAt,desc' })
+    this.stockService.searchBalances(uid, {
+      query: this.query.value || undefined,
+      lowOnly: this.lowOnly() || undefined,
+      expiringOnly: this.expiringOnly() || undefined,
+      page: this.page(), size: this.pageSize(), sort: 'medicineUid,asc'
     }).pipe(finalize(() => this.loading.set(false))).subscribe({
-      next: ({ balances, movements }) => {
-        this.balances.set(balances);
-        this.movements.set(movements.content);
-      },
+      next: (pg) => { this.balances.set(pg.content); this.totalElements.set(pg.totalElements); this.totalPages.set(pg.totalPages); },
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load stock.')
     });
   }
 
-  refresh(): void {
+  private loadMovements(): void {
     const uid = this.selectedPharmacyUid();
-    if (uid) this.loadFor(uid);
+    if (!uid) return;
+    this.stockService.searchMovements({ pharmacyUid: uid, size: 20, sort: 'occurredAt,desc' }).subscribe({
+      next: (pg) => this.movements.set(pg.content),
+      error: () => { /* movements are secondary */ }
+    });
   }
 
-  setQuery(v: string): void { this.query.set(v); }
-  toggleLowOnly(): void { this.lowOnly.update((v) => !v); }
-  toggleExpiringOnly(): void { this.expiringOnly.update((v) => !v); }
+  refresh(): void { this.loadBalances(); this.loadMovements(); }
+
+  toggleLowOnly(): void { this.lowOnly.update((v) => !v); this.page.set(0); this.loadBalances(); }
+  toggleExpiringOnly(): void { this.expiringOnly.update((v) => !v); this.page.set(0); this.loadBalances(); }
+  goToPage(p: number): void { if (p < 0 || p >= this.totalPages() || p === this.page()) return; this.page.set(p); this.loadBalances(); }
+  changePageSize(s: number): void { this.pageSize.set(s); this.page.set(0); this.loadBalances(); }
 
   isExpanded(medicineUid: string): boolean { return this.expanded().has(medicineUid); }
   toggleExpanded(medicineUid: string): void {

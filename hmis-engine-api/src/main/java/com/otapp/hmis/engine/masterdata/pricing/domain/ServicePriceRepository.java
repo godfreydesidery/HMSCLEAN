@@ -45,12 +45,24 @@ public interface ServicePriceRepository extends JpaRepository<ServicePrice, Long
 
     @Query("""
             SELECT p FROM ServicePrice p
-            WHERE (:planUid    IS NULL OR p.planUid    = :planUid)
+            WHERE (:cashOnly = FALSE OR p.planUid IS NULL)
+              AND (:planUid    IS NULL OR p.planUid    = :planUid)
               AND (:kind       IS NULL OR p.kind       = :kind)
               AND (:serviceUid IS NULL OR p.serviceUid = :serviceUid)
+              AND (:currency   IS NULL OR p.currency   = :currency)
+              AND (:search IS NULL OR :search = ''
+                   OR EXISTS (SELECT 1 FROM Clinic c        WHERE c.uid  = p.serviceUid AND LOWER(c.name)  LIKE LOWER(CONCAT('%', :search, '%')))
+                   OR EXISTS (SELECT 1 FROM LabTestType lt  WHERE lt.uid = p.serviceUid AND LOWER(lt.name) LIKE LOWER(CONCAT('%', :search, '%')))
+                   OR EXISTS (SELECT 1 FROM ProcedureType pt WHERE pt.uid = p.serviceUid AND LOWER(pt.name) LIKE LOWER(CONCAT('%', :search, '%')))
+                   OR EXISTS (SELECT 1 FROM RadiologyType rt WHERE rt.uid = p.serviceUid AND LOWER(rt.name) LIKE LOWER(CONCAT('%', :search, '%')))
+                   OR EXISTS (SELECT 1 FROM Medicine md     WHERE md.uid = p.serviceUid AND LOWER(md.name) LIKE LOWER(CONCAT('%', :search, '%')))
+                   OR EXISTS (SELECT 1 FROM Ward wd         WHERE wd.uid = p.serviceUid AND LOWER(wd.name) LIKE LOWER(CONCAT('%', :search, '%'))))
             """)
     Page<ServicePrice> search(@Param("planUid")    String planUid,
+                              @Param("cashOnly")   boolean cashOnly,
                               @Param("kind")       ServiceKind kind,
                               @Param("serviceUid") String serviceUid,
+                              @Param("currency")   String currency,
+                              @Param("search")     String search,
                               Pageable pageable);
 }

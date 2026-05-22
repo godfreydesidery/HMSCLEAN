@@ -207,6 +207,48 @@ public class StoreStockService {
 
     // ----- read paths -------------------------------------------------------
 
+    private static final int LOW_STOCK_THRESHOLD = 10;
+    private static final int EXPIRY_WINDOW_DAYS = 30;
+
+    /**
+     * Server-side, paginated store stock list: filters by medicine name/code,
+     * low-stock-only and expiring-only at the DB, then rolls up the page's
+     * balance rows with their batch details.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<StoreStockBalanceDto> searchBalances(String storeUid, String query,
+                                                             boolean lowOnly, boolean expiringOnly,
+                                                             Pageable pageable) {
+        Store store = storeRepository.findByUid(storeUid)
+                .orElseThrow(() -> new NotFoundException("Store not found: " + storeUid));
+        String search = emptyToNull(query);
+        LocalDate cutoff = LocalDate.now().plusDays(EXPIRY_WINDOW_DAYS);
+        return PageResponse.from(
+                balanceRepository.searchBalances(store.getUid(), search, lowOnly, LOW_STOCK_THRESHOLD,
+                        expiringOnly, cutoff, pageable)
+                        .map(bal -> toBalanceDto(store, bal)));
+    }
+
+    private StoreStockBalanceDto toBalanceDto(Store store, StoreStockBalance bal) {
+        Medicine medicine = medicineRepository.findByUid(bal.getMedicineUid()).orElse(null);
+        List<StoreStockBatch> rows = batchRepository
+                .findAllByStoreUidAndMedicineUid(store.getUid(), bal.getMedicineUid());
+        LocalDate earliest = rows.stream().map(StoreStockBatch::getExpiresAt).filter(d -> d != null)
+                .min(Comparator.naturalOrder()).orElse(null);
+        List<StoreStockBatchDto> batchDtos = rows.stream().map(b -> toBatchDto(b, medicine)).toList();
+        return new StoreStockBalanceDto(
+                store.getUid(),
+                store.getName(),
+                bal.getMedicineUid(),
+                medicine == null ? null : medicine.getCode(),
+                medicine == null ? null : medicine.getName(),
+                medicine == null ? null : medicine.getStrength(),
+                bal.getQuantity(),
+                rows.size(),
+                earliest,
+                batchDtos);
+    }
+
     @Transactional(readOnly = true)
     public List<StoreStockBalanceDto> listBalances(String storeUid) {
         Store store = storeRepository.findByUid(storeUid)

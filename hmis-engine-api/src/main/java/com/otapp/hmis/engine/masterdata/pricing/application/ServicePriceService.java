@@ -97,11 +97,16 @@ public class ServicePriceService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<ServicePriceDto> search(String planUid, ServiceKind kind, String serviceUid, Pageable pageable) {
+    public PageResponse<ServicePriceDto> search(String planUid, boolean cashOnly, ServiceKind kind,
+                                                String serviceUid, String currency, String query,
+                                                Pageable pageable) {
         String planFilter = (planUid == null || planUid.isBlank()) ? null : planUid;
         String serviceFilter = (serviceUid == null || serviceUid.isBlank()) ? null : serviceUid;
+        String currencyFilter = (currency == null || currency.isBlank()) ? null : currency.toUpperCase();
+        String searchFilter = (query == null || query.isBlank()) ? null : query.trim();
         return PageResponse.from(
-                priceRepository.search(planFilter, kind, serviceFilter, pageable).map(this::toDto));
+                priceRepository.search(planFilter, cashOnly, kind, serviceFilter, currencyFilter, searchFilter, pageable)
+                        .map(this::toDto));
     }
 
     private ServicePriceDto toDto(ServicePrice p) {

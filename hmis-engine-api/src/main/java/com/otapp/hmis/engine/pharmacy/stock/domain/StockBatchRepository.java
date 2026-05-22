@@ -41,6 +41,15 @@ public interface StockBatchRepository extends JpaRepository<StockBatch, Long> {
             """)
     List<StockBatch> findAllByPharmacy(@Param("pharmacyUid") String pharmacyUid);
 
+    /** Batches for one (pharmacy, medicine) in FEFO display order — used to roll up a balance row. */
+    @Query("""
+            SELECT b FROM StockBatch b
+            WHERE b.pharmacyUid = :pharmacyUid AND b.medicineUid = :medicineUid
+            ORDER BY CASE WHEN b.expiresAt IS NULL THEN 1 ELSE 0 END, b.expiresAt ASC, b.receivedAt ASC
+            """)
+    List<StockBatch> findAllByPharmacyUidAndMedicineUid(@Param("pharmacyUid") String pharmacyUid,
+                                                        @Param("medicineUid") String medicineUid);
+
     /** Non-empty batches expiring on or before {@code threshold} — drives the expiry report. */
     @Query("""
             SELECT b FROM StockBatch b

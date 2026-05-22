@@ -11,6 +11,12 @@
 <div class="card mb-3">
   <div class="card-body py-3">
     <div class="row g-2 align-items-center">
+      <div class="col-md-4">
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0"><i class="bi bi-search hmis-muted"></i></span>
+          <input type="search" name="query" autocomplete="off" class="form-control border-start-0 ps-0" placeholder="Search service…" [formControl]="query" aria-label="Search services">
+        </div>
+      </div>
       <div class="col-md-auto">
         <div ngbDropdown class="d-inline-block">
           <button type="button" class="btn btn-outline-secondary btn-sm" ngbDropdownToggle>
@@ -41,6 +47,20 @@
               <button type="button" ngbDropdownItem (click)="setKindFilter(k.value)">
                 <i class="bi {{ k.icon }} me-2"></i>{{ k.label }}
               </button>
+            }
+          </div>
+        </div>
+      </div>
+      <div class="col-md-auto">
+        <div ngbDropdown class="d-inline-block">
+          <button type="button" class="btn btn-outline-secondary btn-sm" ngbDropdownToggle>
+            <i class="bi bi-currency-exchange me-1"></i>{{ currencyFilter() === 'ALL' ? 'All currencies' : currencyFilter() }}
+          </button>
+          <div ngbDropdownMenu class="shadow-sm" style="max-height: 360px; overflow-y: auto;">
+            <button type="button" ngbDropdownItem (click)="setCurrencyFilter('ALL')">All currencies</button>
+            <div class="dropdown-divider"></div>
+            @for (c of currencies(); track c.uid) {
+              <button type="button" ngbDropdownItem (click)="setCurrencyFilter(c.code)">{{ c.code }} — {{ c.name }}</button>
             }
           </div>
         </div>

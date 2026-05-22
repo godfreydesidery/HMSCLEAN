@@ -16,8 +16,11 @@ export class ServicePriceService {
   search(params: ServicePriceSearchParams = {}): Observable<PageResponse<ServicePrice>> {
     let p = new HttpParams();
     if (params.planUid) p = p.set('planUid', params.planUid);
+    if (params.cashOnly) p = p.set('cashOnly', 'true');
     if (params.kind) p = p.set('kind', params.kind);
     if (params.serviceUid) p = p.set('serviceUid', params.serviceUid);
+    if (params.currency) p = p.set('currency', params.currency);
+    if (params.query) p = p.set('query', params.query);
     if (params.page !== undefined) p = p.set('page', String(params.page));
     if (params.size !== undefined) p = p.set('size', String(params.size));
     if (params.sort) p = p.set('sort', params.sort);

@@ -18,13 +18,30 @@ export interface StoreMovementSearchParams {
   sort?: string;
 }
 
+export interface StoreBalanceSearchParams {
+  query?: string;
+  lowOnly?: boolean;
+  expiringOnly?: boolean;
+  page?: number;
+  size?: number;
+  sort?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class StoreStockService {
   private readonly http = inject(HttpClient);
   private readonly base = `${environment.apiUrl}/store`;
 
-  listBalances(storeUid: string): Observable<StoreStockBalance[]> {
-    return this.http.get<StoreStockBalance[]>(`${this.base}/stores/uid/${storeUid}/stock`);
+  /** Server-side, paginated balances with name/code search + low/expiring filters. */
+  searchBalances(storeUid: string, params: StoreBalanceSearchParams = {}): Observable<PageResponse<StoreStockBalance>> {
+    let p = new HttpParams();
+    if (params.query) p = p.set('query', params.query);
+    if (params.lowOnly) p = p.set('lowOnly', 'true');
+    if (params.expiringOnly) p = p.set('expiringOnly', 'true');
+    if (params.page !== undefined) p = p.set('page', String(params.page));
+    if (params.size !== undefined) p = p.set('size', String(params.size));
+    if (params.sort) p = p.set('sort', params.sort);
+    return this.http.get<PageResponse<StoreStockBalance>>(`${this.base}/stores/uid/${storeUid}/stock`, { params: p });
   }
 
   receive(storeUid: string, req: ReceiveStoreStockRequest): Observable<StoreStockBatch> {

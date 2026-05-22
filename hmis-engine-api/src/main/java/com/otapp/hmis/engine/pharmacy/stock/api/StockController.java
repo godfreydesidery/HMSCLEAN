@@ -28,8 +28,13 @@ public class StockController {
     private final StockService stockService;
 
     @GetMapping("/pharmacies/uid/{pharmacyUid}/stock")
-    public ResponseEntity<List<StockBalanceDto>> listBalances(@PathVariable String pharmacyUid) {
-        return ResponseEntity.ok(stockService.listBalances(pharmacyUid));
+    public ResponseEntity<PageResponse<StockBalanceDto>> searchBalances(
+            @PathVariable String pharmacyUid,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false, defaultValue = "false") boolean lowOnly,
+            @RequestParam(required = false, defaultValue = "false") boolean expiringOnly,
+            Pageable pageable) {
+        return ResponseEntity.ok(stockService.searchBalances(pharmacyUid, query, lowOnly, expiringOnly, pageable));
     }
 
     @PostMapping("/pharmacies/uid/{pharmacyUid}/stock/receive")

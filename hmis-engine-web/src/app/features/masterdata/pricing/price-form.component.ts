@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, Input, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { Observable, finalize } from 'rxjs';
+import { Observable, finalize, of } from 'rxjs';
 
 import { PageResponse } from '../../../core/http/page.types';
 import { ClinicService } from '../clinics/clinic.service';
@@ -16,7 +16,7 @@ import { ProcedureTypeService } from '../procedures/procedure.service';
 import { RadiologyTypeService } from '../radiology/radiology.service';
 import { WardService } from '../wards/ward.service';
 import { ServicePriceService } from './service-price.service';
-import { SERVICE_KINDS, ServiceKind, ServicePrice } from './service-price.types';
+import { REGISTRATION_SERVICE_UID, SERVICE_KINDS, ServiceKind, ServicePrice } from './service-price.types';
 
 interface ServiceOption {
   uid: string;
@@ -113,7 +113,14 @@ export class PriceFormComponent implements OnInit {
     } else {
       this.loadServiceOptions(this.form.controls.kind.value);
       this.form.controls.kind.valueChanges.subscribe((k) => {
-        this.form.controls.serviceUid.setValue('');
+        if (k === 'REGISTRATION') {
+          // Singleton service — auto-select the sentinel and lock the picker.
+          this.form.controls.serviceUid.setValue(REGISTRATION_SERVICE_UID);
+          this.form.controls.serviceUid.disable();
+        } else {
+          this.form.controls.serviceUid.enable();
+          this.form.controls.serviceUid.setValue('');
+        }
         this.loadServiceOptions(k);
       });
     }
@@ -161,6 +168,12 @@ export class PriceFormComponent implements OnInit {
       case 'WARD':
         return this.wardService.search({ active: true, size: 200, sort: 'name,asc' }).pipe(
           mapToOptions((w) => ({ uid: w.uid, label: `${w.name} (${w.code})` })));
+      case 'REGISTRATION':
+        // Singleton — no catalogue; the one "service" is the registration fee itself.
+        return of({
+          content: [{ uid: REGISTRATION_SERVICE_UID, label: 'Patient registration fee' }],
+          page: 0, size: 1, totalElements: 1, totalPages: 1
+        });
     }
   }
 

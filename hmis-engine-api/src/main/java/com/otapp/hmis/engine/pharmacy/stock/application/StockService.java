@@ -389,6 +389,48 @@ public class StockService {
 
     // ----- read paths -------------------------------------------------------
 
+    private static final int LOW_STOCK_THRESHOLD = 10;
+    private static final int EXPIRY_WINDOW_DAYS = 30;
+
+    /**
+     * Server-side, paginated stock list for the UI: filters by medicine
+     * name/code, low-stock-only and expiring-only at the DB, then rolls up the
+     * page's balance rows with their batch details.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<StockBalanceDto> searchBalances(String pharmacyUid, String query,
+                                                        boolean lowOnly, boolean expiringOnly,
+                                                        Pageable pageable) {
+        Pharmacy pharmacy = pharmacyRepository.findByUid(pharmacyUid)
+                .orElseThrow(() -> new NotFoundException("Pharmacy not found: " + pharmacyUid));
+        String search = emptyToNull(query);
+        LocalDate cutoff = LocalDate.now().plusDays(EXPIRY_WINDOW_DAYS);
+        return PageResponse.from(
+                balanceRepository.searchBalances(pharmacy.getUid(), search, lowOnly, LOW_STOCK_THRESHOLD,
+                        expiringOnly, cutoff, pageable)
+                        .map(bal -> toBalanceDto(pharmacy, bal)));
+    }
+
+    private StockBalanceDto toBalanceDto(Pharmacy pharmacy, StockBalance bal) {
+        Medicine medicine = medicineRepository.findByUid(bal.getMedicineUid()).orElse(null);
+        List<StockBatch> rows = batchRepository
+                .findAllByPharmacyUidAndMedicineUid(pharmacy.getUid(), bal.getMedicineUid());
+        LocalDate earliest = rows.stream().map(StockBatch::getExpiresAt).filter(d -> d != null)
+                .min(Comparator.naturalOrder()).orElse(null);
+        List<StockBatchDto> batchDtos = rows.stream().map(b -> toBatchDto(b, medicine)).toList();
+        return new StockBalanceDto(
+                pharmacy.getUid(),
+                pharmacy.getName(),
+                bal.getMedicineUid(),
+                medicine == null ? null : medicine.getCode(),
+                medicine == null ? null : medicine.getName(),
+                medicine == null ? null : medicine.getStrength(),
+                bal.getQuantity(),
+                rows.size(),
+                earliest,
+                batchDtos);
+    }
+
     /**
      * One row per medicine, with per-batch details rolled up. Used by the
      * stock list page.

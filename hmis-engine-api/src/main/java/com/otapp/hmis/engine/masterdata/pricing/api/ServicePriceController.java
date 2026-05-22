@@ -28,10 +28,13 @@ public class ServicePriceController {
     @GetMapping
     public ResponseEntity<PageResponse<ServicePriceDto>> search(
             @RequestParam(required = false) String planUid,
+            @RequestParam(required = false, defaultValue = "false") boolean cashOnly,
             @RequestParam(required = false) ServiceKind kind,
             @RequestParam(required = false) String serviceUid,
+            @RequestParam(required = false) String currency,
+            @RequestParam(required = false) String query,
             Pageable pageable) {
-        return ResponseEntity.ok(service.search(planUid, kind, serviceUid, pageable));
+        return ResponseEntity.ok(service.search(planUid, cashOnly, kind, serviceUid, currency, query, pageable));
     }
 
     /** Create a price for a (payer, service, currency) cell. Plan UID empty/null = cash price.

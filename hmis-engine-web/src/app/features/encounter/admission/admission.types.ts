@@ -62,6 +62,8 @@ export interface AdmissionSummary {
 export interface AdmitPatientRequest {
   patientUid: string;
   wardUid: string;
+  /** Typed bed to claim/reserve; when set the backend overrides bedLabel from the bed. */
+  bedUid: string | null;
   bedLabel: string | null;
   admittingClinicianUsername: string;
   paymentType: PaymentType;

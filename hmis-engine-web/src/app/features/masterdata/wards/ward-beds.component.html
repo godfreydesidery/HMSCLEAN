@@ -1,0 +1,97 @@
+<div class="modal-header">
+  <h5 class="modal-title d-flex align-items-center gap-2">
+    <i class="bi bi-hospital text-primary"></i>Beds — {{ wardName }}
+  </h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss()"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span>
+    </div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="row g-2 align-items-end mb-3">
+    <div class="col-sm-4">
+      <label class="form-label" for="bed-label">Bed label <span class="text-danger">*</span></label>
+      <input id="bed-label" type="text" class="form-control" formControlName="label" maxlength="32" placeholder="e.g. B-12">
+    </div>
+    <div class="col-sm-5">
+      <label class="form-label" for="bed-notes">Notes</label>
+      <input id="bed-notes" type="text" class="form-control" formControlName="notes" maxlength="500" placeholder="optional">
+    </div>
+    <div class="col-sm-3 d-flex gap-2">
+      <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting() || form.invalid">
+        @if (submitting()) { <span class="spinner-border spinner-border-sm"></span> }
+        <i class="bi" [class.bi-plus-lg]="!editing()" [class.bi-check-lg]="editing()"></i>
+        {{ editing() ? 'Save' : 'Add bed' }}
+      </button>
+      @if (editing()) {
+        <button type="button" class="btn btn-light border" (click)="cancelEdit()">Cancel</button>
+      }
+    </div>
+  </form>
+
+  @if (loading()) {
+    <div class="text-center text-muted py-3"><span class="spinner-border spinner-border-sm"></span> Loading…</div>
+  } @else if (beds().length === 0) {
+    <div class="text-center text-muted py-4"><i class="bi bi-inbox me-1"></i>No beds yet — add the ward's beds above.</div>
+  } @else {
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Status</th>
+            <th>Notes</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (b of beds(); track b.uid) {
+            <tr [class.opacity-50]="!b.active">
+              <td class="fw-semibold">{{ b.label }}</td>
+              <td>
+                <span [class]="'badge ' + badgeClass(b.status)">{{ statusLabel(b.status) }}</span>
+                @if (inUse(b) && b.occupiedByAdmissionUid) {
+                  <div class="hmis-muted small text-truncate" style="max-width: 180px;" [title]="b.occupiedByAdmissionUid">
+                    Held by {{ b.occupiedByAdmissionUid }}
+                  </div>
+                }
+                @if (!b.active) { <span class="badge text-bg-light border ms-1">Inactive</span> }
+              </td>
+              <td class="hmis-muted small">{{ b.notes || '—' }}</td>
+              <td class="text-end">
+                <div class="btn-group btn-group-sm">
+                  <button type="button" class="btn btn-outline-secondary" (click)="startEdit(b)" title="Edit">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  @if (b.status === 'OUT_OF_SERVICE') {
+                    <button type="button" class="btn btn-outline-success" (click)="markFree(b)" title="Return to service (free)">
+                      <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                  } @else {
+                    <button type="button" class="btn btn-outline-warning" (click)="outOfService(b)" [disabled]="inUse(b)" title="Take out of service">
+                      <i class="bi bi-tools"></i>
+                    </button>
+                  }
+                  <button type="button" class="btn btn-outline-secondary" (click)="toggleActive(b)" [title]="b.active ? 'Deactivate' : 'Activate'">
+                    <i class="bi" [class.bi-toggle-on]="b.active" [class.bi-toggle-off]="!b.active"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-danger" (click)="delete(b)" [disabled]="inUse(b)" title="Delete">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.close()">Close</button>
+</div>

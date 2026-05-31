@@ -2,6 +2,7 @@ package com.otapp.hmis.engine.encounter.prescription.application;
 
 import com.otapp.hmis.engine.common.api.PageResponse;
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
+import com.otapp.hmis.engine.common.error.ConflictException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
 import com.otapp.hmis.engine.encounter.admission.domain.AdmissionRepository;
 import com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus;
@@ -43,6 +44,15 @@ public class PrescriptionService {
             PrescriptionStatus.PENDING, PrescriptionStatus.ACCEPTED, PrescriptionStatus.HELD,
             PrescriptionStatus.VERIFIED, PrescriptionStatus.APPROVED);
 
+    /**
+     * Statuses that DON'T count as an existing duplicate — a withdrawn or
+     * refused order may be re-prescribed for the same consultation. Legacy
+     * de-duped against any row regardless of status; excluding terminal
+     * non-dispensing states is a deliberate, documented refinement.
+     */
+    private static final java.util.Set<PrescriptionStatus> WITHDRAWN_STATES = java.util.EnumSet.of(
+            PrescriptionStatus.CANCELLED, PrescriptionStatus.REJECTED);
+
     private final PrescriptionRepository prescriptionRepository;
     private final ConsultationRepository consultationRepository;
     private final AdmissionRepository admissionRepository;
@@ -61,6 +71,16 @@ public class PrescriptionService {
         // Legacy open_consultation confinement: prescriptions only while IN_PROGRESS.
         consultation.requireAuthorable();
         Medicine medicine = activeMedicine(request.medicineUid());
+
+        // Duplicate-drug-per-consultation guard (legacy existsByConsultationAndMedicine,
+        // a HARD stop). The same medicine cannot be prescribed twice on one
+        // consultation — edit the quantity instead. Withdrawn orders (CANCELLED /
+        // REJECTED) are excluded so a re-add is allowed.
+        if (prescriptionRepository.existsByConsultationUidAndMedicineUidAndStatusNotIn(
+                consultation.getUid(), medicine.getUid(), WITHDRAWN_STATES)) {
+            throw new ConflictException(
+                    "Duplicate drug is not allowed for this consultation. Consider editing the quantity.");
+        }
 
         ResolvedPicklists picks = resolvePicklists(request);
         Prescription prescription = new Prescription(

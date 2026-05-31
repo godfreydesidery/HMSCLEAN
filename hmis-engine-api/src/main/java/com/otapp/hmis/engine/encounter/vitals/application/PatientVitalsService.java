@@ -7,6 +7,8 @@ import com.otapp.hmis.engine.encounter.vitals.application.PatientVitalsDtos.Pati
 import com.otapp.hmis.engine.encounter.vitals.application.PatientVitalsDtos.RecordVitalsRequest;
 import com.otapp.hmis.engine.encounter.vitals.domain.PatientVitals;
 import com.otapp.hmis.engine.encounter.vitals.domain.PatientVitalsRepository;
+import com.otapp.hmis.engine.encounter.vitals.domain.VitalsCalculator;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,15 @@ public class PatientVitalsService {
         vitals.setSpo2Percent(request.spo2Percent());
         vitals.setWeightKg(request.weightKg());
         vitals.setHeightCm(request.heightCm());
+        // BMI / BSA: persist the clinician-supplied value (legacy behaviour);
+        // derive server-side from weight & height only when not supplied.
+        BigDecimal bmi = request.bmi() != null
+                ? request.bmi() : VitalsCalculator.bmi(request.weightKg(), request.heightCm());
+        BigDecimal bsa = request.bsa() != null
+                ? request.bsa() : VitalsCalculator.bsaMosteller(request.weightKg(), request.heightCm());
+        vitals.setBmi(bmi);
+        vitals.setBsa(bsa);
+        vitals.setBmiComment(emptyToNull(request.bmiComment()));
         vitals.setNotes(emptyToNull(request.notes()));
         vitalsRepository.save(vitals);
         return toDto(vitals);
@@ -55,6 +66,7 @@ public class PatientVitalsService {
 
     private static PatientVitalsDto toDto(PatientVitals v) {
         return new PatientVitalsDto(
+                v.getId(),
                 v.getUid(),
                 v.getConsultationUid(),
                 v.getPatientUid(),
@@ -67,6 +79,9 @@ public class PatientVitalsService {
                 v.getSpo2Percent(),
                 v.getWeightKg(),
                 v.getHeightCm(),
+                v.getBmi(),
+                v.getBsa(),
+                v.getBmiComment(),
                 v.getNotes(),
                 v.getCreatedAt(),
                 v.getUpdatedAt());

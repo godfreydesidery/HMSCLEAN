@@ -64,6 +64,22 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
             """)
     boolean hasUnpaidRegistration(@Param("patientUid") String patientUid);
 
+    /**
+     * True if the admission owes anything against its admission invoice (issued /
+     * partially-paid with a positive balance). Drives the bill-clearance gate read
+     * for the cashier / ward-admin UI. Mirrors {@link #hasUnpaidRegistration}. A
+     * zero-balance invoice (fully covered / credited) does not count as outstanding.
+     */
+    @Query("""
+            SELECT COUNT(i) > 0 FROM Invoice i
+            WHERE i.admissionUid = :admissionUid
+              AND i.scope  = com.otapp.hmis.engine.billing.invoice.domain.InvoiceScope.ADMISSION
+              AND i.status IN (com.otapp.hmis.engine.billing.invoice.domain.InvoiceStatus.ISSUED,
+                               com.otapp.hmis.engine.billing.invoice.domain.InvoiceStatus.PARTIALLY_PAID)
+              AND (i.subtotal - i.totalPaid - i.totalCredited) > 0
+            """)
+    boolean existsOutstandingForAdmission(@Param("admissionUid") String admissionUid);
+
     @Query("""
             SELECT i FROM Invoice i
             WHERE (:search IS NULL OR :search = ''

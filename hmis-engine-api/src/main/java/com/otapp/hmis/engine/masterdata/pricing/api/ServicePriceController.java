@@ -1,6 +1,7 @@
 package com.otapp.hmis.engine.masterdata.pricing.api;
 
 import com.otapp.hmis.engine.common.api.PageResponse;
+import com.otapp.hmis.engine.masterdata.pricing.application.ServicePriceDtos.ServiceCoverageDto;
 import com.otapp.hmis.engine.masterdata.pricing.application.ServicePriceDtos.ServicePriceDto;
 import com.otapp.hmis.engine.masterdata.pricing.application.ServicePriceDtos.SetServicePriceRequest;
 import com.otapp.hmis.engine.masterdata.pricing.application.ServicePriceDtos.UpdateServicePriceRequest;
@@ -47,11 +48,33 @@ public class ServicePriceController {
         return ResponseEntity.created(loc).body(created);
     }
 
-    /** Update an existing price (amount / band / note) by uid. Key fields are immutable. */
+    /** Per-plan coverage grid: the plan's price cells with their covered flag. 404 if plan unknown. */
+    @GetMapping("/coverage")
+    public ResponseEntity<PageResponse<ServiceCoverageDto>> coverage(
+            @RequestParam String planUid,
+            @RequestParam(required = false) ServiceKind kind,
+            @RequestParam(required = false) String query,
+            Pageable pageable) {
+        return ResponseEntity.ok(service.coverageGrid(planUid, kind, query, pageable));
+    }
+
+    /** Update an existing price (amount / band / note / covered) by uid. Key fields are immutable. */
     @PutMapping("/uid/{servicePriceUid}")
     public ResponseEntity<ServicePriceDto> update(@PathVariable String servicePriceUid,
                                                   @Valid @RequestBody UpdateServicePriceRequest request) {
         return ResponseEntity.ok(service.update(servicePriceUid, request));
+    }
+
+    /** Cover the service this plan price addresses. 422 if the cell is unpriced or a cash row; 404 if unknown. */
+    @PostMapping("/uid/{servicePriceUid}/cover")
+    public ResponseEntity<ServicePriceDto> cover(@PathVariable String servicePriceUid) {
+        return ResponseEntity.ok(service.cover(servicePriceUid));
+    }
+
+    /** Uncover the service this plan price addresses. 404 if unknown. */
+    @PostMapping("/uid/{servicePriceUid}/uncover")
+    public ResponseEntity<ServicePriceDto> uncover(@PathVariable String servicePriceUid) {
+        return ResponseEntity.ok(service.uncover(servicePriceUid));
     }
 
     @DeleteMapping("/uid/{servicePriceUid}")

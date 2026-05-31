@@ -1,11 +1,14 @@
 package com.otapp.hmis.engine.billing.invoice.api;
 
+import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.AdmissionBillingSummaryDto;
+import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.AdmissionOutstandingDto;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.CancelInvoiceRequest;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceDto;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceSummary;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.OverrideLinePriceRequest;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.RecordPaymentRequest;
 import com.otapp.hmis.engine.billing.creditnote.application.CreditNoteDtos.CreditNoteDto;
+import com.otapp.hmis.engine.billing.invoice.application.AdmissionBillGate;
 import com.otapp.hmis.engine.billing.invoice.application.ConsultationFeeService;
 import com.otapp.hmis.engine.billing.invoice.application.ConsultationReversalService;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceService;
@@ -34,6 +37,7 @@ public class InvoiceController {
     private final ConsultationFeeService consultationFeeService;
     private final ServiceChargeService serviceChargeService;
     private final ConsultationReversalService consultationReversalService;
+    private final AdmissionBillGate admissionBillGate;
 
     @GetMapping("/billing/invoices")
     public ResponseEntity<PageResponse<InvoiceSummary>> search(
@@ -109,6 +113,22 @@ public class InvoiceController {
     @PostMapping("/billing/admissions/uid/{admissionUid}/invoice")
     public ResponseEntity<InvoiceDto> generateForAdmission(@PathVariable String admissionUid) {
         return ResponseEntity.ok(invoiceService.generateForAdmission(admissionUid));
+    }
+
+    /**
+     * Admission billing picture for the discharge / closure UI: the admission invoice's
+     * money math plus the bill-clearance flag the discharge gate enforces. 404 when the
+     * admission has no invoice yet.
+     */
+    @GetMapping("/billing/admissions/uid/{admissionUid}/billing-summary")
+    public ResponseEntity<AdmissionBillingSummaryDto> admissionBillingSummary(@PathVariable String admissionUid) {
+        return ResponseEntity.ok(admissionBillGate.billingSummary(admissionUid));
+    }
+
+    /** Cashier / ward-admin gate display: whether the admission still owes money and its balance. */
+    @GetMapping("/billing/admissions/uid/{admissionUid}/outstanding")
+    public ResponseEntity<AdmissionOutstandingDto> admissionOutstanding(@PathVariable String admissionUid) {
+        return ResponseEntity.ok(admissionBillGate.outstanding(admissionUid));
     }
 
     @GetMapping("/billing/patients/uid/{patientUid}/outsider-invoice")

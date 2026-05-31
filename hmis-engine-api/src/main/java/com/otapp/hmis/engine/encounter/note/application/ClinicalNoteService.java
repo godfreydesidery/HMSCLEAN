@@ -42,6 +42,9 @@ public class ClinicalNoteService {
         note.setExamination(emptyToNull(request.examination()));
         note.setAssessment(emptyToNull(request.assessment()));
         note.setPlan(emptyToNull(request.plan()));
+        note.setDrugsAndAllergyHistory(emptyToNull(request.drugsAndAllergyHistory()));
+        note.setFamilyAndSocialHistory(emptyToNull(request.familyAndSocialHistory()));
+        note.setReviewOfOtherSystems(emptyToNull(request.reviewOfOtherSystems()));
         noteRepository.save(note);
 
         return toDto(note);
@@ -49,6 +52,7 @@ public class ClinicalNoteService {
 
     private static ClinicalNoteDto toDto(ClinicalNote n) {
         return new ClinicalNoteDto(
+                n.getId(),
                 n.getUid(),
                 n.getConsultationUid(),
                 n.getChiefComplaint(),
@@ -57,6 +61,9 @@ public class ClinicalNoteService {
                 n.getExamination(),
                 n.getAssessment(),
                 n.getPlan(),
+                n.getDrugsAndAllergyHistory(),
+                n.getFamilyAndSocialHistory(),
+                n.getReviewOfOtherSystems(),
                 n.getCreatedAt(),
                 n.getUpdatedAt());
     }

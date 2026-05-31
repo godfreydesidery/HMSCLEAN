@@ -80,7 +80,11 @@ class InvoiceDtoAssembler {
                 l.getAmount(),
                 band == null ? null : band.minAmount(),
                 band == null ? null : band.maxAmount(),
-                overridable);
+                overridable,
+                l.getCoverageStatus(),
+                l.getMembershipNo(),
+                l.getPayerPlanUid(),
+                l.getPrincipalLineUid());
     }
 
     private static PaymentDto toPaymentDto(Payment p) {

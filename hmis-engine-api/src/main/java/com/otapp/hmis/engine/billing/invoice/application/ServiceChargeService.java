@@ -1,11 +1,14 @@
 package com.otapp.hmis.engine.billing.invoice.application;
 
+import com.otapp.hmis.engine.billing.invoice.application.CoverageResolver.CoverageResolution;
 import com.otapp.hmis.engine.billing.invoice.domain.Invoice;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLine;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLineKind;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLineRepository;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceRepository;
+import com.otapp.hmis.engine.billing.invoice.domain.InvoiceScope;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceStatus;
+import com.otapp.hmis.engine.billing.invoice.domain.LineCoverageStatus;
 import com.otapp.hmis.engine.billing.invoice.infrastructure.InvoiceNumberGenerator;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
@@ -29,9 +32,16 @@ import org.springframework.transaction.annotation.Transactional;
  * invoice <em>at order time</em>, so a CASH patient pays before the service is
  * rendered (PROCESS_MISMATCHES.md M13). Runs after-commit in a new transaction
  * (mirrors {@link ConsultationFeeService}). Idempotent — a line is added at most
- * once per order/prescription. Non-CASH or zero-priced items are marked settled
- * immediately (legacy COVERED); CASH items settle when the invoice is paid (via
- * {@link SettlementDispatcher}).
+ * once per order/prescription.
+ *
+ * <p>Each line is payer-routed via {@link CoverageResolver} (faithful to legacy
+ * {@code PatientServiceImpl}): a service the patient's plan COVERS is priced at
+ * the plan ceiling, stamped with membership / payer plan, and settled by the
+ * insurer up front; an insured-but-uncovered service on an admission invoice is
+ * VERIFIED (owed, hospital accrues, not settled); everything else is UNPAID cash,
+ * settled when the invoice is paid (via {@link SettlementDispatcher}). A
+ * zero-priced cash line settles immediately. Coverage is per-service — having an
+ * insurance plan does NOT auto-cover everything.
  */
 @Service
 @RequiredArgsConstructor
@@ -41,6 +51,7 @@ public class ServiceChargeService {
     private final InvoiceLineRepository invoiceLineRepository;
     private final InvoiceNumberGenerator invoiceNumberGenerator;
     private final PriceLookup priceLookup;
+    private final CoverageResolver coverageResolver;
     private final ConsultationRepository consultationRepository;
     private final ClinicalOrderRepository clinicalOrderRepository;
     private final PrescriptionRepository prescriptionRepository;
@@ -67,12 +78,13 @@ public class ServiceChargeService {
             case RADIOLOGY -> InvoiceLineKind.RADIOLOGY;
             case PROCEDURE -> InvoiceLineKind.PROCEDURE;
         };
-        PriceLookup.Resolved r = priceLookup.resolve(
-                serviceKind, order.getServiceUid(), consultation.getInsurancePlanUid(), invoice.getCurrency());
-        addLine(invoice, lineKind, order.getServiceUid(), order.getUid(),
-                order.getKind() + " (" + order.getOrderNo() + ")", BigDecimal.ONE, r.amount());
+        // Cash baseline (plan-agnostic) is the price the patient owes when not covered.
+        BigDecimal cashAmount = priceLookup
+                .resolve(serviceKind, order.getServiceUid(), null, invoice.getCurrency()).amount();
+        boolean settled = chargeServiceLine(invoice, serviceKind, lineKind, order.getServiceUid(), order.getUid(),
+                order.getKind() + " (" + order.getOrderNo() + ")", BigDecimal.ONE, cashAmount, consultation.getPaymentType());
 
-        if (consultation.getPaymentType() != PaymentType.CASH || r.amount().signum() == 0) {
+        if (settled) {
             order.markSettled();
         }
     }
@@ -89,18 +101,70 @@ public class ServiceChargeService {
 
         Medicine medicine = medicineRepository.findByUid(rx.getMedicineUid()).orElse(null);
         BigDecimal qty = rx.getQuantity() == null ? BigDecimal.ONE : BigDecimal.valueOf(rx.getQuantity());
-        PriceLookup.Resolved r = priceLookup.resolve(
-                ServiceKind.MEDICINE, rx.getMedicineUid(), consultation.getInsurancePlanUid(), invoice.getCurrency());
+        BigDecimal cashUnit = priceLookup
+                .resolve(ServiceKind.MEDICINE, rx.getMedicineUid(), null, invoice.getCurrency()).amount();
         String desc = (medicine == null ? rx.getMedicineUid() : medicine.getName())
                 + " · " + rx.getDose() + " (" + rx.getPrescriptionNo() + ")";
-        addLine(invoice, InvoiceLineKind.MEDICINE, rx.getMedicineUid(), rx.getUid(), desc, qty, r.amount());
+        boolean settled = chargeServiceLine(invoice, ServiceKind.MEDICINE, InvoiceLineKind.MEDICINE,
+                rx.getMedicineUid(), rx.getUid(), desc, qty, cashUnit, consultation.getPaymentType());
 
-        if (consultation.getPaymentType() != PaymentType.CASH || r.amount().signum() == 0) {
+        if (settled) {
             rx.markSettled();
         }
     }
 
     // ----- helpers -----------------------------------------------------------
+
+    /**
+     * Charges one service line, routing the payer per the legacy
+     * {@code PatientServiceImpl} accrual:
+     *
+     * <ul>
+     *   <li><b>COVERED</b> — the patient's plan covers this service: the line is
+     *       priced at the plan ceiling, stamped with the membership number +
+     *       payer plan, and settled by the insurer. If the cash price exceeds the
+     *       ceiling (a ward-style co-pay), a supplementary UNPAID top-up line is
+     *       split off, linked to the principal — the patient/self-pay still owes
+     *       the remainder.</li>
+     *   <li><b>VERIFIED</b> — an insured patient whose plan does NOT cover the
+     *       service, on an inpatient (ADMISSION) invoice: charged at cash price,
+     *       owed (hospital accrues, insurer won't pay). Not settled.</li>
+     *   <li><b>UNPAID</b> — cash, or insured-but-uncovered on a non-admission
+     *       (outpatient) invoice: charged at cash price, owed. Settled only when
+     *       zero-priced (nothing to collect).</li>
+     * </ul>
+     *
+     * @return whether the encounter aggregate should be marked settled now.
+     */
+    @SuppressWarnings("java:S107")
+    private boolean chargeServiceLine(Invoice invoice, ServiceKind serviceKind, InvoiceLineKind lineKind,
+                                      String serviceUid, String referenceUid, String description,
+                                      BigDecimal qty, BigDecimal cashUnit, PaymentType paymentType) {
+        CoverageResolution coverage = coverageResolver.resolve(
+                serviceKind, serviceUid, invoice.getPatientUid(), invoice.getCurrency(), cashUnit);
+
+        if (coverage.covered()) {
+            InvoiceLine principal = addRoutedLine(invoice, lineKind, serviceUid, referenceUid, description, qty,
+                    coverage.coveredAmount(), LineCoverageStatus.COVERED, coverage.membershipNo(), coverage.planUid());
+            // Co-pay applies to WARD only (legacy admitPatient supplementary split);
+            // lab / radiology / procedure / medicine route COVERED-whole, no top-up.
+            if (lineKind == InvoiceLineKind.WARD && coverage.copayAmount().signum() > 0) {
+                addSupplementaryLine(invoice, lineKind, serviceUid, referenceUid,
+                        description + " (Top up)", qty, coverage.copayAmount(), principal.getUid());
+            }
+            return true; // insurer settles the covered principal
+        }
+
+        // Not covered. VERIFIED on an admission invoice (still owed, hospital
+        // accrues); UNPAID otherwise (cash / outpatient).
+        LineCoverageStatus status = (paymentType != PaymentType.CASH && invoice.getScope() == InvoiceScope.ADMISSION)
+                ? LineCoverageStatus.VERIFIED
+                : LineCoverageStatus.UNPAID;
+        addRoutedLine(invoice, lineKind, serviceUid, referenceUid, description, qty, cashUnit, status, null, null);
+        // A zero-priced cash line has nothing to collect, so it settles up front
+        // (preserves the prior zero-price short-circuit); VERIFIED never auto-settles.
+        return status == LineCoverageStatus.UNPAID && cashUnit.signum() == 0;
+    }
 
     private Invoice ensureConsultationInvoice(Consultation consultation) {
         Invoice invoice = invoiceRepository.findByConsultationUid(consultation.getUid()).orElse(null);
@@ -125,11 +189,24 @@ public class ServiceChargeService {
                 .anyMatch(l -> referenceUid.equals(l.getReferenceUid()));
     }
 
-    private void addLine(Invoice invoice, InvoiceLineKind kind, String serviceUid, String referenceUid,
-                         String description, BigDecimal qty, BigDecimal unitPrice) {
+    @SuppressWarnings("java:S107")
+    private InvoiceLine addRoutedLine(Invoice invoice, InvoiceLineKind kind, String serviceUid, String referenceUid,
+                                      String description, BigDecimal qty, BigDecimal unitPrice,
+                                      LineCoverageStatus status, String membershipNo, String payerPlanUid) {
         BigDecimal amount = unitPrice.multiply(qty);
-        invoiceLineRepository.save(new InvoiceLine(
-                invoice.getUid(), kind, serviceUid, referenceUid, description, qty, unitPrice, amount));
+        InvoiceLine line = invoiceLineRepository.save(InvoiceLine.routed(
+                invoice.getUid(), kind, serviceUid, referenceUid, description, qty, unitPrice, amount,
+                status, membershipNo, payerPlanUid));
+        invoice.setSubtotal(invoice.getSubtotal().add(amount));
+        return line;
+    }
+
+    @SuppressWarnings("java:S107")
+    private void addSupplementaryLine(Invoice invoice, InvoiceLineKind kind, String serviceUid, String referenceUid,
+                                      String description, BigDecimal qty, BigDecimal unitPrice, String principalLineUid) {
+        BigDecimal amount = unitPrice.multiply(qty);
+        invoiceLineRepository.save(InvoiceLine.supplementaryLine(
+                invoice.getUid(), kind, serviceUid, referenceUid, description, qty, unitPrice, amount, principalLineUid));
         invoice.setSubtotal(invoice.getSubtotal().add(amount));
     }
 }

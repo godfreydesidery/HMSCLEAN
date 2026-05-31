@@ -3,6 +3,7 @@ package com.otapp.hmis.engine.billing.invoice.application;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLineKind;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceScope;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceStatus;
+import com.otapp.hmis.engine.billing.invoice.domain.LineCoverageStatus;
 import com.otapp.hmis.engine.billing.payment.domain.PaymentMethod;
 import com.otapp.hmis.engine.patient.domain.PaymentType;
 import jakarta.validation.constraints.DecimalMin;
@@ -32,7 +33,15 @@ public final class InvoiceDtos {
             /** Negotiable ceiling for this line's unit price (null = no upper bound). */
             BigDecimal maxUnitPrice,
             /** Whether the unit price may still be renegotiated (no payment taken yet). */
-            boolean priceOverridable) {}
+            boolean priceOverridable,
+            /** Payer routing: COVERED (insurer pays), VERIFIED (insured-but-uncovered inpatient, owed), UNPAID (cash). */
+            LineCoverageStatus coverageStatus,
+            /** Membership number stamped on a COVERED line; null otherwise. */
+            String membershipNo,
+            /** The plan that covered this line; null for self-pay / cash. */
+            String payerPlanUid,
+            /** Set on a supplementary top-up line, pointing at its COVERED principal; null otherwise. */
+            String principalLineUid) {}
 
     public record InvoiceDto(
             String uid,
@@ -97,6 +106,26 @@ public final class InvoiceDtos {
             Instant createdAt) {}
 
     public record CancelInvoiceRequest(@Size(max = 255) String reason) {}
+
+    /**
+     * The admission billing picture surfaced to the cashier / ward-admin closure UI:
+     * the admission invoice's money math plus the {@code cleared} flag the discharge
+     * gate enforces. {@code cleared} is true when the invoice is fully settled
+     * (balance == 0); a positive balance blocks discharge / referral / deceased closure.
+     */
+    public record AdmissionBillingSummaryDto(
+            Long id,
+            String invoiceUid,
+            String invoiceNo,
+            InvoiceStatus status,
+            BigDecimal subtotal,
+            BigDecimal totalPaid,
+            BigDecimal totalCredited,
+            BigDecimal balance,
+            boolean cleared) {}
+
+    /** Lightweight gate read for the cashier UI: does this admission still owe money? */
+    public record AdmissionOutstandingDto(boolean hasOutstanding, BigDecimal balance) {}
 
     /** Negotiate a line's unit price within the service's [min, max] band. */
     public record OverrideLinePriceRequest(

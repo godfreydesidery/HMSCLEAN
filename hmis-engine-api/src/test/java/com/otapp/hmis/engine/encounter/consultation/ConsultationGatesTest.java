@@ -85,6 +85,31 @@ class ConsultationGatesTest {
         assertThat(c.getSignedOutAt()).isNotNull();
     }
 
+    // ----- cancel is BOOKED-only (legacy cancel_consultation: PENDING-only) --
+
+    @Test
+    void cancelAllowedOnlyFromBooked() {
+        Consultation booked = consultation();                       // BOOKED on construction
+        assertThatCode(() -> booked.cancel("changed mind")).doesNotThrowAnyException();
+        assertThat(booked.getCancelReason()).isEqualTo("changed mind");
+    }
+
+    @Test
+    void cancelRejectedOnceInProgress() {
+        Consultation c = consultation();
+        c.start();                                                  // BOOKED -> IN_PROGRESS
+        assertThatThrownBy(() -> c.cancel("too late"))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("BOOKED");
+    }
+
+    @Test
+    void cancelIsIdempotent() {
+        Consultation c = consultation();
+        c.cancel("first");
+        assertThatCode(() -> c.cancel("second")).doesNotThrowAnyException(); // no-op, no throw
+    }
+
     // ----- sign-out downstream cascade --------------------------------------
 
     @Test

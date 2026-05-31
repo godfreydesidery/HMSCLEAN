@@ -153,12 +153,21 @@ public class Consultation extends AuditableEntity {
         signedOutAt = Instant.now();
     }
 
+    /**
+     * Cancel a not-yet-started consultation. Faithful to legacy
+     * {@code cancel_consultation} ("only a PENDING consultation can be
+     * canceled"): only a BOOKED (legacy PENDING) consultation may be cancelled.
+     * Once it is IN_PROGRESS the clinician closes it via sign-out
+     * ({@link #complete()}), and COMPLETED / TRANSFERRED are terminal. Idempotent
+     * on an already-CANCELLED consultation so a retried cancel event is a no-op.
+     */
     public void cancel(String reason) {
-        if (status == ConsultationStatus.COMPLETED) {
-            throw new BusinessRuleException("Completed consultations cannot be cancelled");
-        }
         if (status == ConsultationStatus.CANCELLED) {
-            return;
+            return; // idempotent — already cancelled
+        }
+        if (status != ConsultationStatus.BOOKED) {
+            throw new BusinessRuleException(
+                    "Only a BOOKED consultation can be cancelled (legacy: PENDING) — current: " + status);
         }
         status = ConsultationStatus.CANCELLED;
         cancelledAt = Instant.now();

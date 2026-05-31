@@ -26,7 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
  * get_unfinished_medicine_alert_by_patient_id_and_medicine_id).
  *
  * <p>Both alerts read the patient's already-DISPENSED (legacy "GIVEN" == SOLD)
- * prescriptions for one medicine and compute timing from {@code approvedAt}.
+ * prescriptions for one medicine and compute timing from {@code dispensedAt}
+ * (when the medicine was actually handed over — the legacy "GIVEN" moment).
  * They are non-blocking and never throw on a history gap (legacy wrapped the
  * body in try/catch → empty). The only failure surfaced is 404 when the
  * patient or medicine uid itself is unknown.
@@ -69,10 +70,10 @@ public class PrescribingAlertService {
     public Optional<PrescribingAlertDto> sameMedicineThisMonth(String patientUid, String medicineUid) {
         try {
             Prescription last = lastGiven(patientUid, medicineUid);
-            if (last == null || last.getApprovedAt() == null) {
+            if (last == null || last.getDispensedAt() == null) {
                 return Optional.empty();
             }
-            Instant lastGivenAt = last.getApprovedAt();
+            Instant lastGivenAt = last.getDispensedAt();
             long days = ChronoUnit.DAYS.between(lastGivenAt, Instant.now());
             long hours = ChronoUnit.HOURS.between(lastGivenAt, Instant.now());
 
@@ -118,18 +119,18 @@ public class PrescribingAlertService {
     public Optional<PrescribingAlertDto> unfinishedCourse(String patientUid, String medicineUid) {
         try {
             Prescription last = lastGiven(patientUid, medicineUid);
-            if (last == null || last.getApprovedAt() == null || last.getDurationDays() == null) {
+            if (last == null || last.getDispensedAt() == null || last.getDurationDays() == null) {
                 return Optional.empty();
             }
             int durationDays = last.getDurationDays();
-            long elapsed = ChronoUnit.DAYS.between(last.getApprovedAt(), Instant.now());
+            long elapsed = ChronoUnit.DAYS.between(last.getDispensedAt(), Instant.now());
             if (elapsed >= durationDays) {
                 return Optional.empty();
             }
             int remaining = (int) (durationDays - elapsed);
             String medicineName = medicineName(medicineUid);
             String message = "The patient has not completed the last prescription. There are " + remaining
-                    + " day(s) left to finish this medicine. Was prescribed on " + last.getApprovedAt()
+                    + " day(s) left to finish this medicine. Was dispensed on " + last.getDispensedAt()
                     + " for " + durationDays + " day(s).";
             return Optional.of(new PrescribingAlertDto(
                     AlertKind.UNFINISHED_COURSE,
@@ -137,7 +138,7 @@ public class PrescribingAlertService {
                     message,
                     medicineUid,
                     medicineName,
-                    last.getApprovedAt(),
+                    last.getDispensedAt(),
                     (int) elapsed,
                     durationDays,
                     remaining));
@@ -153,7 +154,7 @@ public class PrescribingAlertService {
      */
     private Prescription lastGiven(String patientUid, String medicineUid) {
         List<Prescription> given = prescriptionRepository
-                .findAllByPatientUidAndMedicineUidAndStatusOrderByApprovedAtDesc(patientUid, medicineUid, GIVEN);
+                .findAllByPatientUidAndMedicineUidAndStatusOrderByDispensedAtDesc(patientUid, medicineUid, GIVEN);
         return given.isEmpty() ? null : given.get(0);
     }
 

@@ -368,6 +368,9 @@ public class InvoiceService {
     public InvoiceDto cancel(String uid, CancelInvoiceRequest request) {
         Invoice invoice = loadOrThrow(uid);
         invoice.cancel(request == null ? null : request.reason());
+        // A cancelled (voided) admission invoice owes nothing — clear the
+        // discharge gate so it does not stick blocked with no bill to pay.
+        settlementDispatcher.onInvoiceMaybeSettled(invoice);
         return toDto(invoice);
     }
 
@@ -400,6 +403,9 @@ public class InvoiceService {
         BigDecimal subtotal = invoiceLineRepository.findAllByInvoiceUidOrderByCreatedAtAsc(invoice.getUid())
                 .stream().map(InvoiceLine::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         invoice.setSubtotal(subtotal);
+        // Re-pricing may have raised or cleared the outstanding balance — keep the
+        // admission discharge gate in sync with the new subtotal.
+        settlementDispatcher.onInvoiceMaybeSettled(invoice);
         return toDto(invoice);
     }
 

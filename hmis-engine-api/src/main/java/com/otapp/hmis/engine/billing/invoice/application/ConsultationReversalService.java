@@ -26,6 +26,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -74,7 +75,7 @@ public class ConsultationReversalService {
      * Reverse the consultation fee on cancel. Idempotent — a no-op if the
      * invoice is absent or already CANCELLED.
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void reverseConsultationFee(String consultationUid) {
         Invoice invoice = invoiceRepository.findByConsultationUid(consultationUid).orElse(null);
         if (invoice == null || invoice.getStatus() == InvoiceStatus.CANCELLED) {
@@ -82,22 +83,22 @@ public class ConsultationReversalService {
         }
 
         BigDecimal paid = invoice.getTotalPaid();
-        BigDecimal creditAmount = paid.signum() > 0 ? paid : invoice.getSubtotal();
 
-        // 1) Return the received cash (rolls the invoice back from PAID).
+        // Legacy cancel_consultation raised a credit note ONLY when money had
+        // actually been collected (PatientPaymentDetail RECEIVED) — the credit
+        // note mirrors a real refund. An unpaid cancellation just voids the
+        // invoice: no refund, no credit note.
         if (paid.signum() > 0) {
+            // 1) Return the received cash (rolls the invoice back from PAID).
             refundService.raise(invoice.getUid(), new CreateRefundRequest(
                     paid, PaymentMethod.CASH, RefundReason.CANCELLATION, CANCEL_DESC, null));
-        }
-
-        // 2) PENDING credit-note audit reference for the reversal — NOT applied to
-        //    the balance (the refund already returned the cash; applying it too
-        //    would double-reduce). Only when there is a non-zero amount to record.
-        if (creditAmount.signum() > 0) {
+            // 2) PENDING credit-note audit reference for the refund — NOT applied
+            //    to the balance (the refund already returned the cash; applying it
+            //    too would double-reduce).
             creditNoteRepository.save(new CreditNote(
                     creditNoteNumberGenerator.next(),
                     invoice.getUid(),
-                    creditAmount,
+                    paid,
                     invoice.getCurrency(),
                     CreditNoteReason.SERVICE_NOT_RENDERED,
                     CANCEL_DESC,
@@ -116,7 +117,7 @@ public class ConsultationReversalService {
      * invoices entirely and never removes a line for a still-live (non-cancelled)
      * order/Rx. Idempotent.
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void voidUnpaidDownstreamLines(String consultationUid) {
         Invoice invoice = invoiceRepository.findByConsultationUid(consultationUid).orElse(null);
         if (invoice == null
@@ -137,7 +138,7 @@ public class ConsultationReversalService {
             subtotal = subtotal.add(line.getAmount());
         }
         if (changed) {
-            invoice.setSubtotal(subtotal);
+            invoice.reduceSubtotalTo(subtotal);
         }
     }
 

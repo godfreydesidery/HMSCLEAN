@@ -21,8 +21,17 @@ public final class VitalsCalculator {
     private VitalsCalculator() {}
 
     /**
+     * Largest BMI the {@code NUMERIC(4,1)} column can hold. A computed value above
+     * this is non-physiological (typically a height entered in the wrong unit, e.g.
+     * metres instead of centimetres), so the convenience value is dropped rather
+     * than overflowing the column on insert.
+     */
+    private static final BigDecimal BMI_MAX = new BigDecimal("999.9");
+
+    /**
      * BMI = weight(kg) / height(m)^2, rounded to one decimal place (NUMERIC(4,1)).
-     * Returns {@code null} if either input is missing or height is non-positive.
+     * Returns {@code null} if either input is missing, height is non-positive, or
+     * the result would not fit the NUMERIC(4,1) column (out-of-range input).
      */
     public static BigDecimal bmi(BigDecimal weightKg, BigDecimal heightCm) {
         if (weightKg == null || heightCm == null) return null;
@@ -30,7 +39,8 @@ public final class VitalsCalculator {
         BigDecimal heightM = heightCm.divide(BigDecimal.valueOf(100), MathContext.DECIMAL64);
         BigDecimal denom = heightM.multiply(heightM, MathContext.DECIMAL64);
         if (denom.signum() == 0) return null;
-        return weightKg.divide(denom, MathContext.DECIMAL64).setScale(1, RoundingMode.HALF_UP);
+        BigDecimal value = weightKg.divide(denom, MathContext.DECIMAL64).setScale(1, RoundingMode.HALF_UP);
+        return value.compareTo(BMI_MAX) > 0 ? null : value;
     }
 
     /**

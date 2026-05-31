@@ -30,10 +30,12 @@ public interface PrescriptionRepository extends JpaRepository<Prescription, Long
 
     /**
      * Backs the prescribing alerts (legacy findAllByPatientAndMedicineAndStatus
-     * with status "GIVEN"; SOLD is the rewrite equivalent of GIVEN). Newest
-     * dispense first so the alert math reads the most-recent course off the head.
+     * with status "GIVEN"; SOLD is the rewrite equivalent of GIVEN). Ordered by
+     * the DISPENSE moment (newest first) — the legacy "GIVEN" timing is when the
+     * medicine was actually handed over (dispensedAt), not when it was approved —
+     * so the alert math reads the most-recent dispensed course off the head.
      */
-    List<Prescription> findAllByPatientUidAndMedicineUidAndStatusOrderByApprovedAtDesc(
+    List<Prescription> findAllByPatientUidAndMedicineUidAndStatusOrderByDispensedAtDesc(
             String patientUid, String medicineUid, PrescriptionStatus status);
 
     /**

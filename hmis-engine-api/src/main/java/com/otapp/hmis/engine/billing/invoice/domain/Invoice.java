@@ -222,4 +222,34 @@ public class Invoice extends AuditableEntity {
             status = InvoiceStatus.PARTIALLY_PAID;
         }
     }
+
+    /**
+     * Reduce the subtotal (e.g. sign-out voids unpaid downstream lines) and
+     * roll the status to match: a non-terminal invoice whose remaining balance
+     * is now covered becomes PAID; if something is settled but a balance
+     * remains it is PARTIALLY_PAID; otherwise it stays ISSUED. DRAFT/CANCELLED
+     * are left untouched. Only reduces — never raises — the subtotal.
+     */
+    public void reduceSubtotalTo(BigDecimal newSubtotal) {
+        if (newSubtotal == null || newSubtotal.signum() < 0) {
+            throw new BusinessRuleException("Subtotal must be non-negative");
+        }
+        if (newSubtotal.compareTo(subtotal) > 0) {
+            throw new BusinessRuleException("reduceSubtotalTo can only reduce the subtotal");
+        }
+        subtotal = newSubtotal;
+        if (status == InvoiceStatus.DRAFT || status == InvoiceStatus.CANCELLED) {
+            return;
+        }
+        if (settledAmount().compareTo(subtotal) >= 0) {
+            status = InvoiceStatus.PAID;
+            if (paidAt == null) {
+                paidAt = Instant.now();
+            }
+        } else if (settledAmount().signum() > 0) {
+            status = InvoiceStatus.PARTIALLY_PAID;
+        } else {
+            status = InvoiceStatus.ISSUED;
+        }
+    }
 }

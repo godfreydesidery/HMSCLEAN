@@ -1,6 +1,7 @@
 package com.otapp.hmis.engine.encounter.consultation.domain;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -14,6 +15,14 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Long
     Optional<Consultation> findByUid(String uid);
 
     List<Consultation> findTop10ByPatientUidOrderByBookedAtDesc(String patientUid);
+
+    /**
+     * Active-encounter guard (legacy do_consultation / change_type / change_payment_type):
+     * count the patient's consultations in any "ongoing" status. Used to block a
+     * second booking ("wait for the patient to be released") and to block a
+     * patient type / payment-type change while an encounter is in progress.
+     */
+    long countByPatientUidAndStatusIn(String patientUid, Collection<ConsultationStatus> statuses);
 
     @Query("""
             SELECT COUNT(c) FROM Consultation c

@@ -1,6 +1,7 @@
 package com.otapp.hmis.engine.encounter.note.application;
 
 import com.otapp.hmis.engine.common.error.NotFoundException;
+import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
 import com.otapp.hmis.engine.encounter.note.application.ClinicalNoteDtos.ClinicalNoteDto;
 import com.otapp.hmis.engine.encounter.note.application.ClinicalNoteDtos.SaveClinicalNoteRequest;
@@ -28,9 +29,10 @@ public class ClinicalNoteService {
      */
     @Transactional
     public ClinicalNoteDto save(String consultationUid, SaveClinicalNoteRequest request) {
-        if (consultationRepository.findByUid(consultationUid).isEmpty()) {
-            throw new NotFoundException("Consultation not found: " + consultationUid);
-        }
+        Consultation consultation = consultationRepository.findByUid(consultationUid)
+                .orElseThrow(() -> new NotFoundException("Consultation not found: " + consultationUid));
+        // Legacy open_consultation confinement: clinical entries only while IN_PROGRESS.
+        consultation.requireAuthorable();
         ClinicalNote note = noteRepository.findByConsultationUid(consultationUid)
                 .orElseGet(() -> new ClinicalNote(consultationUid));
 

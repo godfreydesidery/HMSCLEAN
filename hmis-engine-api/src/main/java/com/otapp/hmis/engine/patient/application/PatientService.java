@@ -3,6 +3,7 @@ package com.otapp.hmis.engine.patient.application;
 import com.otapp.hmis.engine.common.api.PageResponse;
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
+import com.otapp.hmis.engine.common.spi.EncounterActivityPort;
 import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlan;
 import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlanRepository;
 import com.otapp.hmis.engine.masterdata.insurance.domain.InsuranceProvider;
@@ -33,6 +34,7 @@ public class PatientService {
     private final InsuranceProviderRepository insuranceProviderRepository;
     private final PatientNumberGenerator patientNumberGenerator;
     private final ApplicationEventPublisher eventPublisher;
+    private final EncounterActivityPort encounterActivityPort;
 
     @Transactional
     public PatientDto register(CreatePatientRequest request) {
@@ -62,6 +64,14 @@ public class PatientService {
         validateInsuranceForPayment(request.paymentType(), request.insurancePlanUid());
 
         Patient patient = loadOrThrow(uid);
+        // Legacy change_type / change_payment_type gate: a patient's routing type or
+        // payment type may not be changed while an encounter is ongoing.
+        boolean typeChanged = patient.getType() != request.type();
+        boolean paymentChanged = patient.getPaymentType() != request.paymentType();
+        if ((typeChanged || paymentChanged) && encounterActivityPort.hasActiveEncounter(patient.getUid())) {
+            throw new BusinessRuleException(
+                    "Patient has an active consultation or admission; cannot change type or payment type");
+        }
         patient.setFirstName(request.firstName().trim());
         patient.setMiddleName(emptyToNull(request.middleName()));
         patient.setLastName(request.lastName().trim());
@@ -91,6 +101,12 @@ public class PatientService {
     @Transactional
     public PatientDto changeType(String uid, PatientType type) {
         Patient patient = loadOrThrow(uid);
+        // Legacy change_type gate: block while an encounter is ongoing. No-op
+        // changes (same type) are allowed through unguarded.
+        if (patient.getType() != type && encounterActivityPort.hasActiveEncounter(patient.getUid())) {
+            throw new BusinessRuleException(
+                    "Patient has an active consultation or admission; cannot change type");
+        }
         patient.setType(type);
         return toDto(patient);
     }

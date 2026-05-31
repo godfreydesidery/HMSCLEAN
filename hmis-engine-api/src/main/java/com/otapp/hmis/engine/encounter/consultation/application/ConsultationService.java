@@ -7,7 +7,11 @@ import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.ConsultationDto;
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.ConsultationSummary;
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.StartConsultationRequest;
+import com.otapp.hmis.engine.encounter.admission.domain.AdmissionRepository;
+import com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus;
 import com.otapp.hmis.engine.encounter.consultation.application.event.ConsultationBookedEvent;
+import com.otapp.hmis.engine.encounter.consultation.application.event.ConsultationCancelledEvent;
+import com.otapp.hmis.engine.encounter.consultation.application.event.ConsultationSignedOutEvent;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationStatus;
@@ -24,7 +28,9 @@ import com.otapp.hmis.engine.patient.application.PatientService;
 import com.otapp.hmis.engine.patient.domain.Patient;
 import com.otapp.hmis.engine.patient.domain.PatientRepository;
 import com.otapp.hmis.engine.patient.domain.PaymentType;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
@@ -44,10 +50,20 @@ public class ConsultationService {
     private final UserRepository userRepository;
     private final ClinicStaffService clinicStaffService;
     private final StaffDirectoryService staffDirectoryService;
+    private final AdmissionRepository admissionRepository;
+    private final ConsultationCloseService consultationCloseService;
     private final ConsultationNumberGenerator numberGenerator;
     private final ApplicationEventPublisher eventPublisher;
 
     private static final String CLINICIAN_ROLE = "CLINICIAN";
+
+    /**
+     * "Ongoing" consultation statuses (legacy PENDING / TRANSFERED / IN-PROCESS):
+     * a patient with a consultation in any of these has an active encounter, so a
+     * second booking and any type / payment-type change are blocked.
+     */
+    static final Set<ConsultationStatus> ACTIVE_CONSULTATION_STATES = EnumSet.of(
+            ConsultationStatus.BOOKED, ConsultationStatus.IN_PROGRESS, ConsultationStatus.TRANSFERRED);
 
     @Transactional
     public ConsultationDto book(StartConsultationRequest request) {
@@ -59,6 +75,17 @@ public class ConsultationService {
         if (patient.getType() == com.otapp.hmis.engine.patient.domain.PatientType.OUTSIDER) {
             throw new BusinessRuleException(
                     "Patient is registered as OUTSIDER; convert to OUTPATIENT before booking a consultation");
+        }
+        // Legacy do_consultation gate: refuse a new consultation while the patient
+        // has an active (ADMITTED) admission — "the patient has an active admission".
+        if (admissionRepository.existsByPatientUidAndStatus(patient.getUid(), AdmissionStatus.ADMITTED)) {
+            throw new BusinessRuleException("The patient has an active admission");
+        }
+        // Legacy do_consultation gate: refuse a new consultation while the patient
+        // already has an ongoing one — "wait for the patient to be released".
+        if (consultationRepository.countByPatientUidAndStatusIn(patient.getUid(), ACTIVE_CONSULTATION_STATES) > 0) {
+            throw new BusinessRuleException(
+                    "The patient already has an active consultation; wait for the patient to be released");
         }
         Clinic clinic = clinicRepository.findByUid(request.clinicUid())
                 .orElseThrow(() -> new NotFoundException("Clinic not found: " + request.clinicUid()));
@@ -180,6 +207,12 @@ public class ConsultationService {
     public ConsultationDto complete(String uid) {
         Consultation c = loadOrThrow(uid);
         c.complete();
+        // Legacy free_consultation cascade (step 5): cancel every UNPAID downstream
+        // lab/rad/proc order + prescription in-transaction (encounter-side); PAID
+        // items are left intact. The billing-side voids the unpaid invoice lines
+        // after-commit via ConsultationSignedOutEvent (billing depends on encounter).
+        consultationCloseService.cancelUnsettledDownstream(c.getUid());
+        eventPublisher.publishEvent(new ConsultationSignedOutEvent(c.getUid(), c.getPatientUid()));
         return toDto(c);
     }
 
@@ -187,6 +220,11 @@ public class ConsultationService {
     public ConsultationDto cancel(String uid, CancelConsultationRequest request) {
         Consultation c = loadOrThrow(uid);
         c.cancel(emptyToNull(request == null ? null : request.reason()));
+        // Legacy cancel_consultation cascade (step 4): the consultation-fee invoice
+        // is voided, any received payment refunded, and a credit note raised. That
+        // runs billing-side after-commit via ConsultationCancelledEvent — the
+        // encounter module never imports billing.
+        eventPublisher.publishEvent(new ConsultationCancelledEvent(c.getUid(), c.getPatientUid()));
         return toDto(c);
     }
 
@@ -282,6 +320,8 @@ public class ConsultationService {
                 c.getPaymentType(),
                 c.getInsurancePlanUid(),
                 plan == null ? null : plan.getName(),
+                c.isFeeSettled(),
+                c.getStatus() == ConsultationStatus.IN_PROGRESS,
                 c.getReason(),
                 c.getBookedAt(),
                 c.getStartedAt(),

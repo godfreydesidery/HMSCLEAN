@@ -16,6 +16,7 @@ import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.Clini
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.CompleteOrderRequest;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.CreateOrderRequest;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.OrderWorklistDto;
+import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.RejectOrderRequest;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.ScheduleOrderRequest;
 import com.otapp.hmis.engine.encounter.order.application.event.ClinicalOrderRaisedEvent;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrder;
@@ -64,6 +65,14 @@ public class ClinicalOrderService {
         // Validate that the target service exists in the right catalogue.
         ServiceDescriptor descriptor = resolveService(request.kind(), request.serviceUid());
 
+        // Duplicate-order-type guard (legacy parity): no two orders of the same
+        // service type within one consultation.
+        if (orderRepository.existsByConsultationUidAndKindAndServiceUid(
+                consultation.getUid(), request.kind(), descriptor.uid())) {
+            throw new BusinessRuleException(
+                    "A " + request.kind() + " order for this service already exists on this consultation");
+        }
+
         ClinicalOrder order = new ClinicalOrder(
                 orderNumberGenerator.next(),
                 consultation.getUid(),
@@ -98,6 +107,13 @@ public class ClinicalOrderService {
         }
 
         ServiceDescriptor descriptor = resolveService(request.kind(), request.serviceUid());
+
+        // Duplicate-order-type guard (legacy parity) on the outsider pathway.
+        if (orderRepository.existsByPatientUidAndConsultationUidIsNullAndKindAndServiceUid(
+                patient.getUid(), request.kind(), descriptor.uid())) {
+            throw new BusinessRuleException(
+                    "A " + request.kind() + " order for this service already exists for this patient");
+        }
 
         ClinicalOrder order = new ClinicalOrder(
                 orderNumberGenerator.next(),
@@ -146,6 +162,22 @@ public class ClinicalOrderService {
     public ClinicalOrderDto cancel(String uid, CancelOrderRequest request) {
         ClinicalOrder order = loadOrThrow(uid);
         order.cancel(emptyToNull(request == null ? null : request.reason()));
+        return toDto(order);
+    }
+
+    /** Lab / radiology rejection with a reason: REQUESTED/ACCEPTED → REJECTED (recoverable). */
+    @Transactional
+    public ClinicalOrderDto reject(String uid, RejectOrderRequest request) {
+        ClinicalOrder order = loadOrThrow(uid);
+        order.reject(request.reason().trim(), currentUsername());
+        return toDto(order);
+    }
+
+    /** Lab / radiology hold: ACCEPTED → back to REQUESTED, stamping who held it. */
+    @Transactional
+    public ClinicalOrderDto hold(String uid) {
+        ClinicalOrder order = loadOrThrow(uid);
+        order.hold(currentUsername());
         return toDto(order);
     }
 
@@ -276,6 +308,7 @@ public class ClinicalOrderService {
                 ? null
                 : theatreRepository.findByUid(o.getTheatreUid()).map(Theatre::getName).orElse(null);
         return new ClinicalOrderDto(
+                o.getId(),
                 o.getUid(),
                 o.getOrderNo(),
                 o.getConsultationUid(),
@@ -295,6 +328,11 @@ public class ClinicalOrderService {
                 theatreName,
                 o.getScheduledAt(),
                 o.getScheduledByUsername(),
+                o.getRejectReason(),
+                o.getRejectedAt(),
+                o.getRejectedByUsername(),
+                o.getHeldAt(),
+                o.getHeldByUsername(),
                 o.getCreatedAt(),
                 o.getUpdatedAt());
     }

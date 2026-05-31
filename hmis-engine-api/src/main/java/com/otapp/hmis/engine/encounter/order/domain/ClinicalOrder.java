@@ -81,6 +81,14 @@ public class ClinicalOrder extends AuditableEntity {
     @Setter @Column(name = "scheduled_at")               private Instant scheduledAt;
     @Setter @Column(name = "scheduled_by_username", length = 64) private String scheduledByUsername;
 
+    // ----- reject / hold audit (lab + radiology bounce-back) ----------------
+    // Encapsulated — only the reject()/hold()/accept() transitions touch these.
+    @Column(name = "rejected_at")                    private Instant rejectedAt;
+    @Column(name = "rejected_by_username", length = 64) private String rejectedByUsername;
+    @Column(name = "reject_reason", length = 255)    private String rejectReason;
+    @Column(name = "held_at")                        private Instant heldAt;
+    @Column(name = "held_by_username", length = 64)  private String heldByUsername;
+
     public ClinicalOrder(String orderNo, String consultationUid, String patientUid,
                          ClinicalOrderKind kind, String serviceUid,
                          OrderUrgency urgency, String instructions) {
@@ -126,11 +134,56 @@ public class ClinicalOrder extends AuditableEntity {
         if (kind == ClinicalOrderKind.PROCEDURE) {
             throw new BusinessRuleException("Procedures are signed off via approve(), not accept()");
         }
-        if (status != ClinicalOrderStatus.REQUESTED) {
-            throw new BusinessRuleException("Only REQUESTED orders can be accepted (current: " + status + ")");
+        // Legacy re-accept loop: a REJECTED order is recovered by accepting it
+        // again (a held order was bounced to REQUESTED, so it's covered too).
+        if (status != ClinicalOrderStatus.REQUESTED && status != ClinicalOrderStatus.REJECTED) {
+            throw new BusinessRuleException(
+                    "Only REQUESTED or REJECTED orders can be accepted (current: " + status + ")");
         }
+        // Re-accepting clears the rejection audit, as the legacy did.
+        rejectedAt = null;
+        rejectedByUsername = null;
+        rejectReason = null;
         status = ClinicalOrderStatus.ACCEPTED;
         acceptedAt = Instant.now();
+    }
+
+    /**
+     * Lab / radiology rejection: a specimen/study is bounced back with a reason.
+     * REQUESTED or ACCEPTED → REJECTED, clearing the accept stamp. Recoverable —
+     * {@link #accept()} re-accepts it. Procedures have no reject path in legacy.
+     */
+    public void reject(String reason, String username) {
+        if (kind == ClinicalOrderKind.PROCEDURE) {
+            throw new BusinessRuleException("Procedures cannot be rejected (use cancel)");
+        }
+        if (status != ClinicalOrderStatus.REQUESTED && status != ClinicalOrderStatus.ACCEPTED) {
+            throw new BusinessRuleException(
+                    "Only REQUESTED or ACCEPTED orders can be rejected (current: " + status + ")");
+        }
+        status = ClinicalOrderStatus.REJECTED;
+        rejectedAt = Instant.now();
+        rejectedByUsername = username;
+        rejectReason = reason;
+        acceptedAt = null;
+    }
+
+    /**
+     * Lab / radiology hold: an ACCEPTED order is paused and returned to the
+     * pending queue (legacy bounces it to PENDING and stamps who held it — there
+     * is no distinct HELD state). Resume by accepting it again.
+     */
+    public void hold(String username) {
+        if (kind == ClinicalOrderKind.PROCEDURE) {
+            throw new BusinessRuleException("Procedures cannot be held");
+        }
+        if (status != ClinicalOrderStatus.ACCEPTED) {
+            throw new BusinessRuleException("Only ACCEPTED orders can be held (current: " + status + ")");
+        }
+        status = ClinicalOrderStatus.REQUESTED;
+        heldAt = Instant.now();
+        heldByUsername = username;
+        acceptedAt = null;
     }
 
     /**

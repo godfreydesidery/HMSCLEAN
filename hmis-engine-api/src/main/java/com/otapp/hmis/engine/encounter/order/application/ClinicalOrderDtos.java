@@ -13,6 +13,7 @@ public final class ClinicalOrderDtos {
     private ClinicalOrderDtos() {}
 
     public record ClinicalOrderDto(
+            Long id,
             String uid,
             String orderNo,
             String consultationUid,
@@ -32,6 +33,11 @@ public final class ClinicalOrderDtos {
             String theatreName,
             Instant scheduledAt,
             String scheduledByUsername,
+            String rejectReason,
+            Instant rejectedAt,
+            String rejectedByUsername,
+            Instant heldAt,
+            String heldByUsername,
             Instant createdAt,
             Instant updatedAt) {}
 
@@ -68,6 +74,10 @@ public final class ClinicalOrderDtos {
 
     public record CancelOrderRequest(
             @Size(max = 255) String reason) {}
+
+    /** Reject a lab / radiology order with a reason (captured atomically). */
+    public record RejectOrderRequest(
+            @NotBlank @Size(max = 255) String reason) {}
 
     /**
      * Books a theatre + time slot for a PROCEDURE order. Only valid for

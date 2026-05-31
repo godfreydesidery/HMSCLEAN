@@ -6,6 +6,7 @@ import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.Clini
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.CompleteOrderRequest;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.CreateOrderRequest;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.OrderWorklistDto;
+import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.RejectOrderRequest;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderDtos.ScheduleOrderRequest;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderService;
 import com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderKind;
@@ -64,6 +65,17 @@ public class ClinicalOrderController {
     @PostMapping("/encounters/orders/uid/{orderUid}/accept")
     public ResponseEntity<ClinicalOrderDto> accept(@PathVariable String orderUid) {
         return ResponseEntity.ok(orderService.accept(orderUid));
+    }
+
+    @PostMapping("/encounters/orders/uid/{orderUid}/reject")
+    public ResponseEntity<ClinicalOrderDto> reject(@PathVariable String orderUid,
+                                                   @Valid @RequestBody RejectOrderRequest request) {
+        return ResponseEntity.ok(orderService.reject(orderUid, request));
+    }
+
+    @PostMapping("/encounters/orders/uid/{orderUid}/hold")
+    public ResponseEntity<ClinicalOrderDto> hold(@PathVariable String orderUid) {
+        return ResponseEntity.ok(orderService.hold(orderUid));
     }
 
     @PostMapping("/encounters/orders/uid/{orderUid}/approve")

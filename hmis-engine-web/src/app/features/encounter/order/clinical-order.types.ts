@@ -6,7 +6,7 @@ export const CLINICAL_ORDER_KINDS: { value: ClinicalOrderKind; label: string; ic
   { value: 'PROCEDURE', label: 'Procedure', icon: 'bi-scissors' }
 ];
 
-export type ClinicalOrderStatus = 'REQUESTED' | 'ACCEPTED' | 'APPROVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type ClinicalOrderStatus = 'REQUESTED' | 'ACCEPTED' | 'APPROVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'REJECTED';
 
 export const CLINICAL_ORDER_STATUSES: { value: ClinicalOrderStatus; label: string; badgeClass: string }[] = [
   { value: 'REQUESTED',   label: 'Requested',   badgeClass: 'text-bg-info-subtle text-info-emphasis border border-info-subtle' },
@@ -14,7 +14,8 @@ export const CLINICAL_ORDER_STATUSES: { value: ClinicalOrderStatus; label: strin
   { value: 'APPROVED',    label: 'Approved',    badgeClass: 'text-bg-primary-subtle text-primary border border-primary-subtle' },
   { value: 'IN_PROGRESS', label: 'In progress', badgeClass: 'text-bg-primary-subtle text-primary border border-primary-subtle' },
   { value: 'COMPLETED',   label: 'Completed',   badgeClass: 'text-bg-success-subtle text-success-emphasis border border-success-subtle' },
-  { value: 'CANCELLED',   label: 'Cancelled',   badgeClass: 'text-bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle' }
+  { value: 'CANCELLED',   label: 'Cancelled',   badgeClass: 'text-bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle' },
+  { value: 'REJECTED',    label: 'Rejected',    badgeClass: 'text-bg-danger-subtle text-danger-emphasis border border-danger-subtle' }
 ];
 
 export type OrderUrgency = 'NORMAL' | 'URGENT' | 'STAT';
@@ -26,6 +27,7 @@ export const ORDER_URGENCIES: { value: OrderUrgency; label: string; badgeClass: 
 ];
 
 export interface ClinicalOrder {
+  id: number;
   uid: string;
   orderNo: string;
   consultationUid: string;
@@ -41,6 +43,11 @@ export interface ClinicalOrder {
   instructions: string | null;
   result: string | null;
   cancelReason: string | null;
+  rejectReason: string | null;
+  rejectedAt: string | null;
+  rejectedByUsername: string | null;
+  heldAt: string | null;
+  heldByUsername: string | null;
   createdAt: string;
   updatedAt: string;
 }

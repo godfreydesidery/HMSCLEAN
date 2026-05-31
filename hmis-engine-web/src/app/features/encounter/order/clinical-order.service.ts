@@ -55,4 +55,9 @@ export class ClinicalOrderService {
   hold(orderUid: string): Observable<ClinicalOrder> {
     return this.http.post<ClinicalOrder>(`${this.apiBase}/orders/uid/${orderUid}/hold`, {});
   }
+
+  /** Book a theatre + time slot for a PROCEDURE order (scheduledAt is an ISO instant). */
+  schedule(orderUid: string, req: { theatreUid: string; scheduledAt: string }): Observable<ClinicalOrder> {
+    return this.http.post<ClinicalOrder>(`${this.apiBase}/orders/uid/${orderUid}/schedule`, req);
+  }
 }

@@ -78,7 +78,13 @@
                   @if (canReject(o)) {
                     <button type="button" class="btn btn-sm btn-light border text-danger" (click)="reject(o)" [disabled]="busyUid() === o.uid" title="Reject with reason"><i class="bi bi-x-circle"></i></button>
                   }
-                  @if (!needsGate(o.status) && !canEnterResult(o.status) && o.status !== 'COMPLETED' && !canHold(o) && !canReject(o)) {
+                  @if (canSchedule(o)) {
+                    <button type="button" class="btn btn-sm btn-light border" (click)="schedule(o)" title="Schedule theatre"><i class="bi bi-calendar-check"></i></button>
+                  }
+                  @if (canOperativeRecord(o)) {
+                    <a class="btn btn-sm btn-light border" [routerLink]="['/encounters/orders', o.uid, 'operative-record']" title="Operative record"><i class="bi bi-clipboard2-pulse"></i></a>
+                  }
+                  @if (!needsGate(o.status) && !canEnterResult(o.status) && o.status !== 'COMPLETED' && !canHold(o) && !canReject(o) && !canSchedule(o) && !canOperativeRecord(o)) {
                     <span class="hmis-muted small">—</span>
                   }
                 </div>

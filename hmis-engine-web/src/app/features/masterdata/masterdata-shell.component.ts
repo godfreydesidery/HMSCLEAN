@@ -70,6 +70,7 @@ export class MasterdataShellComponent {
   readonly items: SubNavItem[] = [
     { label: 'Clinics',          path: 'clinics',          icon: 'bi-hospital' },
     { label: 'Wards',            path: 'wards',            icon: 'bi-door-open' },
+    { label: 'Theatres',         path: 'theatres',         icon: 'bi-heart-pulse' },
     { label: 'Pharmacies',       path: 'pharmacies',       icon: 'bi-capsule-pill' },
     { label: 'Stores',           path: 'stores',           icon: 'bi-box-seam' },
     { label: 'Diagnoses',        path: 'diagnoses',        icon: 'bi-clipboard2-check' },

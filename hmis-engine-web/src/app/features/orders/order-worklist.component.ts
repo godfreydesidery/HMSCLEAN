@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
 
@@ -10,6 +11,7 @@ import {
 import { ClinicalOrderService } from '../encounter/order/clinical-order.service';
 import { EnterResultComponent } from '../encounter/order/enter-result.component';
 import { RejectOrderModalComponent } from '../encounter/order/reject-order-modal.component';
+import { ScheduleProcedureModalComponent } from './schedule-procedure-modal.component';
 import {
   PATIENT_CLASS_SCOPES, PatientClassScope, patientClassBadgeClass, patientClassLabel
 } from '../../shared/patient-class/patient-class';
@@ -19,7 +21,7 @@ import { OrderWorklistRow } from './order-worklist.types';
 @Component({
   selector: 'app-order-worklist',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './order-worklist.component.html'
 })
 export class OrderWorklistComponent implements OnInit {
@@ -147,6 +149,22 @@ export class OrderWorklistComponent implements OnInit {
 
   canEnterResult(s: ClinicalOrderStatus): boolean {
     return s === 'ACCEPTED' || s === 'APPROVED' || s === 'IN_PROGRESS';
+  }
+
+  /** PROCEDURE only: book a theatre + time before it is done. */
+  canSchedule(row: OrderWorklistRow): boolean {
+    return row.kind === 'PROCEDURE' && row.status !== 'COMPLETED' && row.status !== 'CANCELLED';
+  }
+  /** PROCEDURE only: the structured operative record (once approved / in progress / done). */
+  canOperativeRecord(row: OrderWorklistRow): boolean {
+    return row.kind === 'PROCEDURE'
+      && (row.status === 'APPROVED' || row.status === 'IN_PROGRESS' || row.status === 'COMPLETED');
+  }
+
+  schedule(row: OrderWorklistRow): void {
+    const ref = this.modal.open(ScheduleProcedureModalComponent, { centered: true });
+    (ref.componentInstance as ScheduleProcedureModalComponent).orderUid = row.uid;
+    ref.closed.subscribe((order?: ClinicalOrder) => { if (order) this.load(); });
   }
 
   kindLabel(k: ClinicalOrderKind): string { return this.kinds.find((x) => x.value === k)?.label ?? k; }

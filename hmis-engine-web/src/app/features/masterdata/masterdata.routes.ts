@@ -16,6 +16,10 @@ export const MASTERDATA_ROUTES: Routes = [
         loadComponent: () => import('./wards/ward-list.component').then((m) => m.WardListComponent)
       },
       {
+        path: 'theatres',
+        loadComponent: () => import('./theatres/theatre-list.component').then((m) => m.TheatreListComponent)
+      },
+      {
         path: 'pharmacies',
         loadComponent: () => import('./pharmacies/pharmacy-list.component').then((m) => m.PharmacyListComponent)
       },

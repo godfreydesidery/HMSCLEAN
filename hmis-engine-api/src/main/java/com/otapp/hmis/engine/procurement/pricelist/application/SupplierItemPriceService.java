@@ -101,6 +101,22 @@ public class SupplierItemPriceService {
                 .map(this::toDto);
     }
 
+    /**
+     * The supplier's CURRENT contracted quote for one medicine, if any
+     * (active + today within window, newest first). This is the legacy
+     * supplier-quoted gate source: a purchase-order line can only be raised
+     * against a supplier that quotes the item, and the line price is COPIED
+     * from this quote. Returns empty when the supplier does not (currently)
+     * quote the medicine.
+     */
+    @Transactional(readOnly = true)
+    public Optional<SupplierItemPriceDto> findContractedPrice(String supplierUid, String medicineUid) {
+        return priceRepository
+                .findCurrentForSupplierAndMedicine(supplierUid, medicineUid, LocalDate.now()).stream()
+                .findFirst()
+                .map(this::toDto);
+    }
+
     @Transactional(readOnly = true)
     public List<SupplierItemPriceDto> listActiveForMedicine(String medicineUid) {
         activeMedicine(medicineUid);

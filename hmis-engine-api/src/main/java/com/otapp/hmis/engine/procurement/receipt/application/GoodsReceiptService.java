@@ -93,6 +93,7 @@ public class GoodsReceiptService {
                     poLine.getMedicineUid(),
                     claimed,
                     lineReq.batchNo(),
+                    lineReq.manufacturedDate(),
                     lineReq.expiresAt())));
         }
         return toDto(receipt, order, store, savedLines);
@@ -146,6 +147,7 @@ public class GoodsReceiptService {
                     store.getUid(),
                     poLine.getMedicineUid(),
                     line.getBatchNo(),
+                    line.getManufacturedDate(),
                     line.getExpiresAt(),
                     line.getQuantity(),
                     receipt.getUid(),
@@ -225,6 +227,7 @@ public class GoodsReceiptService {
                 medicine == null ? null : medicine.getName(),
                 line.getQuantity(),
                 line.getBatchNo(),
+                line.getManufacturedDate(),
                 line.getExpiresAt());
     }
 

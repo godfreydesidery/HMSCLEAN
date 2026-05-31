@@ -4,6 +4,7 @@ import com.otapp.hmis.engine.procurement.pricelist.application.SupplierItemPrice
 import com.otapp.hmis.engine.procurement.pricelist.application.SupplierItemPriceDtos.SupplierItemPriceDto;
 import com.otapp.hmis.engine.procurement.pricelist.application.SupplierItemPriceDtos.UpdateSupplierItemPriceRequest;
 import com.otapp.hmis.engine.procurement.pricelist.application.SupplierItemPriceService;
+import com.otapp.hmis.engine.common.error.NotFoundException;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -26,6 +27,19 @@ public class SupplierItemPriceController {
     @GetMapping
     public ResponseEntity<List<SupplierItemPriceDto>> list(@PathVariable String supplierUid) {
         return ResponseEntity.ok(priceService.listForSupplier(supplierUid));
+    }
+
+    /**
+     * The supplier's CURRENT contracted quote for one medicine — the price the
+     * purchase-order add-line will lock onto. 404 when the supplier does not
+     * currently quote the medicine (so the add-line UI can show "not valid").
+     */
+    @GetMapping("/medicines/uid/{medicineUid}/current")
+    public ResponseEntity<SupplierItemPriceDto> currentForMedicine(@PathVariable String supplierUid,
+                                                                   @PathVariable String medicineUid) {
+        return ResponseEntity.ok(priceService.findContractedPrice(supplierUid, medicineUid)
+                .orElseThrow(() -> new NotFoundException(
+                        "No current contracted price for this supplier and medicine")));
     }
 
     @PostMapping

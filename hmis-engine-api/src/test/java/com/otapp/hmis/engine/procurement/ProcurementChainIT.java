@@ -31,6 +31,8 @@ class ProcurementChainIT extends AuthenticatedIntegrationTest {
     @Test
     void fullChainFromLpoThroughThreeWayMatchAndPayment() {
         String supplierUid = createSupplier();
+        // Supplier must quote the item before it can be ordered (price-list gate).
+        quotePanadol(supplierUid, new BigDecimal("250.00"));
 
         // ----- LPO ---------------------------------------------------------
         Map<String, Object> lpo = expectOk(post(
@@ -186,7 +188,20 @@ class ProcurementChainIT extends AuthenticatedIntegrationTest {
         return (String) body.get("uid");
     }
 
+    /** Register the supplier's contracted price for Panadol so PO lines pass the gate. */
+    private void quotePanadol(String supplierUid, BigDecimal unitPrice) {
+        expectOk(post(
+                "/procurement/suppliers/uid/" + supplierUid + "/prices",
+                Map.of(
+                        "medicineUid", PANADOL_UID,
+                        "unitPrice",   unitPrice,
+                        "currency",    "TZS",
+                        "validFrom",   LocalDate.now().minusDays(1).toString()),
+                Map.class));
+    }
+
     private String createOrderedPoFor(String supplierUid, int quantity) {
+        quotePanadol(supplierUid, new BigDecimal("100.00"));
         @SuppressWarnings("rawtypes")
         Map lpo = expectOk(post(
                 "/procurement/purchase-orders",

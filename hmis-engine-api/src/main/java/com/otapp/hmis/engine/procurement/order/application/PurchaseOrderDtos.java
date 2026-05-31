@@ -4,7 +4,6 @@ import com.otapp.hmis.engine.procurement.order.domain.PurchaseOrderStatus;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -76,15 +75,21 @@ public final class PurchaseOrderDtos {
             LocalDate expectedDeliveryDate,
             @Size(max = 500) String notes) {}
 
+    /**
+     * unitCost / currency are now ADVISORY ONLY and OPTIONAL: the server pulls
+     * the contracted price from the supplier's price list (legacy gate). The
+     * fields are kept so existing clients still compile, but any value sent is
+     * ignored — the line price is always the supplier's current quote.
+     */
     public record AddLineRequest(
             @NotBlank @Size(min = 26, max = 26) String medicineUid,
             @Min(1) int orderedQuantity,
-            @NotNull @DecimalMin(value = "0.00") BigDecimal unitCost,
+            @DecimalMin(value = "0.00") BigDecimal unitCost,
             @Size(max = 3) String currency) {}
 
     public record UpdateLineRequest(
             @Min(1) int orderedQuantity,
-            @NotNull @DecimalMin(value = "0.00") BigDecimal unitCost,
+            @DecimalMin(value = "0.00") BigDecimal unitCost,
             @Size(max = 3) String currency) {}
 
     public record CancelPurchaseOrderRequest(@Size(max = 255) String reason) {}

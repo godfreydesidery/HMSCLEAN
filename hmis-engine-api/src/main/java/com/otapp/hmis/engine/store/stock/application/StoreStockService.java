@@ -62,13 +62,28 @@ public class StoreStockService {
     public StoreStockBatchDto receiveFromProcurement(String storeUid, String medicineUid,
                                                      String batchNo, LocalDate expiresAt,
                                                      int quantity, String referenceUid, String note) {
+        return receiveFromProcurement(storeUid, medicineUid, batchNo, null, expiresAt,
+                quantity, referenceUid, note);
+    }
+
+    /**
+     * Cross-module entry point used by procurement (goods receipt), carrying
+     * the supplier-stated manufactured date so it can flow into the store
+     * batch for traceability. Delegates to the 7-arg form with
+     * {@code manufacturedDate = null} (additive, back-compatible).
+     */
+    @Transactional
+    public StoreStockBatchDto receiveFromProcurement(String storeUid, String medicineUid,
+                                                     String batchNo, LocalDate manufacturedDate,
+                                                     LocalDate expiresAt, int quantity,
+                                                     String referenceUid, String note) {
         if (quantity <= 0) {
             throw new BusinessRuleException("Receipt quantity must be positive");
         }
         String effectiveBatch = (batchNo == null || batchNo.isBlank())
                 ? "GRN-" + (referenceUid == null ? "UNKNOWN" : referenceUid.substring(0, Math.min(12, referenceUid.length())))
                 : batchNo.trim();
-        return doReceive(storeUid, medicineUid, effectiveBatch, expiresAt, quantity,
+        return doReceive(storeUid, medicineUid, effectiveBatch, manufacturedDate, expiresAt, quantity,
                 emptyToNull(referenceUid), emptyToNull(note));
     }
 
@@ -108,15 +123,25 @@ public class StoreStockService {
 
     private StoreStockBatchDto doReceive(String storeUid, String medicineUid, String batchNo,
                                          LocalDate expiresAt, int quantity, String referenceUid, String note) {
+        return doReceive(storeUid, medicineUid, batchNo, null, expiresAt, quantity, referenceUid, note);
+    }
+
+    private StoreStockBatchDto doReceive(String storeUid, String medicineUid, String batchNo,
+                                         LocalDate manufacturedDate, LocalDate expiresAt, int quantity,
+                                         String referenceUid, String note) {
         Store store = activeStore(storeUid);
         Medicine medicine = activeMedicine(medicineUid);
 
         StoreStockBatch batch = batchRepository
                 .findByStoreUidAndMedicineUidAndBatchNo(store.getUid(), medicine.getUid(), batchNo)
                 .orElseGet(() -> batchRepository.save(
-                        new StoreStockBatch(store.getUid(), medicine.getUid(), batchNo, expiresAt)));
+                        new StoreStockBatch(store.getUid(), medicine.getUid(), batchNo,
+                                manufacturedDate, expiresAt)));
         if (expiresAt != null && !expiresAt.equals(batch.getExpiresAt())) {
             batch.setExpiresAt(expiresAt);
+        }
+        if (manufacturedDate != null && !manufacturedDate.equals(batch.getManufacturedDate())) {
+            batch.setManufacturedDate(manufacturedDate);
         }
         batch.applyDelta(quantity);
 
@@ -351,7 +376,8 @@ public class StoreStockService {
                 b.getExpiresAt(),
                 b.isExpired(),
                 b.getQuantity(),
-                b.getReceivedAt());
+                b.getReceivedAt(),
+                b.getManufacturedDate());
     }
 
     private static StoreStockMovementDto toMovementDto(StoreStockMovement m, Store store, Medicine medicine) {

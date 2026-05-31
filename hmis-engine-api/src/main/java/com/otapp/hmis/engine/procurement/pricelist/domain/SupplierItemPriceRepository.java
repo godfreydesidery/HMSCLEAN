@@ -37,4 +37,24 @@ public interface SupplierItemPriceRepository extends JpaRepository<SupplierItemP
             """)
     List<SupplierItemPrice> findActiveForMedicine(@Param("medicineUid") String medicineUid,
                                                   @Param("today") LocalDate today);
+
+    /**
+     * The supplier's CURRENT contracted quote for one medicine — active and
+     * today within the window — newest {@code validFrom} first. This is the
+     * legacy {@code findBySupplierAndItem} gate (a supplier must quote an item
+     * before it can be ordered from them); the date window simply rolls the
+     * quote forward. Use {@code Pageable} of size 1 to take only the newest.
+     */
+    @Query("""
+            SELECT p FROM SupplierItemPrice p
+            WHERE p.supplierUid = :supplierUid
+              AND p.medicineUid = :medicineUid
+              AND p.active = TRUE
+              AND p.validFrom <= :today
+              AND (p.validTo IS NULL OR p.validTo >= :today)
+            ORDER BY p.validFrom DESC
+            """)
+    List<SupplierItemPrice> findCurrentForSupplierAndMedicine(@Param("supplierUid") String supplierUid,
+                                                              @Param("medicineUid") String medicineUid,
+                                                              @Param("today") LocalDate today);
 }

@@ -21,7 +21,13 @@ public final class SupplierDtos {
             String notes,
             boolean active,
             Instant createdAt,
-            Instant updatedAt) {}
+            Instant updatedAt,
+            // --- VAT / contract terms / bank-account block (legacy parity) ---
+            String vrn,
+            String termsOfContract,
+            String bankName,
+            String bankAccountName,
+            String bankAccountNo) {}
 
     public record CreateSupplierRequest(
             @NotBlank @Size(max = 32) String code,
@@ -31,7 +37,12 @@ public final class SupplierDtos {
             @Email @Size(max = 120) String email,
             @Size(max = 255) String address,
             @Size(max = 64) String taxId,
-            @Size(max = 500) String notes) {}
+            @Size(max = 500) String notes,
+            @Size(max = 32) String vrn,
+            @Size(max = 1000) String termsOfContract,
+            @Size(max = 120) String bankName,
+            @Size(max = 200) String bankAccountName,
+            @Size(max = 64) String bankAccountNo) {}
 
     public record UpdateSupplierRequest(
             @NotBlank @Size(max = 200) String name,
@@ -40,5 +51,10 @@ public final class SupplierDtos {
             @Email @Size(max = 120) String email,
             @Size(max = 255) String address,
             @Size(max = 64) String taxId,
-            @Size(max = 500) String notes) {}
+            @Size(max = 500) String notes,
+            @Size(max = 32) String vrn,
+            @Size(max = 1000) String termsOfContract,
+            @Size(max = 120) String bankName,
+            @Size(max = 200) String bankAccountName,
+            @Size(max = 64) String bankAccountNo) {}
 }

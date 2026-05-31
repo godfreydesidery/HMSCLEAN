@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -22,6 +23,7 @@ public final class GoodsReceiptDtos {
             String medicineName,
             int quantity,
             String batchNo,
+            LocalDate manufacturedDate,
             LocalDate expiresAt) {}
 
     public record GoodsReceiptDto(
@@ -52,6 +54,7 @@ public final class GoodsReceiptDtos {
             /** Optional — when set the quantity is in this unit and is converted to base before credit. */
             @Size(min = 26, max = 26) String unitUid,
             @NotBlank @Size(max = 64) String batchNo,
+            @PastOrPresent LocalDate manufacturedDate,
             LocalDate expiresAt) {}
 
     public record RecordReceiptRequest(

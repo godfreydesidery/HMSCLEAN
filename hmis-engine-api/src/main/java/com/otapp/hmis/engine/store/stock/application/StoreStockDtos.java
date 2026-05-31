@@ -25,7 +25,8 @@ public final class StoreStockDtos {
             LocalDate expiresAt,
             boolean expired,
             int quantity,
-            Instant receivedAt) {}
+            Instant receivedAt,
+            LocalDate manufacturedDate) {}
 
     /** Aggregate row used by the list view — sums batches per medicine. */
     public record StoreStockBalanceDto(

@@ -2,6 +2,7 @@ package com.otapp.hmis.engine.procurement.order.application;
 
 import com.otapp.hmis.engine.common.api.PageResponse;
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
+import com.otapp.hmis.engine.common.error.ConflictException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
 import com.otapp.hmis.engine.masterdata.medicine.domain.Medicine;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineRepository;
@@ -21,6 +22,8 @@ import com.otapp.hmis.engine.procurement.order.domain.PurchaseOrderLineRepositor
 import com.otapp.hmis.engine.procurement.order.domain.PurchaseOrderRepository;
 import com.otapp.hmis.engine.procurement.order.domain.PurchaseOrderStatus;
 import com.otapp.hmis.engine.procurement.order.infrastructure.PurchaseOrderNumberGenerator;
+import com.otapp.hmis.engine.procurement.pricelist.application.SupplierItemPriceDtos.SupplierItemPriceDto;
+import com.otapp.hmis.engine.procurement.pricelist.application.SupplierItemPriceService;
 import com.otapp.hmis.engine.procurement.supplier.domain.Supplier;
 import com.otapp.hmis.engine.procurement.supplier.domain.SupplierRepository;
 import java.math.BigDecimal;
@@ -39,6 +42,7 @@ public class PurchaseOrderService {
     private final SupplierRepository supplierRepository;
     private final StoreRepository storeRepository;
     private final MedicineRepository medicineRepository;
+    private final SupplierItemPriceService supplierItemPriceService;
     private final PurchaseOrderNumberGenerator numberGenerator;
 
     @Transactional
@@ -63,12 +67,24 @@ public class PurchaseOrderService {
             throw new BusinessRuleException("Cannot edit a " + order.getStatus() + " purchase order");
         }
         Medicine medicine = activeMedicine(request.medicineUid());
+
+        // Legacy gate: the supplier must quote this item, and the line price is
+        // COPIED from the supplier's current contracted quote (not client input).
+        SupplierItemPriceDto quote = contractedQuoteOrThrow(order.getSupplierUid(), medicine.getUid());
+
+        // Legacy: duplicate items on the same order are not allowed.
+        boolean duplicate = lineRepository.findAllByOrderUidOrderByCreatedAtAsc(order.getUid()).stream()
+                .anyMatch(l -> l.getMedicineUid().equals(medicine.getUid()));
+        if (duplicate) {
+            throw new ConflictException("Duplicates items are not allowed");
+        }
+
         PurchaseOrderLine line = new PurchaseOrderLine(
                 order.getUid(),
                 medicine.getUid(),
                 request.orderedQuantity(),
-                request.unitCost(),
-                emptyToNull(request.currency()));
+                quote.unitPrice(),
+                quote.currency());
         lineRepository.save(line);
         return toDto(order);
     }
@@ -84,12 +100,24 @@ public class PurchaseOrderService {
         if (!line.getOrderUid().equals(order.getUid())) {
             throw new BusinessRuleException("Line does not belong to this purchase order");
         }
+        // Qty stays editable; price is re-pulled server-side from the supplier's
+        // current contracted quote (the gate still applies on edit).
+        SupplierItemPriceDto quote = contractedQuoteOrThrow(order.getSupplierUid(), line.getMedicineUid());
         line.setOrderedQuantity(request.orderedQuantity());
-        line.setUnitCost(request.unitCost());
-        if (request.currency() != null && !request.currency().isBlank()) {
-            line.setCurrency(request.currency());
-        }
+        line.setUnitCost(quote.unitPrice());
+        line.setCurrency(quote.currency());
         return toDto(order);
+    }
+
+    /**
+     * Supplier-quoted gate (legacy {@code findBySupplierAndItem} → throw if
+     * absent): returns the supplier's current contracted quote for the
+     * medicine, or 422 "Item not valid for this supplier" when the supplier
+     * does not (currently) quote it.
+     */
+    private SupplierItemPriceDto contractedQuoteOrThrow(String supplierUid, String medicineUid) {
+        return supplierItemPriceService.findContractedPrice(supplierUid, medicineUid)
+                .orElseThrow(() -> new BusinessRuleException("Item not valid for this supplier"));
     }
 
     @Transactional

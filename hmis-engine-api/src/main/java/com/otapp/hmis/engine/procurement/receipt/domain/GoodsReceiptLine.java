@@ -33,22 +33,36 @@ public class GoodsReceiptLine extends AuditableEntity {
     @Column(name = "batch_no", nullable = false, length = 64)
     private String batchNo;
 
+    /** Supplier-stated manufactured date for the batch (legacy GRN parity). */
+    @Column(name = "manufactured_date")
+    private LocalDate manufacturedDate;
+
     @Column(name = "expires_at")
     private LocalDate expiresAt;
 
     public GoodsReceiptLine(String receiptUid, String poLineUid, String medicineUid,
-                            int quantity, String batchNo, LocalDate expiresAt) {
+                            int quantity, String batchNo, LocalDate manufacturedDate, LocalDate expiresAt) {
         if (quantity <= 0) {
             throw new BusinessRuleException("Receipt line quantity must be positive");
         }
         if (batchNo == null || batchNo.isBlank()) {
             throw new BusinessRuleException("Receipt line must specify a batch number");
         }
+        if (manufacturedDate != null && expiresAt != null && manufacturedDate.isAfter(expiresAt)) {
+            throw new BusinessRuleException("Manufactured date cannot be after expiry date");
+        }
         this.receiptUid = receiptUid;
         this.poLineUid = poLineUid;
         this.medicineUid = medicineUid;
         this.quantity = quantity;
         this.batchNo = batchNo.trim();
+        this.manufacturedDate = manufacturedDate;
         this.expiresAt = expiresAt;
+    }
+
+    /** Back-compat overload without a manufactured date. */
+    public GoodsReceiptLine(String receiptUid, String poLineUid, String medicineUid,
+                            int quantity, String batchNo, LocalDate expiresAt) {
+        this(receiptUid, poLineUid, medicineUid, quantity, batchNo, null, expiresAt);
     }
 }

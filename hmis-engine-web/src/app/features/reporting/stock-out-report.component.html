@@ -1,0 +1,70 @@
+<div class="hmis-page-header">
+  <div>
+    <a class="hmis-muted small text-decoration-none d-inline-flex align-items-center gap-1 mb-1" routerLink="/reporting">
+      <i class="bi bi-arrow-left"></i> Reports
+    </a>
+    <h1 class="hmis-page-title">Stock-out</h1>
+    <p class="hmis-muted mb-0 small">Medicines at or below the on-hand threshold across pharmacies and stores.</p>
+  </div>
+</div>
+
+<form [formGroup]="form" (ngSubmit)="run()" novalidate>
+  <div class="card mb-3">
+    <div class="card-body py-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label for="threshold" class="form-label small mb-1">Threshold (on-hand &le;) <span class="text-danger">*</span></label>
+          <input id="threshold" name="threshold" type="number" min="0" class="form-control" formControlName="threshold"
+            [class.is-invalid]="form.controls.threshold.invalid && form.controls.threshold.touched">
+          @if (form.controls.threshold.invalid && form.controls.threshold.touched) {
+            <div class="invalid-feedback">Enter a non-negative number.</div>
+          }
+        </div>
+        <div class="col-md-auto">
+          <button type="submit" class="btn btn-primary" [disabled]="loading()">
+            @if (loading()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+            <i class="bi bi-search me-1"></i> Run
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 hmis-table">
+      <thead><tr><th>Location</th><th>Type</th><th>Medicine code</th><th>Medicine</th></tr></thead>
+      <tbody>
+        @if (loading()) {
+          @for (i of [1,2,3,4,5]; track i) {
+            <tr class="hmis-skeleton-row">
+              <td><span class="hmis-skeleton" style="width:160px;"></span></td>
+              <td><span class="hmis-skeleton" style="width:90px;"></span></td>
+              <td><span class="hmis-skeleton" style="width:100px;"></span></td>
+              <td><span class="hmis-skeleton" style="width:220px;"></span></td>
+            </tr>
+          }
+        } @else if (entries().length === 0) {
+          <tr><td colspan="4"><div class="hmis-empty"><i class="bi bi-check2-circle"></i><div class="fw-semibold mb-1">Nothing out of stock</div><div class="small">No medicines are at or below the threshold.</div></div></td></tr>
+        } @else {
+          @for (e of entries(); track e.locationUid + ':' + e.medicineUid) {
+            <tr>
+              <td class="fw-semibold">{{ e.locationName || e.locationUid }}</td>
+              <td><span [class]="locationBadgeClass(e.locationKind)">{{ e.locationKind }}</span></td>
+              <td><span class="hmis-code">{{ e.medicineCode }}</span></td>
+              <td>{{ e.medicineName }}</td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (!loading() && entries().length > 0) {
+    <div class="card-footer bg-white hmis-muted small">{{ entries().length }} item(s) out of stock</div>
+  }
+</div>

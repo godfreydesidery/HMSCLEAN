@@ -361,6 +361,7 @@ export class ConsultationDetailComponent {
     if (!c) return;
     const ref = this.modal.open(AddPrescriptionComponent, { size: 'lg', backdrop: 'static' });
     (ref.componentInstance as AddPrescriptionComponent).consultationUid = c.uid;
+    (ref.componentInstance as AddPrescriptionComponent).patientUid = c.patientUid;
     ref.closed.subscribe(() => this.refreshPrescriptions());
   }
 

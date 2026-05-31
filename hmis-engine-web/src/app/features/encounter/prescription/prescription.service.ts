@@ -5,7 +5,8 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { PageResponse } from '../../../core/http/page.types';
 import {
-  CreatePrescriptionRequest, DispenseWorklistParams, Prescription, PrescriptionWorklistRow
+  CreatePrescriptionRequest, DispenseWorklistParams, Prescription, PrescribingAlertsDto,
+  PrescriptionWorklistRow
 } from './prescription.types';
 
 @Injectable({ providedIn: 'root' })
@@ -30,6 +31,13 @@ export class PrescriptionService {
 
   prescribe(consultationUid: string, req: CreatePrescriptionRequest): Observable<Prescription> {
     return this.http.post<Prescription>(`${this.apiBase}/consultations/uid/${consultationUid}/prescriptions`, req);
+  }
+
+  /** Advisory pre-prescribe alerts (same-medicine-this-month / unfinished-course); never blocks. */
+  prescribingAlerts(patientUid: string, medicineUid: string): Observable<PrescribingAlertsDto> {
+    return this.http.get<PrescribingAlertsDto>(
+      `${this.apiBase}/patients/uid/${patientUid}/medicines/uid/${medicineUid}/prescribing-alerts`
+    );
   }
 
   listOutsiderForPatient(patientUid: string): Observable<Prescription[]> {

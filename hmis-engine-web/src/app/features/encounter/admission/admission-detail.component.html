@@ -37,6 +37,8 @@
   <ul class="nav nav-tabs mb-3">
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'overview'" (click)="setTab('overview')"><i class="bi bi-info-circle me-1"></i>Overview</button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'notes'" (click)="setTab('notes')"><i class="bi bi-journal-text me-1"></i>Progress notes <span class="badge text-bg-light border ms-1">{{ notes().length }}</span></button></li>
+    <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'vitals'" (click)="setTab('vitals')"><i class="bi bi-thermometer-half me-1"></i>Vitals</button></li>
+    <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'care-plan'" (click)="setTab('care-plan')"><i class="bi bi-clipboard2-pulse me-1"></i>Care plan</button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'meds'" (click)="setTab('meds')"><i class="bi bi-capsule me-1"></i>Medications (MAR)</button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'consumables'" (click)="setTab('consumables')"><i class="bi bi-bandaid me-1"></i>Consumables <span class="badge text-bg-light border ms-1">{{ consumables().length }}</span></button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'billing'" (click)="setTab('billing')"><i class="bi bi-cash-coin me-1"></i>Billing @if (invoice()) { <i class="bi bi-check-circle text-success ms-1"></i> }</button></li>
@@ -206,6 +208,90 @@
         </div>
       </div>
     }
+    @case ('vitals') {
+      <div class="card">
+        <div class="card-header bg-white d-flex align-items-center">
+          <h2 class="h6 mb-0"><i class="bi bi-thermometer-half me-2 hmis-muted"></i>Vitals chart</h2>
+          @if (isActive()) {
+            <button type="button" class="btn btn-sm btn-primary ms-auto" (click)="openRecordVitals()">
+              <i class="bi bi-plus-lg me-1"></i> Record vitals
+            </button>
+          }
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 hmis-table">
+            <thead><tr><th>When</th><th class="text-end">Temp °C</th><th class="text-end">Pulse</th><th class="text-end">Resp</th><th class="text-end">BP</th><th class="text-end">SpO₂</th><th class="text-end">Glucose</th><th class="text-end">Pain</th><th>By</th></tr></thead>
+            <tbody>
+              @if (!vitalsLoaded()) {
+                <tr><td colspan="9"><div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div></td></tr>
+              } @else if (vitals().length === 0) {
+                <tr><td colspan="9"><div class="hmis-empty"><i class="bi bi-thermometer-half"></i><div class="fw-semibold mb-1">No vitals recorded</div><div class="small">Use 'Record vitals' to chart bedside observations.</div></div></td></tr>
+              } @else {
+                @for (v of vitals(); track v.uid) {
+                  <tr>
+                    <td class="hmis-muted small">{{ v.recordedAt | date:'short' }}</td>
+                    <td class="text-end">{{ v.temperatureC != null ? (v.temperatureC | number:'1.0-1') : '—' }}</td>
+                    <td class="text-end">{{ v.pulseBpm ?? '—' }}</td>
+                    <td class="text-end">{{ v.respirationsBpm ?? '—' }}</td>
+                    <td class="text-end">{{ v.systolicBp != null && v.diastolicBp != null ? (v.systolicBp + '/' + v.diastolicBp) : '—' }}</td>
+                    <td class="text-end">{{ v.spo2Percent != null ? (v.spo2Percent + '%') : '—' }}</td>
+                    <td class="text-end">{{ v.bloodGlucoseMmol != null ? (v.bloodGlucoseMmol | number:'1.0-1') : '—' }}</td>
+                    <td class="text-end">{{ v.painScore ?? '—' }}</td>
+                    <td class="hmis-muted small">{{ v.recordedByUsername || '—' }}</td>
+                  </tr>
+                  @if (v.notes) { <tr><td colspan="9" class="hmis-muted small fst-italic">{{ v.notes }}</td></tr> }
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+    @case ('care-plan') {
+      <div class="card">
+        <div class="card-header bg-white d-flex align-items-center">
+          <h2 class="h6 mb-0"><i class="bi bi-clipboard2-pulse me-2 hmis-muted"></i>Nursing care plan</h2>
+          @if (isActive()) {
+            <button type="button" class="btn btn-sm btn-primary ms-auto" (click)="openCarePlanItem(null)">
+              <i class="bi bi-plus-lg me-1"></i> Add item
+            </button>
+          }
+        </div>
+        <div class="card-body">
+          @if (!carePlanLoaded()) {
+            <div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div>
+          } @else if (carePlan().length === 0) {
+            <div class="hmis-empty"><i class="bi bi-clipboard2-pulse"></i><div class="fw-semibold mb-1">No care-plan items</div><div class="small">Add a problem / goal / intervention to start the plan.</div></div>
+          } @else {
+            <div class="row g-3">
+              @for (item of carePlan(); track item.uid) {
+                <div class="col-md-6">
+                  <div class="card h-100">
+                    <div class="card-body">
+                      <div class="d-flex align-items-start gap-2 mb-2">
+                        <div class="fw-semibold flex-grow-1">{{ item.problem }}</div>
+                        <span [class]="carePlanBadgeClass(item.status)">{{ carePlanLabel(item.status) }}</span>
+                      </div>
+                      <div class="small mb-1"><span class="hmis-muted">Goal:</span> {{ item.goal }}</div>
+                      <div class="small mb-1"><span class="hmis-muted">Intervention:</span> {{ item.intervention }}</div>
+                      @if (item.evaluation) { <div class="small mb-1"><span class="hmis-muted">Evaluation:</span> {{ item.evaluation }}</div> }
+                      @if (item.status !== 'ACTIVE' && item.closeReason) { <div class="small text-muted"><i class="bi bi-info-circle me-1"></i>{{ item.closeReason }}</div> }
+                      @if (item.status === 'ACTIVE' && isActive()) {
+                        <div class="d-flex gap-2 mt-2">
+                          <button type="button" class="btn btn-sm btn-light border" (click)="openCarePlanItem(item)"><i class="bi bi-pencil me-1"></i>Edit</button>
+                          <button type="button" class="btn btn-sm btn-light border text-success" (click)="resolveCarePlanItem(item)"><i class="bi bi-check2 me-1"></i>Resolve</button>
+                          <button type="button" class="btn btn-sm btn-light border text-danger" (click)="cancelCarePlanItem(item)"><i class="bi bi-x-circle me-1"></i>Cancel</button>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    }
     @case ('consumables') {
       <div class="card">
         <div class="card-header bg-white d-flex align-items-center">
@@ -243,6 +329,16 @@
     }
 
     @case ('billing') {
+      @if (billingSummary(); as bs) {
+        <div class="alert d-flex align-items-center gap-2" [class.alert-success]="bs.cleared" [class.alert-warning]="!bs.cleared">
+          <i class="bi" [class.bi-check-circle]="bs.cleared" [class.bi-exclamation-triangle]="!bs.cleared"></i>
+          @if (bs.cleared) {
+            <span>Bill cleared — discharge / closure is allowed.</span>
+          } @else {
+            <span>Outstanding balance {{ bs.balance | number:'1.2-2' }} {{ invoice()?.currency }} — blocks discharge until the admission bill is settled.</span>
+          }
+        </div>
+      }
       @if (invoiceLoading() && !invoice()) {
         <div class="card"><div class="card-body p-4"><span class="hmis-skeleton" style="width:240px;"></span></div></div>
       } @else if (!invoice()) {

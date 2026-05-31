@@ -7,6 +7,13 @@
     @if (errorMessage()) {
       <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3" role="alert"><i class="bi bi-exclamation-circle"></i><span class="small">{{ errorMessage() }}</span></div>
     }
+    @for (a of alerts(); track a.kind) {
+      @if (a.severity === 'WARN') {
+        <div class="alert alert-warning d-flex align-items-start gap-2 py-2 px-3" role="alert"><i class="bi bi-exclamation-triangle mt-1"></i><span class="small">{{ a.message }}</span></div>
+      } @else {
+        <div class="alert alert-info d-flex align-items-start gap-2 py-2 px-3" role="alert"><i class="bi bi-info-circle mt-1"></i><span class="small">{{ a.message }}</span></div>
+      }
+    }
     <div class="row g-3">
       <div class="col-12">
         <label class="form-label" for="rx-medicine">Medicine <span class="text-danger">*</span></label>

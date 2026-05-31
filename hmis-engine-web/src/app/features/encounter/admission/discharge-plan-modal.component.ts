@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
 
+import { AdmissionBillingSummary } from '../../billing/invoice.types';
 import { DischargePlanService } from './discharge-plan.service';
 import {
   DISCHARGE_PLAN_KINDS, DischargePlan, DischargePlanKind, DischargePlanRequest
@@ -22,6 +23,8 @@ import {
 })
 export class DischargePlanModalComponent implements OnInit {
   @Input({ required: true }) admissionUid!: string;
+  /** Bill-clearance snapshot (V66 gate): when not cleared, closure is blocked. */
+  @Input() billingSummary: AdmissionBillingSummary | null = null;
 
   private readonly fb = inject(FormBuilder);
   private readonly service = inject(DischargePlanService);

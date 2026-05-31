@@ -7,7 +7,7 @@ import { finalize, forkJoin } from 'rxjs';
 
 import { RecordPaymentComponent } from '../../billing/record-payment.component';
 import { InvoiceService } from '../../billing/invoice.service';
-import { INVOICE_STATUSES, Invoice, InvoiceStatus } from '../../billing/invoice.types';
+import { AdmissionBillingSummary, INVOICE_STATUSES, Invoice, InvoiceStatus } from '../../billing/invoice.types';
 import { ConsumableIssueService } from '../../consumables/consumable.service';
 import { ConsumableIssue } from '../../consumables/consumable.types';
 import { IssueConsumableModalComponent } from '../../consumables/issue-consumable-modal.component';
@@ -23,8 +23,12 @@ import { MedicationAdministration } from './medication-admin.types';
 import { RecordAdministrationModalComponent } from './record-administration-modal.component';
 import { ProgressNoteService } from './progress-note.service';
 import { PROGRESS_NOTE_KINDS, ProgressNote, ProgressNoteKind } from './progress-note.types';
+import { NursingChartService } from './nursing-chart.service';
+import { CARE_PLAN_STATUSES, CarePlanItem, CarePlanStatus, VitalsEntry } from './nursing-chart.types';
+import { RecordVitalsModalComponent } from './record-vitals-modal.component';
+import { CarePlanItemModalComponent } from './care-plan-item-modal.component';
 
-type TabKey = 'overview' | 'notes' | 'meds' | 'consumables' | 'billing';
+type TabKey = 'overview' | 'notes' | 'vitals' | 'care-plan' | 'meds' | 'consumables' | 'billing';
 
 @Component({
   selector: 'app-admission-detail',
@@ -41,6 +45,7 @@ export class AdmissionDetailComponent {
   private readonly invoiceService = inject(InvoiceService);
   private readonly consumableIssueService = inject(ConsumableIssueService);
   private readonly medAdminService = inject(MedicationAdminService);
+  private readonly nursingChartService = inject(NursingChartService);
   private readonly modal = inject(NgbModal);
   private readonly fb = inject(FormBuilder);
 
@@ -48,6 +53,7 @@ export class AdmissionDetailComponent {
   readonly paymentTypes = PAYMENT_TYPES;
   readonly noteKinds = PROGRESS_NOTE_KINDS;
   readonly invoiceStatuses = INVOICE_STATUSES;
+  readonly carePlanStatuses = CARE_PLAN_STATUSES;
 
   readonly admission = signal<Admission | null>(null);
   readonly wards = signal<Ward[]>([]);
@@ -56,6 +62,11 @@ export class AdmissionDetailComponent {
   readonly consumables = signal<ConsumableIssue[]>([]);
   readonly meds = signal<MedicationAdministration[]>([]);
   readonly medsLoaded = signal(false);
+  readonly vitals = signal<VitalsEntry[]>([]);
+  readonly vitalsLoaded = signal(false);
+  readonly carePlan = signal<CarePlanItem[]>([]);
+  readonly carePlanLoaded = signal(false);
+  readonly billingSummary = signal<AdmissionBillingSummary | null>(null);
 
   readonly loading = signal(true);
   readonly notesLoading = signal(false);
@@ -97,6 +108,7 @@ export class AdmissionDetailComponent {
     this.loading.set(true);
     this.notesLoading.set(true);
     this.invoiceLoading.set(true);
+    this.loadBillingSummary(uid);
     forkJoin({
       admission: this.admissionService.findByUid(uid),
       notes: this.noteService.list(uid),
@@ -120,6 +132,8 @@ export class AdmissionDetailComponent {
   setTab(tab: TabKey): void {
     this.activeTab.set(tab);
     if (tab === 'meds' && !this.medsLoaded()) this.loadMeds();
+    if (tab === 'vitals' && !this.vitalsLoaded()) this.loadVitals();
+    if (tab === 'care-plan' && !this.carePlanLoaded()) this.loadCarePlan();
   }
 
   private loadMeds(): void {
@@ -127,6 +141,29 @@ export class AdmissionDetailComponent {
     this.medAdminService.list(a.uid).subscribe({
       next: (rows) => { this.meds.set(rows); this.medsLoaded.set(true); },
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load the medication record.')
+    });
+  }
+
+  private loadVitals(): void {
+    const a = this.admission(); if (!a) return;
+    this.nursingChartService.listVitals(a.uid).subscribe({
+      next: (rows) => { this.vitals.set(rows); this.vitalsLoaded.set(true); },
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load vitals.')
+    });
+  }
+
+  private loadCarePlan(): void {
+    const a = this.admission(); if (!a) return;
+    this.nursingChartService.listCarePlan(a.uid).subscribe({
+      next: (rows) => { this.carePlan.set(rows); this.carePlanLoaded.set(true); },
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load the care plan.')
+    });
+  }
+
+  private loadBillingSummary(uid: string): void {
+    this.invoiceService.admissionBillingSummary(uid).subscribe({
+      next: (s) => this.billingSummary.set(s),
+      error: () => this.billingSummary.set(null)
     });
   }
 
@@ -138,6 +175,47 @@ export class AdmissionDetailComponent {
     inst.consultationUid = a.consultationUid;
     ref.closed.subscribe((rec?: MedicationAdministration) => {
       if (rec) this.meds.update((rows) => [rec, ...rows]);
+    });
+  }
+
+  openRecordVitals(): void {
+    const a = this.admission(); if (!a) return;
+    const ref = this.modal.open(RecordVitalsModalComponent, { size: 'lg', backdrop: 'static' });
+    (ref.componentInstance as RecordVitalsModalComponent).admissionUid = a.uid;
+    ref.closed.subscribe((entry?: VitalsEntry) => {
+      if (entry) { this.vitals.update((rows) => [entry, ...rows]); this.vitalsLoaded.set(true); }
+    });
+  }
+
+  openCarePlanItem(existing: CarePlanItem | null): void {
+    const a = this.admission(); if (!a) return;
+    const ref = this.modal.open(CarePlanItemModalComponent, { size: 'lg', backdrop: 'static' });
+    const inst = ref.componentInstance as CarePlanItemModalComponent;
+    inst.admissionUid = a.uid;
+    inst.existing = existing;
+    ref.closed.subscribe((item?: CarePlanItem) => {
+      if (!item) return;
+      this.carePlanLoaded.set(true);
+      this.carePlan.update((rows) => existing
+        ? rows.map((r) => r.uid === item.uid ? item : r)
+        : [item, ...rows]);
+    });
+  }
+
+  resolveCarePlanItem(item: CarePlanItem): void {
+    const evaluation = globalThis.prompt('Evaluation / outcome (optional):')?.trim() || null;
+    this.nursingChartService.resolveCarePlanItem(item.uid, evaluation).subscribe({
+      next: (updated) => this.carePlan.update((rows) => rows.map((r) => r.uid === updated.uid ? updated : r)),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not resolve item.')
+    });
+  }
+
+  cancelCarePlanItem(item: CarePlanItem): void {
+    const reason = globalThis.prompt('Reason for cancelling this care-plan item?')?.trim();
+    if (!reason) return;
+    this.nursingChartService.cancelCarePlanItem(item.uid, reason).subscribe({
+      next: (updated) => this.carePlan.update((rows) => rows.map((r) => r.uid === updated.uid ? updated : r)),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not cancel item.')
     });
   }
 
@@ -182,7 +260,9 @@ export class AdmissionDetailComponent {
   openDischargePlan(): void {
     const a = this.admission(); if (!a) return;
     const ref = this.modal.open(DischargePlanModalComponent, { size: 'lg', backdrop: 'static', scrollable: true });
-    (ref.componentInstance as DischargePlanModalComponent).admissionUid = a.uid;
+    const inst = ref.componentInstance as DischargePlanModalComponent;
+    inst.admissionUid = a.uid;
+    inst.billingSummary = this.billingSummary();
     ref.closed.subscribe((plan: DischargePlan | undefined) => {
       if (!plan) return;
       // Approval closed the admission — refresh the view.
@@ -245,7 +325,7 @@ export class AdmissionDetailComponent {
     this.invoiceLoading.set(true);
     this.invoiceService.generateForAdmission(a.uid)
       .pipe(finalize(() => this.invoiceLoading.set(false))).subscribe({
-        next: (inv) => { this.invoice.set(inv); this.actionMessage.set('Invoice generated.'); },
+        next: (inv) => { this.invoice.set(inv); this.actionMessage.set('Invoice generated.'); this.loadBillingSummary(a.uid); },
         error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not generate invoice.')
       });
   }
@@ -253,7 +333,7 @@ export class AdmissionDetailComponent {
   issueInvoice(): void {
     const inv = this.invoice(); if (!inv) return;
     this.invoiceService.issue(inv.uid).subscribe({
-      next: (updated) => { this.invoice.set(updated); this.actionMessage.set('Invoice issued.'); },
+      next: (updated) => { this.invoice.set(updated); this.actionMessage.set('Invoice issued.'); if (inv.admissionUid) this.loadBillingSummary(inv.admissionUid); },
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not issue invoice.')
     });
   }
@@ -262,7 +342,7 @@ export class AdmissionDetailComponent {
     const inv = this.invoice(); if (!inv) return;
     const reason = globalThis.prompt('Reason for cancelling this invoice?')?.trim() ?? null;
     this.invoiceService.cancel(inv.uid, reason).subscribe({
-      next: (updated) => { this.invoice.set(updated); this.actionMessage.set('Invoice cancelled.'); },
+      next: (updated) => { this.invoice.set(updated); this.actionMessage.set('Invoice cancelled.'); if (inv.admissionUid) this.loadBillingSummary(inv.admissionUid); },
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not cancel invoice.')
     });
   }
@@ -276,6 +356,7 @@ export class AdmissionDetailComponent {
       if (updated) {
         this.invoice.set(updated);
         this.actionMessage.set('Payment recorded.');
+        if (inv.admissionUid) this.loadBillingSummary(inv.admissionUid);
       }
     });
   }
@@ -307,6 +388,12 @@ export class AdmissionDetailComponent {
   }
   invoiceStatusLabel(s: InvoiceStatus): string {
     return this.invoiceStatuses.find((x) => x.value === s)?.label ?? s;
+  }
+  carePlanBadgeClass(s: CarePlanStatus): string {
+    return 'badge ' + (this.carePlanStatuses.find((x) => x.value === s)?.badgeClass ?? '');
+  }
+  carePlanLabel(s: CarePlanStatus): string {
+    return this.carePlanStatuses.find((x) => x.value === s)?.label ?? s;
   }
   patientInitials(a: Admission): string {
     const parts = (a.patientName ?? '').split(' ').filter((p) => p.length > 0);

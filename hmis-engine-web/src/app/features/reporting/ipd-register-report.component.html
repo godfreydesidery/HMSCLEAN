@@ -1,0 +1,102 @@
+<div class="hmis-page-header">
+  <div>
+    <a class="hmis-muted small text-decoration-none d-inline-flex align-items-center gap-1 mb-1" routerLink="/reporting">
+      <i class="bi bi-arrow-left"></i> Reports
+    </a>
+    <h1 class="hmis-page-title">IPD register</h1>
+    <p class="hmis-muted mb-0 small">Inpatient admissions over a period, optionally filtered by ward and status.</p>
+  </div>
+</div>
+
+<form [formGroup]="form" (ngSubmit)="run()" novalidate>
+  <div class="card mb-3">
+    <div class="card-body py-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label for="from" class="form-label small mb-1">From <span class="text-danger">*</span></label>
+          <input id="from" name="from" type="date" class="form-control" formControlName="from">
+        </div>
+        <div class="col-md-3">
+          <label for="to" class="form-label small mb-1">To <span class="text-danger">*</span></label>
+          <input id="to" name="to" type="date" class="form-control" formControlName="to">
+        </div>
+        <div class="col-md-3">
+          <label for="wardUid" class="form-label small mb-1">Ward</label>
+          @if (wards().length > 0) {
+            <select id="wardUid" name="wardUid" class="form-select" formControlName="wardUid">
+              <option value="">All wards</option>
+              @for (w of wards(); track w.uid) {
+                <option [value]="w.uid">{{ w.name }}</option>
+              }
+            </select>
+          } @else {
+            <input id="wardUid" name="wardUid" type="text" class="form-control" formControlName="wardUid" autocomplete="off" placeholder="Ward UID (optional)">
+          }
+        </div>
+        <div class="col-md-2">
+          <label for="status" class="form-label small mb-1">Status</label>
+          <select id="status" name="status" class="form-select" formControlName="status">
+            <option value="">All</option>
+            @for (s of statuses; track s.value) {
+              <option [value]="s.value">{{ s.label }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-md-auto">
+          <button type="submit" class="btn btn-primary w-100" [disabled]="loading()">
+            @if (loading()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+            <i class="bi bi-search me-1"></i> Run
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 hmis-table">
+      <thead><tr><th>#</th><th>Patient</th><th>Ward</th><th>Bed</th><th>Clinician</th><th>Status</th><th>Admitted</th><th>Discharged</th></tr></thead>
+      <tbody>
+        @if (loading()) {
+          @for (i of [1,2,3,4,5]; track i) {
+            <tr class="hmis-skeleton-row">
+              <td><span class="hmis-skeleton" style="width:120px;"></span></td>
+              <td><span class="hmis-skeleton" style="width:200px;"></span></td>
+              <td><span class="hmis-skeleton" style="width:120px;"></span></td>
+              <td><span class="hmis-skeleton" style="width:60px;"></span></td>
+              <td><span class="hmis-skeleton" style="width:120px;"></span></td>
+              <td><span class="hmis-skeleton" style="width:90px;"></span></td>
+              <td><span class="hmis-skeleton" style="width:140px;"></span></td>
+              <td><span class="hmis-skeleton" style="width:140px;"></span></td>
+            </tr>
+          }
+        } @else if (entries().length === 0) {
+          <tr><td colspan="8"><div class="hmis-empty"><i class="bi bi-clipboard2-pulse"></i><div class="fw-semibold mb-1">No admissions</div><div class="small">No admissions match the selected filters.</div></div></td></tr>
+        } @else {
+          @for (e of entries(); track e.admissionUid) {
+            <tr>
+              <td><span class="hmis-code">{{ e.admissionNo }}</span></td>
+              <td>
+                <div class="fw-semibold">{{ e.patientName || e.patientUid }}</div>
+              </td>
+              <td>{{ e.wardName || e.wardUid || '—' }}</td>
+              <td>{{ e.bedLabel || '—' }}</td>
+              <td class="hmis-muted small">{{ e.admittingClinicianUsername || '—' }}</td>
+              <td><span [class]="statusBadgeClass(e.status)">{{ statusLabel(e.status) }}</span></td>
+              <td class="hmis-muted small">{{ (e.admittedAt | date:'short') || '—' }}</td>
+              <td class="hmis-muted small">{{ (e.dischargedAt | date:'short') || '—' }}</td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (!loading() && entries().length > 0) {
+    <div class="card-footer bg-white hmis-muted small">{{ entries().length }} admission(s)</div>
+  }
+</div>

@@ -1,0 +1,88 @@
+<div class="hmis-page-header">
+  <div>
+    <a class="hmis-muted small text-decoration-none d-inline-flex align-items-center gap-1 mb-1" routerLink="/reporting">
+      <i class="bi bi-arrow-left"></i> Reports
+    </a>
+    <h1 class="hmis-page-title">Bed occupancy</h1>
+    <p class="hmis-muted mb-0 small">Live ward capacity and bed status.</p>
+  </div>
+  <div class="ms-auto">
+    <button type="button" class="btn btn-light border" (click)="run()" [disabled]="loading()">
+      @if (loading()) { <span class="spinner-border spinner-border-sm me-2"></span> } @else { <i class="bi bi-arrow-clockwise me-1"></i> }
+      Refresh
+    </button>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 hmis-table">
+      <thead>
+        <tr>
+          <th>Ward</th>
+          <th class="text-end">Capacity</th>
+          <th class="text-end">Beds</th>
+          <th class="text-end">Occupied</th>
+          <th class="text-end">Free</th>
+          <th class="text-end">Out of service</th>
+          <th class="text-end">Occupancy</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          @for (i of [1,2,3,4,5]; track i) {
+            <tr class="hmis-skeleton-row">
+              <td><span class="hmis-skeleton" style="width:160px;"></span></td>
+              <td class="text-end"><span class="hmis-skeleton" style="width:50px;"></span></td>
+              <td class="text-end"><span class="hmis-skeleton" style="width:50px;"></span></td>
+              <td class="text-end"><span class="hmis-skeleton" style="width:50px;"></span></td>
+              <td class="text-end"><span class="hmis-skeleton" style="width:50px;"></span></td>
+              <td class="text-end"><span class="hmis-skeleton" style="width:50px;"></span></td>
+              <td class="text-end"><span class="hmis-skeleton" style="width:80px;"></span></td>
+            </tr>
+          }
+        } @else if (entries().length === 0) {
+          <tr><td colspan="7"><div class="hmis-empty"><i class="bi bi-hospital"></i><div class="fw-semibold mb-1">No wards</div><div class="small">No active wards with beds were found.</div></div></td></tr>
+        } @else {
+          @for (e of entries(); track e.wardUid) {
+            <tr>
+              <td class="fw-semibold">{{ e.wardName || e.wardUid }}</td>
+              <td class="text-end">{{ e.capacity | number }}</td>
+              <td class="text-end">{{ e.beds | number }}</td>
+              <td class="text-end fw-semibold">{{ e.occupied | number }}</td>
+              <td class="text-end text-success">{{ e.free | number }}</td>
+              <td class="text-end" [class.text-danger]="e.outOfService > 0">{{ e.outOfService | number }}</td>
+              <td class="text-end">
+                <span class="badge"
+                  [class.text-bg-success-subtle]="occupancyPct(e) < 75"
+                  [class.text-success-emphasis]="occupancyPct(e) < 75"
+                  [class.text-bg-warning-subtle]="occupancyPct(e) >= 75 && occupancyPct(e) < 100"
+                  [class.text-warning-emphasis]="occupancyPct(e) >= 75 && occupancyPct(e) < 100"
+                  [class.text-bg-danger-subtle]="occupancyPct(e) >= 100"
+                  [class.text-danger-emphasis]="occupancyPct(e) >= 100"
+                  class="border">{{ occupancyPct(e) }}%</span>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+      @if (!loading() && entries().length > 0) {
+        <tfoot>
+          <tr class="fw-semibold border-top">
+            <td>Total</td>
+            <td class="text-end">{{ totals().capacity | number }}</td>
+            <td class="text-end">{{ totals().beds | number }}</td>
+            <td class="text-end">{{ totals().occupied | number }}</td>
+            <td class="text-end text-success">{{ totals().free | number }}</td>
+            <td class="text-end">{{ totals().outOfService | number }}</td>
+            <td class="text-end"></td>
+          </tr>
+        </tfoot>
+      }
+    </table>
+  </div>
+</div>

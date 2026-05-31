@@ -84,3 +84,28 @@ export interface DispenseWorklistParams {
   page?: number;
   size?: number;
 }
+
+export type PrescribingAlertKind = 'SAME_MEDICINE_THIS_MONTH' | 'UNFINISHED_COURSE';
+
+export type PrescribingAlertSeverity = 'INFO' | 'WARN';
+
+/** Mirrors backend `PrescribingAlertDtos.PrescribingAlertDto` — a single advisory, non-blocking. */
+export interface PrescribingAlert {
+  kind: PrescribingAlertKind;
+  severity: PrescribingAlertSeverity;
+  message: string;
+  medicineUid: string;
+  medicineName: string | null;
+  lastGivenAt: string | null;
+  daysSinceLastGiven: number | null;
+  durationDays: number | null;
+  daysRemaining: number | null;
+}
+
+/** Mirrors backend `PrescribingAlertDtos.PrescribingAlertsDto` — wrapper, `alerts` may be empty. */
+export interface PrescribingAlertsDto {
+  patientUid: string;
+  medicineUid: string;
+  medicineName: string | null;
+  alerts: PrescribingAlert[];
+}

@@ -30,6 +30,11 @@ public final class ConsultationDtos {
             String insurancePlanUid,
             String insurancePlanName,
 
+            /** TRUE once the consultation fee is settled (denormalised gate). */
+            boolean feeSettled,
+            /** TRUE while clinical entries are permitted (status == IN_PROGRESS). */
+            boolean authorable,
+
             String reason,
             Instant bookedAt,
             Instant startedAt,

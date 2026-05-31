@@ -47,6 +47,19 @@ class PayBeforeServiceIT extends AuthenticatedIntegrationTest {
                         "paymentType", "CASH", "reason", "fever"),
                 Map.class)), "uid");
 
+        // Settle the consultation fee and open the consultation — clinical
+        // authoring (raising orders) is only allowed while it is IN_PROGRESS.
+        Map<String, Object> feeInvoice = expectOk(get(
+                "/billing/consultations/uid/" + consultationUid + "/invoice", Map.class));
+        BigDecimal feeBalance = new BigDecimal(feeInvoice.get("balance").toString());
+        if (feeBalance.signum() > 0) {
+            expectOk(post("/billing/invoices/uid/" + feeInvoice.get("uid") + "/payments",
+                    Map.of("method", "CASH", "amount", feeBalance, "currency", "TZS"), Map.class));
+        }
+        Map<String, Object> started = expectOk(post(
+                "/encounters/consultations/uid/" + consultationUid + "/start", null, Map.class));
+        assertThat(started.get("status")).isEqualTo("IN_PROGRESS");
+
         // Doctor raises a lab order → billed onto the consultation invoice up front.
         String orderUid = stringField(expectOk(post(
                 "/encounters/consultations/uid/" + consultationUid + "/orders",

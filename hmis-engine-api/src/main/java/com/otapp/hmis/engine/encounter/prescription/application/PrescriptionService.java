@@ -58,6 +58,8 @@ public class PrescriptionService {
     public PrescriptionDto prescribe(String consultationUid, CreatePrescriptionRequest request) {
         Consultation consultation = consultationRepository.findByUid(consultationUid)
                 .orElseThrow(() -> new NotFoundException("Consultation not found: " + consultationUid));
+        // Legacy open_consultation confinement: prescriptions only while IN_PROGRESS.
+        consultation.requireAuthorable();
         Medicine medicine = activeMedicine(request.medicineUid());
 
         ResolvedPicklists picks = resolvePicklists(request);

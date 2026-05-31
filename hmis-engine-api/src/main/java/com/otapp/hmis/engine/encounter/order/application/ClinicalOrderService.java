@@ -62,6 +62,8 @@ public class ClinicalOrderService {
     public ClinicalOrderDto request(String consultationUid, CreateOrderRequest request) {
         Consultation consultation = consultationRepository.findByUid(consultationUid)
                 .orElseThrow(() -> new NotFoundException("Consultation not found: " + consultationUid));
+        // Legacy open_consultation confinement: orders only while IN_PROGRESS.
+        consultation.requireAuthorable();
 
         // Validate that the target service exists in the right catalogue.
         ServiceDescriptor descriptor = resolveService(request.kind(), request.serviceUid());

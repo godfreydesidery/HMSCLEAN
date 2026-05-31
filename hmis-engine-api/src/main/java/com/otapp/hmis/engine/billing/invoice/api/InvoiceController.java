@@ -5,7 +5,9 @@ import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceDto;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceSummary;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.OverrideLinePriceRequest;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.RecordPaymentRequest;
+import com.otapp.hmis.engine.billing.creditnote.application.CreditNoteDtos.CreditNoteDto;
 import com.otapp.hmis.engine.billing.invoice.application.ConsultationFeeService;
+import com.otapp.hmis.engine.billing.invoice.application.ConsultationReversalService;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceService;
 import com.otapp.hmis.engine.billing.invoice.application.RegistrationFeeService;
 import com.otapp.hmis.engine.billing.invoice.application.ServiceChargeService;
@@ -13,6 +15,7 @@ import com.otapp.hmis.engine.billing.invoice.domain.InvoiceStatus;
 import com.otapp.hmis.engine.common.api.PageResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +33,7 @@ public class InvoiceController {
     private final RegistrationFeeService registrationFeeService;
     private final ConsultationFeeService consultationFeeService;
     private final ServiceChargeService serviceChargeService;
+    private final ConsultationReversalService consultationReversalService;
 
     @GetMapping("/billing/invoices")
     public ResponseEntity<PageResponse<InvoiceSummary>> search(
@@ -60,6 +64,26 @@ public class InvoiceController {
     @PostMapping("/billing/consultations/uid/{consultationUid}/consultation-fee")
     public ResponseEntity<InvoiceDto> ensureConsultationFee(@PathVariable String consultationUid) {
         return ResponseEntity.ok(consultationFeeService.ensureFor(consultationUid));
+    }
+
+    /** Reversal credit notes raised against a consultation's invoice (cancel cascade). */
+    @GetMapping("/billing/consultations/uid/{consultationUid}/credit-notes")
+    public ResponseEntity<List<CreditNoteDto>> consultationCreditNotes(@PathVariable String consultationUid) {
+        return ResponseEntity.ok(consultationReversalService.listCreditNotesForConsultation(consultationUid));
+    }
+
+    /** Idempotent recovery: re-run the consultation-fee reversal (refund + credit-note + cancel) if the cancel listener missed it. */
+    @PostMapping("/billing/consultations/uid/{consultationUid}/reverse-fee")
+    public ResponseEntity<Void> reverseConsultationFee(@PathVariable String consultationUid) {
+        consultationReversalService.reverseConsultationFee(consultationUid);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Idempotent recovery: re-run the sign-out void of unpaid downstream invoice lines if the sign-out listener missed it. */
+    @PostMapping("/billing/consultations/uid/{consultationUid}/void-downstream")
+    public ResponseEntity<Void> voidDownstream(@PathVariable String consultationUid) {
+        consultationReversalService.voidUnpaidDownstreamLines(consultationUid);
+        return ResponseEntity.noContent().build();
     }
 
     /** Idempotent recovery: bill a consultation order onto its invoice if the raise listener missed it (M13). */

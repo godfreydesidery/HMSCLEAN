@@ -93,6 +93,8 @@ public class Consultation extends AuditableEntity {
     @Column(name = "booked_at",  nullable = false) private Instant bookedAt;
     @Setter @Column(name = "started_at")   private Instant startedAt;
     @Setter @Column(name = "completed_at") private Instant completedAt;
+    /** Legacy SIGNED-OUT timestamp — distinct from generic completion; set on free/sign-out. */
+    @Setter @Column(name = "signed_out_at") private Instant signedOutAt;
     @Setter @Column(name = "cancelled_at") private Instant cancelledAt;
     @Setter @Column(name = "cancel_reason", length = 255) private String cancelReason;
 
@@ -125,12 +127,30 @@ public class Consultation extends AuditableEntity {
         startedAt = Instant.now();
     }
 
+    /**
+     * Clinical-authoring gate (legacy {@code open_consultation} confinement):
+     * clinical entries — notes, diagnoses, lab/radiology/procedure orders, and
+     * prescriptions — may be authored ONLY while the consultation is
+     * IN_PROGRESS (legacy IN-PROCESS). A BOOKED / COMPLETED / CANCELLED /
+     * TRANSFERRED consultation rejects writes. Throws {@link BusinessRuleException}
+     * (422) on violation.
+     */
+    public void requireAuthorable() {
+        if (status != ConsultationStatus.IN_PROGRESS) {
+            throw new BusinessRuleException(
+                    "Clinical entries are only allowed while the consultation is IN_PROGRESS (current: " + status + ")");
+        }
+    }
+
     public void complete() {
         if (status != ConsultationStatus.IN_PROGRESS) {
             throw new BusinessRuleException("Only IN_PROGRESS consultations can be completed (current: " + status + ")");
         }
         status = ConsultationStatus.COMPLETED;
         completedAt = Instant.now();
+        // Legacy sign-out (free_consultation) stamps the SIGNED-OUT moment so the
+        // downstream-cancel sweep and audit can distinguish it from a transfer-close.
+        signedOutAt = Instant.now();
     }
 
     public void cancel(String reason) {

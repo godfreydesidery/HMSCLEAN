@@ -2,6 +2,7 @@ package com.otapp.hmis.engine.encounter.diagnosis.application;
 
 import com.otapp.hmis.engine.common.error.ConflictException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
+import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
 import com.otapp.hmis.engine.encounter.diagnosis.application.ConsultationDiagnosisDtos.AddDiagnosisRequest;
 import com.otapp.hmis.engine.encounter.diagnosis.application.ConsultationDiagnosisDtos.ConsultationDiagnosisDto;
@@ -24,9 +25,10 @@ public class ConsultationDiagnosisService {
 
     @Transactional
     public ConsultationDiagnosisDto add(String consultationUid, AddDiagnosisRequest request) {
-        if (consultationRepository.findByUid(consultationUid).isEmpty()) {
-            throw new NotFoundException("Consultation not found: " + consultationUid);
-        }
+        Consultation consultation = consultationRepository.findByUid(consultationUid)
+                .orElseThrow(() -> new NotFoundException("Consultation not found: " + consultationUid));
+        // Legacy open_consultation confinement: clinical entries only while IN_PROGRESS.
+        consultation.requireAuthorable();
         DiagnosisType type = diagnosisTypeRepository.findByUid(request.diagnosisTypeUid())
                 .orElseThrow(() -> new NotFoundException("Diagnosis type not found: " + request.diagnosisTypeUid()));
 

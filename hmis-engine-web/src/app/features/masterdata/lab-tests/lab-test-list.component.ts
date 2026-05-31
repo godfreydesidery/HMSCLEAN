@@ -6,6 +6,7 @@ import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
 import { ItemPricesComponent } from '../pricing/item-prices.component';
+import { LabAnalytesComponent } from './lab-analytes.component';
 import { LabTestFormComponent } from './lab-test-form.component';
 import { LabTestTypeService } from './lab-test.service';
 import { LabTestType } from './lab-test.types';
@@ -77,6 +78,11 @@ export class LabTestListComponent {
     const r = this.modal.open(ItemPricesComponent, { size: 'lg', backdrop: 'static' });
     const inst = r.componentInstance as ItemPricesComponent;
     inst.kind = 'LAB_TEST'; inst.serviceUid = l.uid; inst.serviceLabel = `${l.name} (${l.code})`;
+  }
+  openAnalytes(l: LabTestType): void {
+    const r = this.modal.open(LabAnalytesComponent, { size: 'xl', backdrop: 'static', scrollable: true });
+    (r.componentInstance as LabAnalytesComponent).labTest = l;
+    r.closed.subscribe(() => this.refresh$.next());
   }
 
   toggleActive(l: LabTestType): void {

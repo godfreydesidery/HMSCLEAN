@@ -4,7 +4,7 @@ import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import { environment } from '../../../../environments/environment';
-import { OrderResult, SaveResultRequest } from './order-result.types';
+import { AnalyteTemplate, OrderResult, SaveResultRequest } from './order-result.types';
 
 @Injectable({ providedIn: 'root' })
 export class OrderResultService {
@@ -18,6 +18,11 @@ export class OrderResultService {
         map((res) => (res.status === 204 ? null : (res.body as OrderResult))),
         catchError((err) => (err?.status === 204 || err?.status === 404 ? of(null) : (() => { throw err; })()))
       );
+  }
+
+  /** Analyte definitions for a LAB_TEST order's result-entry grid (empty for non-lab). */
+  template(orderUid: string): Observable<AnalyteTemplate[]> {
+    return this.http.get<AnalyteTemplate[]>(`${this.apiBase}/uid/${orderUid}/result/template`);
   }
 
   save(orderUid: string, req: SaveResultRequest): Observable<OrderResult> {

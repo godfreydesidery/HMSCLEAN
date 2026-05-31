@@ -17,6 +17,15 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     boolean existsByUsername(String username);
 
+    boolean existsByTinNo(String tinNo);
+
+    /**
+     * Payroll import roster: every employee that is currently in {@code status}
+     * AND flagged payable. Callers pass {@link EmploymentStatus#ACTIVE} — the
+     * legacy {@code findAllByActive(true)} tightened with the payable gate.
+     */
+    java.util.List<Employee> findAllByEmploymentStatusAndPayableTrue(EmploymentStatus status);
+
     @Query("""
             SELECT e FROM Employee e
             WHERE (:search IS NULL OR :search = ''

@@ -143,9 +143,22 @@ public class PayrollComponentService {
         }
 
         BigDecimal net = gross.subtract(totalDeductions);
+
+        // 3. Employer contributions — employer-side cost (base BASIC or GROSS
+        //    like deductions) tracked SEPARATELY. NOT added to gross, NOT
+        //    subtracted from net (legacy PayrollDetail.employerContributions).
+        BigDecimal totalEmployerContributions = BigDecimal.ZERO.setScale(MONEY_SCALE);
+        for (PayrollComponent c : active) {
+            if (c.getType() != PayrollComponentType.EMPLOYER_CONTRIBUTION) continue;
+            BigDecimal baseVal = c.getBase() == PayrollCalcBase.GROSS ? gross : effectiveBasic;
+            BigDecimal amount = amountFor(c, bandsByComponent.get(c.getUid()), baseVal);
+            totalEmployerContributions = totalEmployerContributions.add(amount);
+            lines.add(line(c, amount));
+        }
+
         return new ComputedPayrollDto(
                 basic, effectiveBasic, request.workedDays(), request.periodDays(),
-                totalEarnings, gross, totalDeductions, net, lines);
+                totalEarnings, gross, totalDeductions, net, totalEmployerContributions, lines);
     }
 
     // ----- helpers -----------------------------------------------------------

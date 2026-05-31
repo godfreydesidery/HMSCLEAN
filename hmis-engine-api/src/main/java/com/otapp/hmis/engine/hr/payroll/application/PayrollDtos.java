@@ -47,6 +47,7 @@ public final class PayrollDtos {
             int sortOrder) {}
 
     public record PayrollItemDto(
+            Long id,
             String uid,
             String periodUid,
             String employeeUid,
@@ -55,6 +56,8 @@ public final class PayrollDtos {
             BigDecimal grossPay,
             BigDecimal totalDeductions,
             BigDecimal netPay,
+            /** Employer-side cost; tracked, NOT subtracted from net. */
+            BigDecimal employerContributions,
             String paymentMethod,
             String paymentReference,
             String note,
@@ -81,6 +84,8 @@ public final class PayrollDtos {
             @NotBlank @Size(min = 26, max = 26) String employeeUid,
             @NotNull @DecimalMin("0.00") BigDecimal grossPay,
             @NotNull @DecimalMin("0.00") BigDecimal totalDeductions,
+            /** Employer-side cost (optional, default 0). Tracked, not in net. */
+            @DecimalMin("0.00") BigDecimal employerContributions,
             @Size(max = 32)  String paymentMethod,
             @Size(max = 80)  String paymentReference,
             @Size(max = 500) String note,
@@ -92,4 +97,11 @@ public final class PayrollDtos {
     public record PayrollPeriodWithItemsDto(
             PayrollPeriodDto period,
             List<PayrollItemDto> items) {}
+
+    /**
+     * Result of the bulk import-active-employees action: how many payroll
+     * items were newly seeded, how many active+payable employees were already
+     * on the period (skipped), and the total roster size considered.
+     */
+    public record ImportEmployeesResultDto(int imported, int skipped, int total) {}
 }

@@ -96,5 +96,7 @@ public final class PayrollComponentDtos {
             BigDecimal grossPay,
             BigDecimal totalDeductions,
             BigDecimal netPay,
+            /** Employer-side cost; tracked, NOT in gross nor net. */
+            BigDecimal totalEmployerContributions,
             List<ComputedLineDto> lines) {}
 }

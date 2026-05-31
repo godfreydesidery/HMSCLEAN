@@ -3,6 +3,7 @@ package com.otapp.hmis.engine.hr.payroll.api;
 import com.otapp.hmis.engine.common.api.PageResponse;
 import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.CancelPayrollPeriodRequest;
 import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.CreatePayrollPeriodRequest;
+import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.ImportEmployeesResultDto;
 import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.PayrollItemDto;
 import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.PayrollPeriodDto;
 import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.PayrollPeriodWithItemsDto;
@@ -65,6 +66,15 @@ public class PayrollController {
     public ResponseEntity<Void> removeItem(@PathVariable String periodUid, @PathVariable String employeeUid) {
         payrollService.removeItem(periodUid, employeeUid);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Bulk-seed a payroll item per ACTIVE + payable employee, prefilled from
+     * their {@code Employee.basicSalary} (legacy import_employees). No body.
+     */
+    @PostMapping("/periods/uid/{periodUid}/import-employees")
+    public ResponseEntity<ImportEmployeesResultDto> importEmployees(@PathVariable String periodUid) {
+        return ResponseEntity.ok(payrollService.importEmployees(periodUid));
     }
 
     @PostMapping("/periods/uid/{periodUid}/verify")

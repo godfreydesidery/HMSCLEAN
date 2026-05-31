@@ -12,6 +12,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -40,7 +41,8 @@ import lombok.Setter;
        indexes = {
                @Index(name = "idx_hr_employee_status",      columnList = "employment_status"),
                @Index(name = "idx_hr_employee_designation", columnList = "designation"),
-               @Index(name = "idx_hr_employee_department",  columnList = "department")
+               @Index(name = "idx_hr_employee_department",  columnList = "department"),
+               @Index(name = "idx_hr_employee_payable",     columnList = "payable")
        })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -84,6 +86,27 @@ public class Employee extends AuditableEntity {
 
     @Setter @Column(name = "termination_date")                  private LocalDate terminationDate;
     @Setter @Column(name = "termination_reason", length = 500)  private String terminationReason;
+
+    // ----- compensation / banking / statutory (legacy parity) -------------
+    // Captured fields — no lifecycle, no gate. These feed payroll import +
+    // payment. `payable` is the per-employee enrolment gate used by import,
+    // separate from the ACTIVE employment status (legacy had both flags).
+
+    /** Monthly basic that seeds every payroll line. NUMERIC (legacy used double). */
+    @Setter @Column(name = "basic_salary", precision = 14, scale = 2) private BigDecimal basicSalary;
+
+    /** Tax identification number. Unique when present (legacy was @NotBlank+unique). */
+    @Setter @Column(name = "tin_no", length = 32) private String tinNo;
+
+    @Setter @Column(name = "bank_name",         length = 120) private String bankName;
+    @Setter @Column(name = "bank_account_no",   length = 40)  private String bankAccountNo;
+    @Setter @Column(name = "bank_account_name", length = 120) private String bankAccountName;
+
+    @Setter @Column(name = "social_security_no",   length = 40)  private String socialSecurityNo;
+    @Setter @Column(name = "social_security_name", length = 120) private String socialSecurityName;
+
+    /** Per-employee payroll enrolment gate (legacy Employee.payable, default true). */
+    @Setter @Column(name = "payable", nullable = false) private boolean payable = true;
 
     public Employee(String employeeNo, String firstName, String lastName,
                     LocalDate hireDate, String designation, String department) {

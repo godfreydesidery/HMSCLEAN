@@ -46,6 +46,14 @@ public class PayrollItem extends AuditableEntity {
     @Setter @Column(name = "total_deductions",  nullable = false, precision = 14, scale = 2) private BigDecimal totalDeductions;
     @Setter @Column(name = "net_pay",           nullable = false, precision = 14, scale = 2) private BigDecimal netPay;
 
+    /**
+     * Employer-side cost of employment (legacy {@code PayrollDetail.employer-
+     * Contributions}). Tracked verbatim for the cost report; NOT in the net
+     * formula and NOT part of gross — {@link #recomputeNet()} never touches it.
+     */
+    @Setter @Column(name = "employer_contributions", nullable = false, precision = 14, scale = 2)
+    private BigDecimal employerContributions = BigDecimal.ZERO;
+
     @Setter @Column(name = "payment_method",    length = 32)  private String paymentMethod;
     @Setter @Column(name = "payment_reference", length = 80)  private String paymentReference;
     @Setter @Column(name = "note",              length = 500) private String note;

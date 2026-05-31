@@ -20,4 +20,8 @@ public interface PayrollItemRepository extends JpaRepository<PayrollItem, Long> 
             WHERE i.periodUid = :periodUid
             """)
     BigDecimal sumNetForPeriod(@Param("periodUid") String periodUid);
+
+    /** Employee uids already on the period — used by import to skip newcomers (no N+1). */
+    @Query("SELECT i.employeeUid FROM PayrollItem i WHERE i.periodUid = :periodUid")
+    List<String> findEmployeeUidsByPeriodUid(@Param("periodUid") String periodUid);
 }

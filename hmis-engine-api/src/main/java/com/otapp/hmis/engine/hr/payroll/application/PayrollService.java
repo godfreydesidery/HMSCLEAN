@@ -5,8 +5,10 @@ import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
 import com.otapp.hmis.engine.hr.employee.domain.Employee;
 import com.otapp.hmis.engine.hr.employee.domain.EmployeeRepository;
+import com.otapp.hmis.engine.hr.employee.domain.EmploymentStatus;
 import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.CancelPayrollPeriodRequest;
 import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.CreatePayrollPeriodRequest;
+import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.ImportEmployeesResultDto;
 import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.PayrollItemDto;
 import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.PayrollItemLineDto;
 import com.otapp.hmis.engine.hr.payroll.application.PayrollDtos.PayrollPeriodDto;
@@ -20,7 +22,9 @@ import com.otapp.hmis.engine.hr.payroll.domain.PayrollPeriod;
 import com.otapp.hmis.engine.hr.payroll.domain.PayrollPeriodRepository;
 import com.otapp.hmis.engine.hr.payroll.domain.PayrollPeriodStatus;
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -67,6 +71,8 @@ public class PayrollService {
         item.setGrossPay(request.grossPay());
         item.setTotalDeductions(request.totalDeductions());
         item.recomputeNet();
+        item.setEmployerContributions(
+                request.employerContributions() == null ? BigDecimal.ZERO : request.employerContributions());
         item.setPaymentMethod(emptyToNull(request.paymentMethod()));
         item.setPaymentReference(emptyToNull(request.paymentReference()));
         item.setNote(emptyToNull(request.note()));
@@ -82,6 +88,48 @@ public class PayrollService {
             }
         }
         return toItemDto(item, employee);
+    }
+
+    /**
+     * Bulk-seed a {@link PayrollItem} for every ACTIVE + payable employee not
+     * yet on the period, prefilled from {@code Employee.basicSalary} (legacy
+     * {@code PayrollServiceImpl.importEmployees}). Idempotent: a re-import adds
+     * only newcomers. Faithful to legacy, throws when nothing new is imported.
+     *
+     * <p>Net = basicSalary (gross = basicSalary, deductions = 0); employer
+     * contributions seed to 0 and are filled in later per line.
+     */
+    @Transactional
+    public ImportEmployeesResultDto importEmployees(String periodUid) {
+        PayrollPeriod period = loadPeriodOrThrow(periodUid);
+        if (!period.isMutable()) {
+            throw new BusinessRuleException(
+                    "Payroll period is " + period.getStatus() + " and locked; only DRAFT periods can be imported into");
+        }
+
+        List<Employee> roster = employeeRepository
+                .findAllByEmploymentStatusAndPayableTrue(EmploymentStatus.ACTIVE);
+        // Dedupe in-memory by employeeUid (one query, no N+1, no constraint-violation 500).
+        Set<String> existing = new HashSet<>(itemRepository.findEmployeeUidsByPeriodUid(period.getUid()));
+
+        int imported = 0;
+        for (Employee e : roster) {
+            if (existing.contains(e.getUid())) {
+                continue;
+            }
+            BigDecimal basic = e.getBasicSalary() == null
+                    ? BigDecimal.ZERO.setScale(2)
+                    : e.getBasicSalary();
+            // gross = basic, deductions = 0 => net = basic (legacy prefill).
+            itemRepository.save(new PayrollItem(period.getUid(), e.getUid(), basic, BigDecimal.ZERO.setScale(2)));
+            existing.add(e.getUid());
+            imported++;
+        }
+        if (imported == 0) {
+            throw new BusinessRuleException("Nothing to import");
+        }
+        int total = roster.size();
+        return new ImportEmployeesResultDto(imported, total - imported, total);
     }
 
     @Transactional
@@ -185,6 +233,7 @@ public class PayrollService {
                         l.getAmount(), l.getSortOrder()))
                 .toList();
         return new PayrollItemDto(
+                item.getId(),
                 item.getUid(),
                 item.getPeriodUid(),
                 item.getEmployeeUid(),
@@ -193,6 +242,7 @@ public class PayrollService {
                 item.getGrossPay(),
                 item.getTotalDeductions(),
                 item.getNetPay(),
+                item.getEmployerContributions(),
                 item.getPaymentMethod(),
                 item.getPaymentReference(),
                 item.getNote(),

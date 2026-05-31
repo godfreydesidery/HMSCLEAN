@@ -6,6 +6,7 @@ import com.otapp.hmis.engine.hr.employee.application.EmployeeDtos.CreateEmployee
 import com.otapp.hmis.engine.hr.employee.application.EmployeeDtos.EmployeeDto;
 import com.otapp.hmis.engine.hr.employee.application.EmployeeDtos.SetStatusRequest;
 import com.otapp.hmis.engine.hr.employee.application.EmployeeDtos.TerminateEmployeeRequest;
+import com.otapp.hmis.engine.hr.employee.application.EmployeeDtos.UpdateCompensationRequest;
 import com.otapp.hmis.engine.hr.employee.application.EmployeeDtos.UpdateEmployeeRequest;
 import com.otapp.hmis.engine.hr.employee.application.EmployeeService;
 import com.otapp.hmis.engine.hr.employee.domain.EmploymentStatus;
@@ -57,6 +58,12 @@ public class EmployeeController {
     public ResponseEntity<EmployeeDto> update(@PathVariable String employeeUid,
                                               @Valid @RequestBody UpdateEmployeeRequest request) {
         return ResponseEntity.ok(service.update(employeeUid, request));
+    }
+
+    @PutMapping("/uid/{employeeUid}/compensation")
+    public ResponseEntity<EmployeeDto> updateCompensation(@PathVariable String employeeUid,
+                                                          @Valid @RequestBody UpdateCompensationRequest request) {
+        return ResponseEntity.ok(service.updateCompensation(employeeUid, request));
     }
 
     @PutMapping("/uid/{employeeUid}/status")

@@ -31,7 +31,7 @@ CREATE TABLE insurance_claims (
     currency              VARCHAR(3)    NOT NULL,
     claimed_amount        NUMERIC(14,2) NOT NULL,
     settled_amount        NUMERIC(14,2) NOT NULL DEFAULT 0,
-    status                VARCHAR(16)   NOT NULL,
+    status                VARCHAR(20)   NOT NULL,   -- fits PARTIALLY_SETTLED (17)
     line_count            INTEGER       NOT NULL,
     submitted_at          TIMESTAMP WITH TIME ZONE,
     settled_at            TIMESTAMP WITH TIME ZONE,

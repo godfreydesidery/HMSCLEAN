@@ -29,15 +29,15 @@ import lombok.NoArgsConstructor;
  * settling or rejecting a claim NEVER mutates an invoice.
  */
 @Entity
-@Table(name = "insurance_claim",
+@Table(name = "insurance_claims",
        uniqueConstraints = {
-               @UniqueConstraint(name = "uk_insurance_claim_no", columnNames = "claim_no")
+               @UniqueConstraint(name = "uk_insurance_claims_no", columnNames = "claim_no")
        },
        indexes = {
-               @Index(name = "idx_insurance_claim_plan",     columnList = "payer_plan_uid"),
-               @Index(name = "idx_insurance_claim_provider", columnList = "provider_uid"),
-               @Index(name = "idx_insurance_claim_status",   columnList = "status"),
-               @Index(name = "idx_insurance_claim_member",   columnList = "membership_no")
+               @Index(name = "idx_insurance_claims_plan",     columnList = "payer_plan_uid"),
+               @Index(name = "idx_insurance_claims_provider", columnList = "provider_uid"),
+               @Index(name = "idx_insurance_claims_status",   columnList = "status"),
+               @Index(name = "idx_insurance_claims_member",   columnList = "membership_no")
        })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -66,7 +66,7 @@ public class Claim extends AuditableEntity {
     @Column(name = "settled_amount", nullable = false, precision = 14, scale = 2) private BigDecimal settledAmount = BigDecimal.ZERO;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
+    @Column(nullable = false, length = 20)
     private ClaimStatus status = ClaimStatus.DRAFT;
 
     @Column(name = "line_count", nullable = false) private int lineCount;

@@ -1,0 +1,42 @@
+<div class="modal-header">
+  <h5 class="modal-title d-flex align-items-center gap-2"><i class="bi bi-cash-coin"></i>Record settlement</h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss()"></button>
+</div>
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-body">
+    <div class="alert alert-light border d-flex align-items-center gap-2 py-2 px-3">
+      <i class="bi bi-file-medical"></i>
+      <div class="small">
+        Claim <span class="hmis-code">{{ claim.claimNo }}</span> · Outstanding
+        <strong>{{ claim.outstanding | number:'1.2-2' }} {{ claim.currency }}</strong>
+      </div>
+    </div>
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3" role="alert"><i class="bi bi-exclamation-circle"></i><span class="small">{{ errorMessage() }}</span></div>
+    }
+    <div class="row g-3">
+      <div class="col-12">
+        <label class="form-label" for="rs-amount">Amount <span class="text-danger">*</span></label>
+        <input id="rs-amount" type="number" min="0.01" step="0.01" class="form-control" formControlName="amount">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="rs-ref">Reference</label>
+        <input id="rs-ref" type="text" class="form-control" formControlName="reference" placeholder="Remittance no, transaction id…">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="rs-note">Note</label>
+        <input id="rs-note" type="text" class="form-control" formControlName="note">
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+    <button type="submit" class="btn btn-success d-flex align-items-center gap-2" [disabled]="submitting()">
+      @if (submitting()) {
+        <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output>Saving…
+      } @else {
+        <i class="bi bi-check2"></i>Record settlement
+      }
+    </button>
+  </div>
+</form>

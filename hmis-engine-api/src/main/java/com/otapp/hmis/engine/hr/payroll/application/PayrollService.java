@@ -91,10 +91,11 @@ public class PayrollService {
     }
 
     /**
-     * Bulk-seed a {@link PayrollItem} for every ACTIVE + payable employee not
-     * yet on the period, prefilled from {@code Employee.basicSalary} (legacy
-     * {@code PayrollServiceImpl.importEmployees}). Idempotent: a re-import adds
-     * only newcomers. Faithful to legacy, throws when nothing new is imported.
+     * Bulk-seed a {@link PayrollItem} for every ACTIVE employee not yet on the
+     * period, prefilled from {@code Employee.basicSalary} (legacy
+     * {@code PayrollServiceImpl.importEmployees}, which imported all active
+     * staff regardless of the payable flag). Idempotent: a re-import adds only
+     * newcomers. Throws when nothing new is imported.
      *
      * <p>Net = basicSalary (gross = basicSalary, deductions = 0); employer
      * contributions seed to 0 and are filled in later per line.
@@ -108,7 +109,7 @@ public class PayrollService {
         }
 
         List<Employee> roster = employeeRepository
-                .findAllByEmploymentStatusAndPayableTrue(EmploymentStatus.ACTIVE);
+                .findAllByEmploymentStatus(EmploymentStatus.ACTIVE);
         // Dedupe in-memory by employeeUid (one query, no N+1, no constraint-violation 500).
         Set<String> existing = new HashSet<>(itemRepository.findEmployeeUidsByPeriodUid(period.getUid()));
 

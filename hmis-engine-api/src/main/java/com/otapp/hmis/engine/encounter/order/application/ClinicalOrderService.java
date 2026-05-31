@@ -3,6 +3,7 @@ package com.otapp.hmis.engine.encounter.order.application;
 import com.otapp.hmis.engine.common.api.PageResponse;
 import com.otapp.hmis.engine.common.error.NotFoundException;
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
+import com.otapp.hmis.engine.common.error.ConflictException;
 import com.otapp.hmis.engine.encounter.admission.domain.AdmissionRepository;
 import com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
@@ -69,7 +70,7 @@ public class ClinicalOrderService {
         // service type within one consultation.
         if (orderRepository.existsByConsultationUidAndKindAndServiceUid(
                 consultation.getUid(), request.kind(), descriptor.uid())) {
-            throw new BusinessRuleException(
+            throw new ConflictException(
                     "A " + request.kind() + " order for this service already exists on this consultation");
         }
 
@@ -111,7 +112,7 @@ public class ClinicalOrderService {
         // Duplicate-order-type guard (legacy parity) on the outsider pathway.
         if (orderRepository.existsByPatientUidAndConsultationUidIsNullAndKindAndServiceUid(
                 patient.getUid(), request.kind(), descriptor.uid())) {
-            throw new BusinessRuleException(
+            throw new ConflictException(
                     "A " + request.kind() + " order for this service already exists for this patient");
         }
 

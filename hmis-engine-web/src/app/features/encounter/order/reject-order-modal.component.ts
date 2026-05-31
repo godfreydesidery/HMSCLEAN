@@ -44,7 +44,8 @@ export class RejectOrderModalComponent {
   });
 
   submit(): void {
-    if (this.form.invalid) { this.form.markAllAsTouched(); return; }
-    this.activeModal.close(this.form.getRawValue().reason.trim());
+    const reason = this.form.getRawValue().reason.trim();
+    if (this.form.invalid || !reason) { this.form.markAllAsTouched(); return; }
+    this.activeModal.close(reason);
   }
 }

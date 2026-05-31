@@ -20,11 +20,13 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     boolean existsByTinNo(String tinNo);
 
     /**
-     * Payroll import roster: every employee that is currently in {@code status}
-     * AND flagged payable. Callers pass {@link EmploymentStatus#ACTIVE} — the
-     * legacy {@code findAllByActive(true)} tightened with the payable gate.
+     * Payroll import roster: every employee currently in {@code status}. Callers
+     * pass {@link EmploymentStatus#ACTIVE}, matching the legacy import
+     * ({@code findAllByActive(true)}), which imported all active staff regardless
+     * of the {@code payable} flag. ({@code payable} stays captured-only data, as
+     * in legacy, where the import never consulted it.)
      */
-    java.util.List<Employee> findAllByEmploymentStatusAndPayableTrue(EmploymentStatus status);
+    java.util.List<Employee> findAllByEmploymentStatus(EmploymentStatus status);
 
     @Query("""
             SELECT e FROM Employee e

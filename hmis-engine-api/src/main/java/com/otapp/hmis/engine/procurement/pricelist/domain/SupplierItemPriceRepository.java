@@ -43,7 +43,8 @@ public interface SupplierItemPriceRepository extends JpaRepository<SupplierItemP
      * today within the window — newest {@code validFrom} first. This is the
      * legacy {@code findBySupplierAndItem} gate (a supplier must quote an item
      * before it can be ordered from them); the date window simply rolls the
-     * quote forward. Use {@code Pageable} of size 1 to take only the newest.
+     * quote forward. The caller takes the first (newest {@code validFrom})
+     * element as the contracted price.
      */
     @Query("""
             SELECT p FROM SupplierItemPrice p

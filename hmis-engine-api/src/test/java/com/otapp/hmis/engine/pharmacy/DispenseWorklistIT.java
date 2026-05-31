@@ -32,6 +32,9 @@ class DispenseWorklistIT extends AuthenticatedIntegrationTest {
                         "paymentType", "CASH", "reason", "cough"),
                 Map.class)), "uid");
 
+        // Prescriptions may only be authored while the consultation is IN_PROGRESS.
+        openConsultation(consultationUid);
+
         String rxUid = stringField(expectOk(post(
                 "/encounters/consultations/uid/" + consultationUid + "/prescriptions",
                 Map.of("medicineUid", AMOXIL_UID, "dose", "1 tab", "frequency", "BD", "quantity", 10),

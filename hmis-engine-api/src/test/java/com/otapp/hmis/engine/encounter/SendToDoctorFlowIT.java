@@ -157,7 +157,10 @@ class SendToDoctorFlowIT extends AuthenticatedIntegrationTest {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private boolean receptionQueueContains(String consultationUid) {
-        Map<String, Object> page = expectOk(get(
+        // The reception queue is JWT/clinician-scoped (it shows the signed-in
+        // doctor's own BOOKED consultations), and these consultations are booked
+        // under the affiliated clinician — not ROOT — so query AS that clinician.
+        Map<String, Object> page = expectOk(getAs(sharedClinicianToken(),
                 "/encounters/consultations/reception-queue?size=200", Map.class));
         List<Map<String, Object>> content = (List<Map<String, Object>>) page.get("content");
         return content != null && content.stream().anyMatch(r -> consultationUid.equals(r.get("uid")));

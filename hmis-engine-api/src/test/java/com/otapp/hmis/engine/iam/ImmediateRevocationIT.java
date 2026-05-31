@@ -8,11 +8,7 @@ import com.otapp.hmis.engine.iam.application.dto.LoginResponse;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 /**
@@ -88,12 +84,5 @@ class ImmediateRevocationIT extends AuthenticatedIntegrationTest {
             throw new IllegalStateException("login failed for " + username);
         }
         return new Provisioned(uid, login.tokens().accessToken());
-    }
-
-    private <T> ResponseEntity<T> getAs(String token, String path, Class<T> type) {
-        HttpHeaders h = new HttpHeaders();
-        h.setBearerAuth(token);
-        h.setContentType(MediaType.APPLICATION_JSON);
-        return rest.exchange(path, HttpMethod.GET, new HttpEntity<>(h), type);
     }
 }

@@ -40,6 +40,10 @@ class MedicationAdministrationIT extends AuthenticatedIntegrationTest {
                         "paymentType", "CASH", "reason", "infection"),
                 Map.class)), "uid");
 
+        // Settle the consultation fee and open it — clinical authoring (orders,
+        // prescriptions) is only allowed while the consultation is IN_PROGRESS.
+        openConsultation(consultationUid);
+
         String prescriptionUid = stringField(expectOk(post(
                 "/encounters/consultations/uid/" + consultationUid + "/prescriptions",
                 Map.of("medicineUid", AMOXIL_UID, "dose", "500 mg", "frequency", "TDS", "quantity", 21),

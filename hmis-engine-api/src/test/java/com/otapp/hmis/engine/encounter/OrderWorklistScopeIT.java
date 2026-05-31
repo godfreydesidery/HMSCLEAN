@@ -31,6 +31,8 @@ class OrderWorklistScopeIT extends AuthenticatedIntegrationTest {
                         "clinicianUsername", clinicianAffiliatedWith(OPD_CLINIC_UID),
                         "paymentType", "CASH", "reason", "screen"),
                 Map.class)), "uid");
+        // Clinical orders may only be raised while the consultation is IN_PROGRESS.
+        openConsultation(consultationUid);
         String orderUid = stringField(expectOk(post(
                 "/encounters/consultations/uid/" + consultationUid + "/orders",
                 Map.of("kind", "LAB_TEST", "serviceUid", CBC_UID, "urgency", "NORMAL"),

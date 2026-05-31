@@ -1,0 +1,99 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">New requisition</h1>
+    <p class="hmis-muted mb-0 small">Request stock from a store for a pharmacy.</p>
+  </div>
+  <a class="btn btn-light border" routerLink="/transfers/ro"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+@if (loadingLookups()) {
+  <div class="card"><div class="card-body p-4"><span class="hmis-skeleton" style="width:280px;"></span></div></div>
+} @else {
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label" for="ro-pharmacy">Pharmacy</label>
+            <select id="ro-pharmacy" class="form-select" formControlName="pharmacyUid" [class.is-invalid]="form.get('pharmacyUid')!.touched && form.get('pharmacyUid')!.invalid">
+              <option value="" disabled>Select pharmacy…</option>
+              @for (p of pharmacies(); track p.uid) { <option [value]="p.uid">{{ p.name }}</option> }
+            </select>
+            <div class="invalid-feedback">Pharmacy is required.</div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="ro-store">Store</label>
+            <select id="ro-store" class="form-select" formControlName="storeUid" [class.is-invalid]="form.get('storeUid')!.touched && form.get('storeUid')!.invalid">
+              <option value="" disabled>Select store…</option>
+              @for (s of stores(); track s.uid) { <option [value]="s.uid">{{ s.name }}</option> }
+            </select>
+            <div class="invalid-feedback">Store is required.</div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="ro-valid-until">Valid until</label>
+            <input id="ro-valid-until" type="date" class="form-control" formControlName="validUntil">
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="ro-note">Note</label>
+            <textarea id="ro-note" rows="2" class="form-control" formControlName="note" placeholder="Optional note…"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header bg-white d-flex align-items-center py-3">
+        <span class="fw-semibold"><i class="bi bi-list-check me-2 text-primary"></i>Lines ({{ lines.length }})</span>
+        <button type="button" class="btn btn-sm btn-primary ms-auto" (click)="addLine()"><i class="bi bi-plus-lg me-1"></i>Add line</button>
+      </div>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead><tr><th style="min-width:220px;">Medicine</th><th style="min-width:160px;">Unit</th><th class="text-end" style="width:120px;">Quantity</th><th style="min-width:200px;">Note</th><th style="width:48px;"></th></tr></thead>
+          <tbody formArrayName="lines">
+            @if (lines.length === 0) {
+              <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-list-check"></i><div class="small">No lines yet — add at least one.</div></div></td></tr>
+            } @else {
+              @for (line of lines.controls; track $index; let i = $index) {
+                <tr [formGroupName]="i">
+                  <td>
+                    <select class="form-select form-select-sm" formControlName="medicineUid" (change)="onMedicineChange(line)" [class.is-invalid]="line.get('medicineUid')!.touched && line.get('medicineUid')!.invalid">
+                      <option value="" disabled>Select medicine…</option>
+                      @for (m of medicines(); track m.uid) { <option [value]="m.uid">{{ m.code }} — {{ m.name }}@if (m.strength) { <span> ({{ m.strength }})</span> }</option> }
+                    </select>
+                  </td>
+                  <td>
+                    <select class="form-select form-select-sm" formControlName="unitUid">
+                      <option value="">Base unit</option>
+                      @for (u of unitsFor(line); track u.uid) { <option [value]="u.uid">{{ u.name }} ({{ u.code }})</option> }
+                    </select>
+                  </td>
+                  <td>
+                    <input type="number" min="1" class="form-control form-control-sm text-end" formControlName="quantity" [class.is-invalid]="line.get('quantity')!.touched && line.get('quantity')!.invalid">
+                  </td>
+                  <td>
+                    <input type="text" class="form-control form-control-sm" formControlName="note" placeholder="Optional…">
+                  </td>
+                  <td class="text-end">
+                    <button type="button" class="btn btn-sm btn-light border text-danger" (click)="removeLine(i)" title="Remove"><i class="bi bi-x-lg"></i></button>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2">
+      <button type="button" class="btn btn-light border" (click)="cancel()">Cancel</button>
+      <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting() || lines.length === 0">
+        @if (submitting()) { <span class="spinner-border spinner-border-sm"></span> }
+        Create requisition
+      </button>
+    </div>
+  </form>
+}

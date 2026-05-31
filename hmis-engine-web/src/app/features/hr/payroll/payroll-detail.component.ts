@@ -35,6 +35,7 @@ export class PayrollDetailComponent implements OnInit {
   readonly loading = signal(true);
   readonly busy = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly noticeMessage = signal<string | null>(null);
 
   // Auto-prefill from configurable components.
   readonly computed = signal<ComputedPayroll | null>(null);
@@ -84,6 +85,25 @@ export class PayrollDetailComponent implements OnInit {
           this.computeForm.controls.periodDays.setValue(periodLengthDays(res.period));
         },
         error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load period.')
+      });
+  }
+
+  /** Bulk-seed every active, payable employee into this DRAFT period (legacy import_employees). */
+  importEmployees(): void {
+    const p = this.period();
+    if (!p || !this.isDraft() || this.busy()) return;
+    this.busy.set(true);
+    this.errorMessage.set(null);
+    this.noticeMessage.set(null);
+    this.payrollService.importEmployees(p.uid)
+      .pipe(finalize(() => this.busy.set(false)))
+      .subscribe({
+        next: (res) => {
+          this.noticeMessage.set(
+            `Imported ${res.imported}, skipped ${res.skipped} of ${res.total} active employee(s).`);
+          this.load(p.uid);
+        },
+        error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not import employees.')
       });
   }
 

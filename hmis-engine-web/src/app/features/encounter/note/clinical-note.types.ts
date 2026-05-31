@@ -4,6 +4,9 @@ export interface ClinicalNote {
   chiefComplaint: string | null;
   historyOfPresentingIllness: string | null;
   pastMedicalHistory: string | null;
+  drugsAndAllergyHistory: string | null;
+  familyAndSocialHistory: string | null;
+  reviewOfOtherSystems: string | null;
   examination: string | null;
   assessment: string | null;
   plan: string | null;
@@ -15,6 +18,9 @@ export interface SaveClinicalNoteRequest {
   chiefComplaint: string | null;
   historyOfPresentingIllness: string | null;
   pastMedicalHistory: string | null;
+  drugsAndAllergyHistory: string | null;
+  familyAndSocialHistory: string | null;
+  reviewOfOtherSystems: string | null;
   examination: string | null;
   assessment: string | null;
   plan: string | null;

@@ -5,6 +5,7 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
+import { AuthService } from '../../../core/auth/auth.service';
 import { AssignRolesComponent } from './assign-roles.component';
 import { ProviderProfileComponent } from './provider-profile.component';
 import { ResetPasswordComponent } from './reset-password.component';
@@ -21,6 +22,7 @@ import { User } from './user.types';
 export class UsersComponent {
   private readonly userService = inject(UserService);
   private readonly modal = inject(NgbModal);
+  private readonly auth = inject(AuthService);
 
   readonly query = new FormControl('', { nonNullable: true });
   readonly enabledFilter = signal<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
@@ -113,6 +115,11 @@ export class UsersComponent {
 
   isClinician(u: User): boolean {
     return u.roles?.includes('CLINICIAN') ?? false;
+  }
+
+  /** The signed-in user — cannot enable/disable their own account (server rejects it). */
+  isSelf(u: User): boolean {
+    return u.username?.toLowerCase() === this.auth.user()?.username?.toLowerCase();
   }
 
   toggleEnabled(u: User): void {

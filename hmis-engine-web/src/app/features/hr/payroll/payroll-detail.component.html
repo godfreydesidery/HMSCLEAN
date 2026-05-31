@@ -37,12 +37,22 @@
     @if (errorMessage()) {
       <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
     }
+    @if (noticeMessage()) {
+      <div class="alert alert-success d-flex align-items-center gap-2"><i class="bi bi-check-circle"></i><span>{{ noticeMessage() }}</span></div>
+    }
 
     <div class="row g-3">
       <div class="col-lg-8">
         <div class="card">
-          <div class="card-header bg-white d-flex align-items-center">
+          <div class="card-header bg-white d-flex align-items-center gap-2">
             <h2 class="h6 mb-0">Items ({{ p.itemCount }})</h2>
+            @if (isDraft()) {
+              <button type="button" class="btn btn-sm btn-light border d-flex align-items-center gap-1"
+                      (click)="importEmployees()" [disabled]="busy()"
+                      title="Seed an item for every active, payable employee">
+                <i class="bi bi-people-fill"></i>Import active employees
+              </button>
+            }
             <div class="ms-auto fw-semibold">Total net: {{ p.totalNet | number:'1.2-2' }} {{ p.currency }}</div>
           </div>
           <div class="table-responsive">

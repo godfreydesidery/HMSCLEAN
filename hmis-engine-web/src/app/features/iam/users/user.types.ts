@@ -34,4 +34,6 @@ export interface Role {
   name: string;
   description: string | null;
   privileges: string[];
+  /** System role — privileges locked (cannot be edited/deleted). */
+  protected: boolean;
 }

@@ -29,6 +29,11 @@ export interface Consultation {
   insurancePlanUid: string | null;
   insurancePlanName: string | null;
 
+  /** TRUE once the consultation fee is settled (or non-CASH / waived). Gates CASH start. */
+  feeSettled: boolean;
+  /** TRUE only while IN_PROGRESS — clinical authoring (notes/orders/Rx/dx) is allowed. */
+  authorable: boolean;
+
   reason: string | null;
   bookedAt: string;
   startedAt: string | null;

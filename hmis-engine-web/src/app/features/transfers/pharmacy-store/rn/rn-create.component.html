@@ -1,0 +1,101 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">New receive note</h1>
+    <p class="hmis-muted mb-0 small">Record stock received by the pharmacy against an issued transfer order.</p>
+  </div>
+  <button type="button" class="btn btn-light border" (click)="cancel()"><i class="bi bi-arrow-left me-1"></i>Back</button>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+@if (!hasTo()) {
+  <!-- Step 1: pick an issued (GOODS_ISSUED) transfer order -->
+  <div class="card">
+    <div class="card-body">
+      <label class="form-label" for="rn-to">Issued transfer order <span class="text-danger">*</span></label>
+      @if (loadingTo()) {
+        <div class="d-flex align-items-center gap-2 hmis-muted"><output class="spinner-border spinner-border-sm"></output><span>Loading transfer order…</span></div>
+      } @else {
+        <select id="rn-to" class="form-select" (change)="pickTo($any($event.target).value)">
+          <option value="" selected disabled>{{ loadingTos() ? 'Loading…' : '— Select an issued transfer order —' }}</option>
+          @for (t of tos(); track t.uid) {
+            <option [value]="t.uid">{{ t.toNo }}@if (t.roNo) { <span> · RO {{ t.roNo }}</span> } — {{ t.storeName || 'store' }} → {{ t.pharmacyName || 'pharmacy' }}</option>
+          }
+        </select>
+        @if (!loadingTos() && tos().length === 0) {
+          <div class="hmis-muted small mt-2">No issued transfer orders are awaiting receipt.</div>
+        }
+      }
+    </div>
+  </div>
+} @else { @if (to(); as t) {
+  <!-- Step 2: confirm received quantities -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <div class="hmis-muted small">Source transfer order</div>
+          <div class="fw-semibold"><span class="hmis-code">{{ t.toNo }}</span>@if (t.roNo) { <span class="hmis-muted"> · RO {{ t.roNo }}</span> }</div>
+        </div>
+        <div class="col-md-3"><div class="hmis-muted small">Store</div><div class="fw-semibold">{{ t.storeName || '—' }}</div></div>
+        <div class="col-md-3"><div class="hmis-muted small">Pharmacy</div><div class="fw-semibold">{{ t.pharmacyName || '—' }}</div></div>
+        <div class="col-md-2 text-md-end">
+          <button type="button" class="btn btn-sm btn-light border" (click)="changeTo()"><i class="bi bi-arrow-repeat me-1"></i>Change</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label" for="rn-date">Receiving date</label>
+            <input id="rn-date" type="date" class="form-control" formControlName="receivingDate">
+          </div>
+          <div class="col-md-8">
+            <label class="form-label" for="rn-note">Note</label>
+            <input id="rn-note" type="text" class="form-control" formControlName="note" maxlength="500" placeholder="Optional">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-list-check me-2 text-primary"></i>Received lines ({{ linesArray.length }})</div>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead><tr><th>Medicine</th><th class="text-end">Issued</th><th class="text-end" style="width:160px;">Received</th><th class="text-end">Shortfall</th></tr></thead>
+          <tbody formArrayName="lines">
+            @if (linesArray.length === 0) {
+              <tr><td colspan="4"><div class="hmis-empty"><i class="bi bi-list-check"></i><div class="small">This transfer order has no lines.</div></div></td></tr>
+            } @else {
+              @for (fg of linesArray.controls; track fg; let i = $index) {
+                <tr [formGroupName]="i">
+                  <td><div class="fw-semibold">{{ fg.controls['medicineName'].value }}</div></td>
+                  <td class="text-end">{{ fg.controls['issuedQuantity'].value }}</td>
+                  <td class="text-end">
+                    <input type="number" min="0" step="1" class="form-control form-control-sm text-end" formControlName="receivedQuantity"
+                           [class.is-invalid]="fg.controls['receivedQuantity'].invalid && fg.controls['receivedQuantity'].touched">
+                  </td>
+                  <td class="text-end" [class.text-danger]="shortfall(fg) > 0" [class.fw-semibold]="shortfall(fg) > 0">{{ shortfall(fg) }}</td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2">
+      <button type="button" class="btn btn-light border" (click)="cancel()" [disabled]="submitting()">Cancel</button>
+      <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting() || form.invalid || linesArray.length === 0">
+        @if (submitting()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }
+        <i class="bi bi-box-arrow-in-down"></i>Create receive note
+      </button>
+    </div>
+  </form>
+} }

@@ -3,6 +3,7 @@ package com.otapp.hmis.engine.billing.invoice.application;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLineKind;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceScope;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceStatus;
+import com.otapp.hmis.engine.billing.invoice.domain.LineCoverageStatus;
 import com.otapp.hmis.engine.billing.payment.domain.PaymentMethod;
 import com.otapp.hmis.engine.patient.domain.PaymentType;
 import jakarta.validation.constraints.DecimalMin;
@@ -32,7 +33,15 @@ public final class InvoiceDtos {
             /** Negotiable ceiling for this line's unit price (null = no upper bound). */
             BigDecimal maxUnitPrice,
             /** Whether the unit price may still be renegotiated (no payment taken yet). */
-            boolean priceOverridable) {}
+            boolean priceOverridable,
+            /** Payer routing: COVERED (insurer pays), VERIFIED (insured-but-uncovered inpatient, owed), UNPAID (cash). */
+            LineCoverageStatus coverageStatus,
+            /** Membership number stamped on a COVERED line; null otherwise. */
+            String membershipNo,
+            /** The plan that covered this line; null for self-pay / cash. */
+            String payerPlanUid,
+            /** Set on a supplementary top-up line, pointing at its COVERED principal; null otherwise. */
+            String principalLineUid) {}
 
     public record InvoiceDto(
             String uid,

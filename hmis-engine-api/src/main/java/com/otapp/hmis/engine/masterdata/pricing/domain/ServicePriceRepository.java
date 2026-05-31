@@ -29,6 +29,25 @@ public interface ServicePriceRepository extends JpaRepository<ServicePrice, Long
                                     @Param("currency") String currency);
 
     /**
+     * The covered plan cell for a (plan, service, currency) — the charge-time
+     * coverage decision (legacy {@code findBy<Catalogue>AndInsurancePlanAndCovered(item, plan, true)}).
+     * Returns empty when the plan has no row, or a row that is not flagged
+     * {@code covered}. {@code planUid} must be non-null (cash has no coverage).
+     */
+    @Query("""
+            SELECT p FROM ServicePrice p
+            WHERE p.planUid = :planUid
+              AND p.kind = :kind
+              AND p.serviceUid = :serviceUid
+              AND p.currency = :currency
+              AND p.covered = TRUE
+            """)
+    Optional<ServicePrice> findCoveredCell(@Param("planUid") String planUid,
+                                           @Param("kind") ServiceKind kind,
+                                           @Param("serviceUid") String serviceUid,
+                                           @Param("currency") String currency);
+
+    /**
      * All currency variants for a (payer, service) cell, ordered by currency —
      * used as the last-resort fallback when no row matches the target currency.
      */

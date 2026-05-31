@@ -63,6 +63,19 @@ public class ServicePrice extends AuditableEntity {
 
     @Setter @Column(length = 255) private String note;
 
+    /**
+     * Whether THIS plan actually covers THIS service. Only meaningful for plan
+     * rows ({@code planUid != null}); cash rows leave it {@code false} and unused.
+     *
+     * <p>Mirrors the legacy {@code <Kind>InsurancePlan.covered} boolean: a plan
+     * price row merely existing does NOT imply coverage — coverage is the
+     * explicit per-service decision the biller toggles. Charge-time routing keys
+     * off this flag, never off price-existence.
+     */
+    @Setter
+    @Column(nullable = false)
+    private boolean covered = false;
+
     public ServicePrice(String planUid, ServiceKind kind, String serviceUid,
                         BigDecimal amount, String currency, String note) {
         this.planUid = planUid;

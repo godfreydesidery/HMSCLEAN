@@ -31,7 +31,12 @@ export class SupplierFormComponent implements OnInit {
     email: ['', [Validators.email, Validators.maxLength(120)]],
     address: ['', [Validators.maxLength(255)]],
     taxId: ['', [Validators.maxLength(64)]],
-    notes: ['', [Validators.maxLength(500)]]
+    notes: ['', [Validators.maxLength(500)]],
+    vrn: ['', [Validators.maxLength(32)]],
+    termsOfContract: ['', [Validators.maxLength(1000)]],
+    bankName: ['', [Validators.maxLength(120)]],
+    bankAccountName: ['', [Validators.maxLength(200)]],
+    bankAccountNo: ['', [Validators.maxLength(64)]]
   });
 
   get isEdit(): boolean { return this.existing != null; }
@@ -47,7 +52,12 @@ export class SupplierFormComponent implements OnInit {
         email: this.existing.email ?? '',
         address: this.existing.address ?? '',
         taxId: this.existing.taxId ?? '',
-        notes: this.existing.notes ?? ''
+        notes: this.existing.notes ?? '',
+        vrn: this.existing.vrn ?? '',
+        termsOfContract: this.existing.termsOfContract ?? '',
+        bankName: this.existing.bankName ?? '',
+        bankAccountName: this.existing.bankAccountName ?? '',
+        bankAccountNo: this.existing.bankAccountNo ?? ''
       });
       this.form.controls.code.disable();
     }
@@ -66,7 +76,12 @@ export class SupplierFormComponent implements OnInit {
       email: raw.email?.trim() || null,
       address: raw.address?.trim() || null,
       taxId: raw.taxId?.trim() || null,
-      notes: raw.notes?.trim() || null
+      notes: raw.notes?.trim() || null,
+      vrn: raw.vrn?.trim() || null,
+      termsOfContract: raw.termsOfContract?.trim() || null,
+      bankName: raw.bankName?.trim() || null,
+      bankAccountName: raw.bankAccountName?.trim() || null,
+      bankAccountNo: raw.bankAccountNo?.trim() || null
     };
     const obs = this.isEdit
       ? this.supplierService.update(this.existing!.uid, payload)

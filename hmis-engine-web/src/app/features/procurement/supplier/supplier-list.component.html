@@ -64,6 +64,7 @@
                   <button type="button" class="btn btn-sm btn-light border" ngbDropdownToggle aria-label="Actions"><i class="bi bi-three-dots"></i></button>
                   <div ngbDropdownMenu class="shadow-sm">
                     <button type="button" ngbDropdownItem (click)="openEdit(s)"><i class="bi bi-pencil me-2"></i>Edit</button>
+                    <a ngbDropdownItem [routerLink]="['/procurement/suppliers', s.uid, 'prices']"><i class="bi bi-tags me-2"></i>Prices</a>
                     <button type="button" ngbDropdownItem (click)="toggleActive(s)">
                       <i class="bi" [class.bi-toggle-off]="s.active" [class.bi-toggle-on]="!s.active"></i>
                       <span class="ms-2">{{ s.active ? 'Deactivate' : 'Activate' }}</span>

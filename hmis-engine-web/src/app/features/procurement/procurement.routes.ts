@@ -9,6 +9,12 @@ export const PROCUREMENT_ROUTES: Routes = [
     data: { title: 'Suppliers' }
   },
   {
+    path: 'suppliers/:uid/prices',
+    loadComponent: () =>
+      import('./supplier/supplier-prices.component').then((m) => m.SupplierPricesComponent),
+    data: { title: 'Supplier price list' }
+  },
+  {
     path: 'orders',
     loadComponent: () =>
       import('./order/purchase-order-list.component').then((m) => m.PurchaseOrderListComponent),

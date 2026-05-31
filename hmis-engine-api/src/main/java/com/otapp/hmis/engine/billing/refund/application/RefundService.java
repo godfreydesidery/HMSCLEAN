@@ -1,5 +1,6 @@
 package com.otapp.hmis.engine.billing.refund.application;
 
+import com.otapp.hmis.engine.billing.invoice.application.SettlementDispatcher;
 import com.otapp.hmis.engine.billing.invoice.domain.Invoice;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceRepository;
 import com.otapp.hmis.engine.billing.refund.application.RefundDtos.CreateRefundRequest;
@@ -22,12 +23,16 @@ public class RefundService {
     private final RefundRepository repository;
     private final InvoiceRepository invoiceRepository;
     private final RefundNumberGenerator numberGenerator;
+    private final SettlementDispatcher settlementDispatcher;
 
     @Transactional
     public RefundDto raise(String invoiceUid, CreateRefundRequest request) {
         Invoice invoice = invoiceRepository.findByUid(invoiceUid)
                 .orElseThrow(() -> new NotFoundException("Invoice not found: " + invoiceUid));
         invoice.applyRefund(request.amount());
+        // A refund can roll an admission invoice back to a positive balance —
+        // re-arm the bill-clearance gate so closure is blocked again.
+        settlementDispatcher.onInvoiceMaybeSettled(invoice);
         Refund refund = repository.save(new Refund(
                 numberGenerator.next(),
                 invoice.getUid(),

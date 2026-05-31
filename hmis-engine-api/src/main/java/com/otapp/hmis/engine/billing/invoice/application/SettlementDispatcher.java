@@ -5,6 +5,7 @@ import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLine;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLineRepository;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceScope;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceStatus;
+import com.otapp.hmis.engine.encounter.admission.application.AdmissionService;
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationService;
 import com.otapp.hmis.engine.encounter.order.application.ClinicalOrderService;
 import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionService;
@@ -28,13 +29,26 @@ public class SettlementDispatcher {
     private final ConsultationService consultationService;
     private final PrescriptionService prescriptionService;
     private final ClinicalOrderService clinicalOrderService;
+    private final AdmissionService admissionService;
 
     /**
-     * Dispatch settlement signals for a fully-settled invoice. No-op if the
-     * invoice is not PAID yet. Marks the consultation fee settled (CONSULTATION
-     * scope) and every dispensed prescription billed on the invoice.
+     * Dispatch settlement signals for an invoice. When PAID, marks the consultation
+     * fee settled (CONSULTATION scope), the admission bills cleared (ADMISSION scope),
+     * and every dispensed prescription / completed order billed on the invoice. When
+     * not PAID (e.g. a refund rolled the invoice back to a positive balance), re-arms
+     * the admission closure gate so an outstanding bill blocks discharge again.
      */
     public void onInvoiceMaybeSettled(Invoice invoice) {
+        // Keep the admission bill-clearance gate in sync with this invoice's outstanding
+        // balance on every state change. A live admission invoice with a positive balance
+        // (ISSUED / PARTIALLY_PAID — including after a refund or partial credit) re-arms the
+        // gate; a fully-settled or cancelled one clears it below via settle().
+        if (invoice.getScope() == InvoiceScope.ADMISSION && invoice.getAdmissionUid() != null
+                && invoice.getStatus() != InvoiceStatus.PAID
+                && invoice.getStatus() != InvoiceStatus.CANCELLED
+                && invoice.balance().signum() > 0) {
+            admissionService.clearBillsCleared(invoice.getAdmissionUid());
+        }
         if (invoice.getStatus() != InvoiceStatus.PAID) {
             return;
         }
@@ -45,6 +59,9 @@ public class SettlementDispatcher {
     private void settle(Invoice invoice) {
         if (invoice.getScope() == InvoiceScope.CONSULTATION && invoice.getConsultationUid() != null) {
             consultationService.markFeeSettled(invoice.getConsultationUid());
+        }
+        if (invoice.getScope() == InvoiceScope.ADMISSION && invoice.getAdmissionUid() != null) {
+            admissionService.markBillsCleared(invoice.getAdmissionUid());
         }
         for (InvoiceLine line : invoiceLineRepository.findAllByInvoiceUidOrderByCreatedAtAsc(invoice.getUid())) {
             if (line.getReferenceUid() == null) continue;

@@ -98,6 +98,26 @@ public final class InvoiceDtos {
 
     public record CancelInvoiceRequest(@Size(max = 255) String reason) {}
 
+    /**
+     * The admission billing picture surfaced to the cashier / ward-admin closure UI:
+     * the admission invoice's money math plus the {@code cleared} flag the discharge
+     * gate enforces. {@code cleared} is true when the invoice is fully settled
+     * (balance == 0); a positive balance blocks discharge / referral / deceased closure.
+     */
+    public record AdmissionBillingSummaryDto(
+            Long id,
+            String invoiceUid,
+            String invoiceNo,
+            InvoiceStatus status,
+            BigDecimal subtotal,
+            BigDecimal totalPaid,
+            BigDecimal totalCredited,
+            BigDecimal balance,
+            boolean cleared) {}
+
+    /** Lightweight gate read for the cashier UI: does this admission still owe money? */
+    public record AdmissionOutstandingDto(boolean hasOutstanding, BigDecimal balance) {}
+
     /** Negotiate a line's unit price within the service's [min, max] band. */
     public record OverrideLinePriceRequest(
             @NotNull @DecimalMin(value = "0.00", inclusive = true) BigDecimal unitPrice) {}

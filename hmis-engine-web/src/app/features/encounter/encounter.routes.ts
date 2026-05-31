@@ -45,5 +45,10 @@ export const ENCOUNTER_ROUTES: Routes = [
   {
     path: 'lab-batches',
     loadChildren: () => import('./lab-batch/lab-batch.routes').then((m) => m.LAB_BATCH_ROUTES)
+  },
+  {
+    path: 'orders/:orderUid/operative-record',
+    loadComponent: () =>
+      import('./operative/operative-record.component').then((m) => m.OperativeRecordComponent)
   }
 ];

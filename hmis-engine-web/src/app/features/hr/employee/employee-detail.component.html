@@ -84,6 +84,22 @@
           </div>
         </div>
 
+        <div class="card mb-3">
+          <div class="card-header bg-white"><h2 class="h6 mb-0">Compensation &amp; banking</h2></div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-5">Basic salary</dt><dd class="col-sm-7">{{ e.basicSalary != null ? (e.basicSalary | number:'1.2-2') : '—' }}</dd>
+              <dt class="col-sm-5">Payable</dt><dd class="col-sm-7">{{ e.payable ? 'Yes' : 'No' }}</dd>
+              <dt class="col-sm-5">TIN number</dt><dd class="col-sm-7 hmis-code">{{ e.tinNo || '—' }}</dd>
+              <dt class="col-sm-5">Bank name</dt><dd class="col-sm-7">{{ e.bankName || '—' }}</dd>
+              <dt class="col-sm-5">Bank account no.</dt><dd class="col-sm-7 hmis-code">{{ e.bankAccountNo || '—' }}</dd>
+              <dt class="col-sm-5">Bank account name</dt><dd class="col-sm-7">{{ e.bankAccountName || '—' }}</dd>
+              <dt class="col-sm-5">Social security no.</dt><dd class="col-sm-7 hmis-code">{{ e.socialSecurityNo || '—' }}</dd>
+              <dt class="col-sm-5">Social security fund</dt><dd class="col-sm-7">{{ e.socialSecurityName || '—' }}</dd>
+            </dl>
+          </div>
+        </div>
+
         @if (e.employmentStatus === 'TERMINATED') {
           <div class="card mb-3">
             <div class="card-header bg-white"><h2 class="h6 mb-0">Termination</h2></div>

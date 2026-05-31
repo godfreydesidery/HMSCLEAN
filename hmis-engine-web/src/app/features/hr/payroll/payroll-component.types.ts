@@ -1,12 +1,13 @@
 /** Mirrors backend `com.otapp.hmis.engine.hr.payroll.*` component DTOs (section E/F). */
 
-export type PayrollComponentType = 'EARNING' | 'DEDUCTION';
+export type PayrollComponentType = 'EARNING' | 'DEDUCTION' | 'EMPLOYER_CONTRIBUTION';
 export type PayrollCalcMethod = 'FIXED' | 'PERCENT' | 'BAND';
 export type PayrollCalcBase = 'BASIC' | 'GROSS';
 
 export const COMPONENT_TYPES: { value: PayrollComponentType; label: string; badgeClass: string }[] = [
-  { value: 'EARNING',   label: 'Earning',   badgeClass: 'bg-success' },
-  { value: 'DEDUCTION', label: 'Deduction', badgeClass: 'bg-danger' }
+  { value: 'EARNING',               label: 'Earning',               badgeClass: 'bg-success' },
+  { value: 'DEDUCTION',             label: 'Deduction',             badgeClass: 'bg-danger' },
+  { value: 'EMPLOYER_CONTRIBUTION', label: 'Employer contribution', badgeClass: 'bg-info text-dark' }
 ];
 
 export const CALC_METHODS: { value: PayrollCalcMethod; label: string }[] = [
@@ -107,5 +108,6 @@ export interface ComputedPayroll {
   grossPay: string;
   totalDeductions: string;
   netPay: string;
+  totalEmployerContributions: string;   // employer-side cost; tracked, NOT in gross nor net
   lines: ComputedLine[];
 }

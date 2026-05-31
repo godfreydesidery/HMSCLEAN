@@ -76,7 +76,7 @@
 <div class="card">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0 hmis-table">
-      <thead><tr><th>Service</th><th>Type</th><th>Plan</th><th class="text-end">Amount</th><th class="text-end">Band (min–max)</th><th>Currency</th><th>Note</th><th class="text-end">Actions</th></tr></thead>
+      <thead><tr><th>Service</th><th>Type</th><th>Plan</th><th class="text-end">Amount</th><th class="text-end">Band (min–max)</th><th>Currency</th><th>Note</th><th class="text-center">Covered</th><th class="text-end">Actions</th></tr></thead>
       <tbody>
         @if (loading()) {
           @for (i of [1,2,3,4,5]; track i) {
@@ -88,11 +88,12 @@
               <td class="text-end"><span class="hmis-skeleton" style="width:90px;"></span></td>
               <td><span class="hmis-skeleton" style="width:50px;"></span></td>
               <td><span class="hmis-skeleton" style="width:120px;"></span></td>
+              <td class="text-center"><span class="hmis-skeleton" style="width:24px;"></span></td>
               <td class="text-end"><span class="hmis-skeleton" style="width:80px;"></span></td>
             </tr>
           }
         } @else if (items().length === 0) {
-          <tr><td colspan="8"><div class="hmis-empty"><i class="bi bi-cash-stack"></i><div class="fw-semibold mb-1">No prices defined</div><div class="small">Use "Set price" to add a cash or insurance plan price for any service.</div></div></td></tr>
+          <tr><td colspan="9"><div class="hmis-empty"><i class="bi bi-cash-stack"></i><div class="fw-semibold mb-1">No prices defined</div><div class="small">Use "Set price" to add a cash or insurance plan price for any service.</div></div></td></tr>
         } @else {
           @for (p of items(); track p.uid) {
             <tr>
@@ -119,6 +120,13 @@
               </td>
               <td class="hmis-muted">{{ p.currency }}</td>
               <td class="hmis-muted small text-truncate" style="max-width:200px;">{{ p.note || '—' }}</td>
+              <td class="text-center">
+                @if (p.covered) {
+                  <i class="bi bi-check-circle-fill text-success" title="Covered by this plan" aria-label="Covered"></i>
+                } @else {
+                  <span class="hmis-muted" aria-label="Not covered">—</span>
+                }
+              </td>
               <td class="text-end">
                 <div ngbDropdown placement="bottom-end" class="d-inline-block">
                   <button type="button" class="btn btn-sm btn-light border" ngbDropdownToggle aria-label="Actions"><i class="bi bi-three-dots"></i></button>

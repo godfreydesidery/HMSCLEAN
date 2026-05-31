@@ -1,0 +1,107 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title d-flex align-items-center gap-2">
+      <i class="bi bi-arrow-return-left text-primary"></i>
+      @if (ret(); as o) { <span class="hmis-code">{{ o.returnNo }}</span> } @else { <span>Return</span> }
+    </h1>
+    <p class="hmis-muted mb-0 small">Return details, lines and lifecycle.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-light border" (click)="back()"><i class="bi bi-arrow-left me-1"></i>Back</button>
+    @if (ret(); as o) {
+      <div ngbDropdown placement="bottom-end" class="d-inline-block">
+        <button class="btn btn-outline-secondary d-flex align-items-center gap-2" ngbDropdownToggle [disabled]="busy()">
+          <i class="bi bi-three-dots-vertical"></i>Actions
+        </button>
+        <div ngbDropdownMenu>
+          <button ngbDropdownItem [disabled]="!canSubmit()" (click)="submit()"><i class="bi bi-send me-2 text-primary"></i>Submit</button>
+          <button ngbDropdownItem [disabled]="!canComplete()" (click)="complete()"><i class="bi bi-check2-circle me-2 text-success"></i>Complete</button>
+          <div class="dropdown-divider"></div>
+          <button ngbDropdownItem [disabled]="!canCancel()" (click)="cancel()"><i class="bi bi-slash-circle me-2 text-secondary"></i>Cancel</button>
+          <button ngbDropdownItem [disabled]="!canReject()" class="text-danger" (click)="reject()"><i class="bi bi-x-octagon me-2"></i>Reject</button>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+@if (actionMessage()) {
+  <div class="alert alert-success d-flex align-items-center gap-2" role="alert"><i class="bi bi-check-circle"></i><span>{{ actionMessage() }}</span></div>
+}
+
+@if (loading()) {
+  <div class="card"><div class="card-body p-4"><span class="hmis-skeleton" style="width:280px;"></span></div></div>
+} @else { @if (ret(); as o) {
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4"><div class="hmis-muted small">Pharmacy</div><div class="fw-semibold">{{ o.pharmacyName || '—' }}</div></div>
+        <div class="col-md-4"><div class="hmis-muted small">Store</div><div class="fw-semibold">{{ o.storeName || '—' }}</div></div>
+        <div class="col-md-2"><div class="hmis-muted small">Status</div><span [class]="statusBadgeClass(o.status)">{{ statusLabel(o.status) }}</span></div>
+        <div class="col-md-2"><div class="hmis-muted small">Return date</div><div class="fw-semibold">{{ o.returnDate || '—' }}</div></div>
+        @if (o.reason) {
+          <div class="col-12"><div class="hmis-muted small">Reason</div><div>{{ o.reason }}</div></div>
+        }
+        @if (o.note) {
+          <div class="col-12"><div class="hmis-muted small">Note</div><div>{{ o.note }}</div></div>
+        }
+        @if (o.rejectReason) {
+          <div class="col-12"><div class="hmis-muted small">Reject reason</div><div class="text-danger">{{ o.rejectReason }}</div></div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header bg-white d-flex align-items-center py-3">
+      <span class="fw-semibold"><i class="bi bi-list-check me-2 text-primary"></i>Lines ({{ o.lines.length }})</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead><tr><th>Code</th><th>Medicine</th><th>Unit</th><th class="text-end">Quantity</th><th>Reason</th><th style="min-width:220px;">Batches</th></tr></thead>
+        <tbody>
+          @if (o.lines.length === 0) {
+            <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-list-check"></i><div class="small">No lines on this return.</div></div></td></tr>
+          } @else {
+            @for (line of o.lines; track line.uid) {
+              <tr>
+                <td><span class="hmis-code">{{ line.medicineCode || '—' }}</span></td>
+                <td><div class="fw-semibold">{{ line.medicineName || line.medicineUid }}</div>@if (line.medicineStrength) { <div class="hmis-muted small">{{ line.medicineStrength }}</div> }</td>
+                <td class="hmis-muted">{{ line.unitCode || 'Base' }}</td>
+                <td class="text-end fw-semibold">{{ line.quantity }}</td>
+                <td class="hmis-muted small">{{ line.reason || '—' }}</td>
+                <td>
+                  @if (line.picks.length === 0) {
+                    <span class="hmis-muted small">—</span>
+                  } @else {
+                    @for (pick of line.picks; track pick.batchUid) {
+                      <div class="small d-flex align-items-center gap-2">
+                        <span class="hmis-code">{{ pick.batchNo || '—' }}</span>
+                        <span class="hmis-muted">×{{ pick.quantity }}</span>
+                        @if (pick.expiresAt) { <span class="hmis-muted">exp {{ pick.expiresAt }}</span> }
+                      </div>
+                    }
+                  }
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-clock-history me-2 text-primary"></i>Lifecycle</div>
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item d-flex justify-content-between"><span class="hmis-muted">Created</span><span>{{ o.createdAt | date:'medium' }}</span></li>
+      @if (o.submittedAt) { <li class="list-group-item d-flex justify-content-between"><span class="hmis-muted">Submitted@if (o.submittedByUsername) { <span class="ms-1">by {{ o.submittedByUsername }}</span> }</span><span>{{ o.submittedAt | date:'medium' }}</span></li> }
+      @if (o.completedAt) { <li class="list-group-item d-flex justify-content-between"><span class="hmis-muted text-success">Completed@if (o.completedByUsername) { <span class="ms-1">by {{ o.completedByUsername }}</span> }</span><span>{{ o.completedAt | date:'medium' }}</span></li> }
+      @if (o.rejectedAt) { <li class="list-group-item d-flex justify-content-between"><span class="hmis-muted text-danger">Rejected@if (o.rejectedByUsername) { <span class="ms-1">by {{ o.rejectedByUsername }}</span> }</span><span>{{ o.rejectedAt | date:'medium' }}</span></li> }
+      @if (o.cancelledAt) { <li class="list-group-item d-flex justify-content-between"><span class="hmis-muted text-secondary">Cancelled</span><span>{{ o.cancelledAt | date:'medium' }}</span></li> }
+    </ul>
+  </div>
+} }

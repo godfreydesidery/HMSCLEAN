@@ -1,0 +1,107 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title d-flex align-items-center gap-2">
+      <i class="bi bi-truck text-primary"></i>
+      @if (order(); as o) { <span class="hmis-code">{{ o.toNo }}</span> } @else { <span>Transfer order</span> }
+    </h1>
+    <p class="hmis-muted mb-0 small">Delivering pharmacy issue of stock against an inter-pharmacy requisition.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-light border" (click)="back()"><i class="bi bi-arrow-left me-1"></i>Back</button>
+    @if (order(); as o) {
+      <div ngbDropdown placement="bottom-end" class="d-inline-block">
+        <button class="btn btn-outline-secondary d-flex align-items-center gap-2" ngbDropdownToggle [disabled]="busy() || !hasActions()">
+          <i class="bi bi-three-dots-vertical"></i>Actions
+        </button>
+        <div ngbDropdownMenu>
+          <button ngbDropdownItem [disabled]="!canVerify()" (click)="verify()"><i class="bi bi-check2-circle me-2 text-info"></i>Verify</button>
+          <button ngbDropdownItem [disabled]="!canApprove()" (click)="approve()"><i class="bi bi-patch-check me-2 text-primary"></i>Approve</button>
+          <button ngbDropdownItem [disabled]="!canIssue()" (click)="issue()"><i class="bi bi-box-arrow-up me-2 text-success"></i>Issue stock</button>
+          <div class="dropdown-divider"></div>
+          <button ngbDropdownItem [disabled]="!canReject()" class="text-danger" (click)="reject()"><i class="bi bi-x-octagon me-2"></i>Reject</button>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+@if (actionMessage()) {
+  <div class="alert alert-success d-flex align-items-center gap-2" role="alert"><i class="bi bi-check-circle"></i><span>{{ actionMessage() }}</span></div>
+}
+
+@if (loading()) {
+  <div class="card"><div class="card-body p-4"><span class="hmis-skeleton" style="width:280px;"></span></div></div>
+} @else { @if (order(); as o) {
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <div class="hmis-muted small">Requisition</div>
+          @if (o.roUid) {
+            <a class="fw-semibold hmis-code" [routerLink]="['/transfers/pp/ro', o.roUid]">{{ o.roNo || '—' }}</a>
+          } @else { <div class="fw-semibold">{{ o.roNo || '—' }}</div> }
+        </div>
+        <div class="col-md-3"><div class="hmis-muted small">Requesting pharmacy</div><div class="fw-semibold">{{ o.requestingPharmacyName || '—' }}</div></div>
+        <div class="col-md-3"><div class="hmis-muted small">Delivering pharmacy</div><div class="fw-semibold">{{ o.deliveringPharmacyName || '—' }}</div></div>
+        <div class="col-md-2"><div class="hmis-muted small">Status</div><span [class]="statusBadgeClass(o.status)">{{ statusLabel(o.status) }}</span></div>
+        <div class="col-md-1"><div class="hmis-muted small">Order date</div><div class="fw-semibold">{{ o.orderDate || '—' }}</div></div>
+
+        @if (o.note) {
+          <div class="col-12"><div class="hmis-muted small">Note</div><div>{{ o.note }}</div></div>
+        }
+        @if (o.rejectedReason) {
+          <div class="col-12"><div class="hmis-muted small">Rejection reason</div><div class="text-danger">{{ o.rejectedReason }}</div></div>
+        }
+      </div>
+
+      <div class="row g-3 mt-1 hmis-muted small">
+        @if (o.verifiedAt) { <div class="col-auto"><i class="bi bi-check2-circle me-1"></i>Verified {{ o.verifiedAt | date:'medium' }}</div> }
+        @if (o.approvedAt) { <div class="col-auto"><i class="bi bi-patch-check me-1"></i>Approved {{ o.approvedAt | date:'medium' }}</div> }
+        @if (o.issuedAt) { <div class="col-auto"><i class="bi bi-box-arrow-up me-1"></i>Issued {{ o.issuedAt | date:'medium' }}</div> }
+        @if (o.completedAt) { <div class="col-auto"><i class="bi bi-flag me-1"></i>Completed {{ o.completedAt | date:'medium' }}</div> }
+        @if (o.rejectedAt) { <div class="col-auto text-danger"><i class="bi bi-x-octagon me-1"></i>Rejected {{ o.rejectedAt | date:'medium' }}</div> }
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-list-check me-2 text-primary"></i>Lines ({{ o.lines.length }})</div>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead><tr><th>Code</th><th>Medicine</th><th>Unit</th><th class="text-end">Requested</th><th class="text-end">Issued</th><th class="text-end">Received</th><th>Batch picks</th></tr></thead>
+        <tbody>
+          @if (o.lines.length === 0) {
+            <tr><td colspan="7"><div class="hmis-empty"><i class="bi bi-list-check"></i><div class="small">No lines on this transfer order.</div></div></td></tr>
+          } @else {
+            @for (line of o.lines; track line.uid) {
+              <tr>
+                <td><span class="hmis-code">{{ line.medicineCode || '—' }}</span></td>
+                <td><div class="fw-semibold">{{ line.medicineName || line.medicineUid }}</div>@if (line.medicineStrength) { <div class="hmis-muted small">{{ line.medicineStrength }}</div> }</td>
+                <td class="hmis-muted">{{ line.unitCode || '—' }}</td>
+                <td class="text-end">{{ line.requestedQuantity }}</td>
+                <td class="text-end fw-semibold">{{ line.issuedQuantity }}</td>
+                <td class="text-end">{{ line.receivedQuantity }}</td>
+                <td>
+                  @if (line.picks?.length) {
+                    <div class="d-flex flex-wrap gap-1">
+                      @for (pk of line.picks; track pk.batchUid) {
+                        <span class="badge text-bg-light border" [title]="pk.expiresAt ? ('Expires ' + pk.expiresAt) : ''">
+                          <i class="bi bi-box-seam me-1"></i>{{ pk.batchNo }} · {{ pk.quantity }}@if (pk.expiresAt) { <span class="hmis-muted ms-1">exp {{ pk.expiresAt }}</span> }
+                        </span>
+                      }
+                    </div>
+                  } @else {
+                    <span class="hmis-muted small">—</span>
+                  }
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+} }

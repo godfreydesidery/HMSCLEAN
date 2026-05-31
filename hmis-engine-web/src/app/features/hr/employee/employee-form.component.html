@@ -104,6 +104,52 @@
     </div>
   </div>
 
+  <div class="card mb-3">
+    <div class="card-header bg-white"><h2 class="h6 mb-0">Compensation &amp; banking</h2></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label for="basicSalary" class="form-label">Basic salary</label>
+          <input id="basicSalary" name="basicSalary" type="text" inputmode="decimal" class="form-control" formControlName="basicSalary" [class.is-invalid]="form.controls.basicSalary.invalid && form.controls.basicSalary.touched" autocomplete="off" placeholder="e.g. 1500000.00">
+          @if (form.controls.basicSalary.invalid && form.controls.basicSalary.touched) {
+            <div class="invalid-feedback">Enter a non-negative amount (up to 2 decimals).</div>
+          }
+        </div>
+        <div class="col-md-4">
+          <label for="tinNo" class="form-label">TIN number</label>
+          <input id="tinNo" name="tinNo" type="text" class="form-control" formControlName="tinNo" autocomplete="off">
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+          <div class="form-check">
+            <input id="payable" name="payable" type="checkbox" class="form-check-input" formControlName="payable">
+            <label for="payable" class="form-check-label">Payable</label>
+            <div class="form-text">Include this employee in payroll runs.</div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label for="bankName" class="form-label">Bank name</label>
+          <input id="bankName" name="bankName" type="text" class="form-control" formControlName="bankName" autocomplete="off">
+        </div>
+        <div class="col-md-4">
+          <label for="bankAccountNo" class="form-label">Bank account number</label>
+          <input id="bankAccountNo" name="bankAccountNo" type="text" class="form-control" formControlName="bankAccountNo" autocomplete="off">
+        </div>
+        <div class="col-md-4">
+          <label for="bankAccountName" class="form-label">Bank account name</label>
+          <input id="bankAccountName" name="bankAccountName" type="text" class="form-control" formControlName="bankAccountName" autocomplete="off">
+        </div>
+        <div class="col-md-6">
+          <label for="socialSecurityNo" class="form-label">Social security number</label>
+          <input id="socialSecurityNo" name="socialSecurityNo" type="text" class="form-control" formControlName="socialSecurityNo" autocomplete="off">
+        </div>
+        <div class="col-md-6">
+          <label for="socialSecurityName" class="form-label">Social security fund</label>
+          <input id="socialSecurityName" name="socialSecurityName" type="text" class="form-control" formControlName="socialSecurityName" autocomplete="off" placeholder="e.g. NSSF">
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="d-flex gap-2">
     <button type="submit" class="btn btn-primary" [disabled]="submitting()">
       @if (submitting()) { <span class="spinner-border spinner-border-sm me-2"></span> }

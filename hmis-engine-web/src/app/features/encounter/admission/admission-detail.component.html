@@ -39,6 +39,7 @@
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'notes'" (click)="setTab('notes')"><i class="bi bi-journal-text me-1"></i>Progress notes <span class="badge text-bg-light border ms-1">{{ notes().length }}</span></button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'vitals'" (click)="setTab('vitals')"><i class="bi bi-thermometer-half me-1"></i>Vitals</button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'care-plan'" (click)="setTab('care-plan')"><i class="bi bi-clipboard2-pulse me-1"></i>Care plan</button></li>
+    <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'dressings'" (click)="setTab('dressings')"><i class="bi bi-bandaid-fill me-1"></i>Dressings</button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'meds'" (click)="setTab('meds')"><i class="bi bi-capsule me-1"></i>Medications (MAR)</button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'consumables'" (click)="setTab('consumables')"><i class="bi bi-bandaid me-1"></i>Consumables <span class="badge text-bg-light border ms-1">{{ consumables().length }}</span></button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'billing'" (click)="setTab('billing')"><i class="bi bi-cash-coin me-1"></i>Billing @if (invoice()) { <i class="bi bi-check-circle text-success ms-1"></i> }</button></li>
@@ -240,6 +241,41 @@
                     <td class="hmis-muted small">{{ v.recordedByUsername || '—' }}</td>
                   </tr>
                   @if (v.notes) { <tr><td colspan="9" class="hmis-muted small fst-italic">{{ v.notes }}</td></tr> }
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+    @case ('dressings') {
+      <div class="card">
+        <div class="card-header bg-white d-flex align-items-center">
+          <h2 class="h6 mb-0"><i class="bi bi-bandaid-fill me-2 hmis-muted"></i>Dressing chart</h2>
+          @if (isActive()) {
+            <button type="button" class="btn btn-sm btn-primary ms-auto" (click)="openRecordDressing()">
+              <i class="bi bi-plus-lg me-1"></i> Record dressing
+            </button>
+          }
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 hmis-table">
+            <thead><tr><th>When</th><th>Wound location</th><th>Status</th><th>Dressing applied</th><th>By</th></tr></thead>
+            <tbody>
+              @if (!dressingsLoaded()) {
+                <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div></td></tr>
+              } @else if (dressings().length === 0) {
+                <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-bandaid-fill"></i><div class="fw-semibold mb-1">No dressings recorded</div><div class="small">Use 'Record dressing' to chart wound care at the bedside.</div></div></td></tr>
+              } @else {
+                @for (d of dressings(); track d.uid) {
+                  <tr>
+                    <td class="hmis-muted small">{{ d.recordedAt | date:'short' }}</td>
+                    <td class="fw-semibold">{{ d.woundLocation }}</td>
+                    <td><span [class]="woundStatusBadgeClass(d.woundStatus)">{{ woundStatusLabel(d.woundStatus) }}</span></td>
+                    <td>{{ d.dressingApplied }}</td>
+                    <td class="hmis-muted small">{{ d.recordedByUsername || '—' }}</td>
+                  </tr>
+                  @if (d.notes) { <tr><td colspan="5" class="hmis-muted small fst-italic">{{ d.notes }}</td></tr> }
                 }
               }
             </tbody>

@@ -23,6 +23,9 @@ export class AddPrescriptionComponent implements OnInit {
   @Input() outsiderPatientUid: string | null = null;
   /** Patient whose dispense history drives the advisory pre-prescribe alerts. */
   @Input() patientUid: string | null = null;
+  /** Medicine uids already prescribed on this consultation — disabled in the picker to
+   *  pre-empt the server's 409 "Duplicate drug is not allowed for this consultation." */
+  @Input() existingMedicineUids: string[] = [];
 
   private readonly fb = inject(FormBuilder);
   private readonly prescriptionService = inject(PrescriptionService);
@@ -103,5 +106,10 @@ export class AddPrescriptionComponent implements OnInit {
     if (m.strength) parts.push(m.strength);
     if (m.form) parts.push(m.form.toLowerCase());
     return parts.join(' · ');
+  }
+
+  /** A medicine already on this consultation — pre-empts the server 409 duplicate-drug guard. */
+  alreadyPrescribed(m: Medicine): boolean {
+    return this.existingMedicineUids.includes(m.uid);
   }
 }

@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
 
+import { MedicinePriceComparisonComponent } from '../pricelookup/medicine-price-comparison.component';
 import { SupplierItemPriceService } from './supplier-item-price.service';
 import { SupplierItemPrice } from './supplier-item-price.types';
 import { SupplierPriceFormComponent } from './supplier-price-form.component';
@@ -52,6 +53,7 @@ import { SupplierPriceFormComponent } from './supplier-price-form.component';
                   </td>
                   <td class="text-end">
                     <div class="btn-group btn-group-sm">
+                      <button type="button" class="btn btn-light border" (click)="openCompare(p)" title="Compare supplier prices for this medicine"><i class="bi bi-bar-chart-line"></i></button>
                       <button type="button" class="btn btn-light border" (click)="openForm(p)" title="Edit"><i class="bi bi-pencil"></i></button>
                       <button type="button" class="btn btn-light border" (click)="toggleActive(p)" [title]="p.active ? 'Deactivate' : 'Activate'">
                         <i class="bi" [class.bi-toggle-on]="p.active" [class.bi-toggle-off]="!p.active"></i>
@@ -99,6 +101,13 @@ export class SupplierPricesComponent {
     inst.supplierUid = this.supplierUid;
     inst.existing = existing;
     ref.closed.subscribe((saved?: SupplierItemPrice) => { if (saved) this.load(); });
+  }
+
+  openCompare(p: SupplierItemPrice): void {
+    const ref = this.modal.open(MedicinePriceComparisonComponent, { size: 'lg', backdrop: 'static' });
+    const inst = ref.componentInstance as MedicinePriceComparisonComponent;
+    inst.medicineUid = p.medicineUid;
+    inst.medicineLabel = `${p.medicineCode ?? ''} — ${p.medicineName ?? p.medicineUid}${p.medicineStrength ? ' · ' + p.medicineStrength : ''}`;
   }
 
   toggleActive(p: SupplierItemPrice): void {

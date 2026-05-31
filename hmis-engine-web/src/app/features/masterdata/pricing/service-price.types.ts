@@ -25,6 +25,8 @@ export interface ServicePrice {
   maxAmount: number | null;
   currency: string;
   note: string | null;
+  /** Whether this plan covers this service (plan rows only; cash rows report false). */
+  covered: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,6 +40,8 @@ export interface SetServicePriceRequest {
   maxAmount: number | null;
   currency: string;
   note: string | null;
+  /** Plan rows only: covering a service requires amount > 0 (backend auto-unsets when amount == 0). */
+  covered: boolean;
 }
 
 export interface UpdateServicePriceRequest {
@@ -45,6 +49,7 @@ export interface UpdateServicePriceRequest {
   minAmount: number | null;
   maxAmount: number | null;
   note: string | null;
+  covered: boolean;
 }
 
 export interface ServicePriceSearchParams {

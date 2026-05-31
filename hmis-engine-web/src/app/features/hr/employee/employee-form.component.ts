@@ -37,7 +37,15 @@ export class EmployeeFormComponent implements OnInit {
     username:    ['', [Validators.maxLength(64)]],
     designation: ['', [Validators.maxLength(120)]],
     department:  ['', [Validators.maxLength(120)]],
-    hireDate:    ['', [Validators.required]]
+    hireDate:    ['', [Validators.required]],
+    basicSalary:        ['', [Validators.pattern(/^\d+(\.\d{1,2})?$/)]],
+    tinNo:              ['', [Validators.maxLength(32)]],
+    bankName:           ['', [Validators.maxLength(120)]],
+    bankAccountNo:      ['', [Validators.maxLength(40)]],
+    bankAccountName:    ['', [Validators.maxLength(120)]],
+    socialSecurityNo:   ['', [Validators.maxLength(40)]],
+    socialSecurityName: ['', [Validators.maxLength(120)]],
+    payable:            [true]
   });
 
   readonly isEdit = computed(() => !!this.existing());
@@ -60,7 +68,15 @@ export class EmployeeFormComponent implements OnInit {
         username:    e.username ?? '',
         designation: e.designation ?? '',
         department:  e.department ?? '',
-        hireDate:    e.hireDate
+        hireDate:    e.hireDate,
+        basicSalary:        e.basicSalary == null ? '' : String(e.basicSalary),
+        tinNo:              e.tinNo ?? '',
+        bankName:           e.bankName ?? '',
+        bankAccountNo:      e.bankAccountNo ?? '',
+        bankAccountName:    e.bankAccountName ?? '',
+        socialSecurityNo:   e.socialSecurityNo ?? '',
+        socialSecurityName: e.socialSecurityName ?? '',
+        payable:            e.payable
       });
     }
   }
@@ -88,7 +104,15 @@ export class EmployeeFormComponent implements OnInit {
       username:    emptyToNull(raw.username),
       designation: emptyToNull(raw.designation),
       department:  emptyToNull(raw.department),
-      hireDate:    raw.hireDate
+      hireDate:    raw.hireDate,
+      basicSalary:        emptyToNull(raw.basicSalary),
+      tinNo:              emptyToNull(raw.tinNo),
+      bankName:           emptyToNull(raw.bankName),
+      bankAccountNo:      emptyToNull(raw.bankAccountNo),
+      bankAccountName:    emptyToNull(raw.bankAccountName),
+      socialSecurityNo:   emptyToNull(raw.socialSecurityNo),
+      socialSecurityName: emptyToNull(raw.socialSecurityName),
+      payable:            raw.payable
     };
 
     const existing = this.existing();

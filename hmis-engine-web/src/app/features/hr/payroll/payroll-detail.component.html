@@ -57,10 +57,10 @@
           </div>
           <div class="table-responsive">
             <table class="table table-hover align-middle mb-0 hmis-table">
-              <thead><tr><th>Employee</th><th class="text-end">Gross</th><th class="text-end">Deductions</th><th class="text-end">Net</th><th>Payment</th><th class="text-end"></th></tr></thead>
+              <thead><tr><th>Employee</th><th class="text-end">Gross</th><th class="text-end">Deductions</th><th class="text-end">Net</th><th class="text-end">Employer contributions</th><th>Payment</th><th class="text-end"></th></tr></thead>
               <tbody>
                 @if (items().length === 0) {
-                  <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-people"></i><div class="fw-semibold mb-1">No items yet</div><div class="small">Add per-employee gross and deductions below; net is computed.</div></div></td></tr>
+                  <tr><td colspan="7"><div class="hmis-empty"><i class="bi bi-people"></i><div class="fw-semibold mb-1">No items yet</div><div class="small">Add per-employee gross and deductions below; net is computed.</div></div></td></tr>
                 } @else {
                   @for (item of items(); track item.uid) {
                     <tr>
@@ -71,6 +71,7 @@
                       <td class="text-end">{{ item.grossPay | number:'1.2-2' }}</td>
                       <td class="text-end hmis-muted">{{ item.totalDeductions | number:'1.2-2' }}</td>
                       <td class="text-end fw-semibold">{{ item.netPay | number:'1.2-2' }}</td>
+                      <td class="text-end hmis-muted" title="Employer-side cost; not in net">{{ item.employerContributions | number:'1.2-2' }}</td>
                       <td class="hmis-muted small">
                         @if (item.paymentMethod) { {{ item.paymentMethod }}@if (item.paymentReference) { · <span class="hmis-code">{{ item.paymentReference }}</span> } }
                         @else { — }
@@ -85,11 +86,11 @@
                     </tr>
                     @if (item.lines && item.lines.length > 0) {
                       <tr>
-                        <td colspan="6" class="bg-light">
+                        <td colspan="7" class="bg-light">
                           <div class="d-flex flex-wrap gap-2 small">
                             <span class="hmis-muted">Breakdown:</span>
                             @for (l of item.lines; track l.uid) {
-                              <span class="badge" [class.text-bg-success-subtle]="l.type === 'EARNING'" [class.text-bg-danger-subtle]="l.type === 'DEDUCTION'">
+                              <span class="badge" [class.text-bg-success-subtle]="l.type === 'EARNING'" [class.text-bg-danger-subtle]="l.type === 'DEDUCTION'" [class.text-bg-info-subtle]="l.type === 'EMPLOYER_CONTRIBUTION'">
                                 {{ l.name }}: {{ l.amount | number:'1.2-2' }}
                               </span>
                             }
@@ -138,8 +139,8 @@
                   <div class="d-flex justify-content-between"><span class="hmis-muted">Effective basic</span><span>{{ r.effectiveBasic | number:'1.2-2' }}</span></div>
                   @for (l of r.lines; track l.componentUid) {
                     <div class="d-flex justify-content-between">
-                      <span [class.text-success]="l.type === 'EARNING'" [class.text-danger]="l.type === 'DEDUCTION'">
-                        {{ l.type === 'EARNING' ? '+' : '−' }} {{ l.name }}
+                      <span [class.text-success]="l.type === 'EARNING'" [class.text-danger]="l.type === 'DEDUCTION'" [class.text-info-emphasis]="l.type === 'EMPLOYER_CONTRIBUTION'">
+                        {{ l.type === 'EARNING' ? '+' : l.type === 'DEDUCTION' ? '−' : '~' }} {{ l.name }}
                       </span>
                       <span>{{ l.amount | number:'1.2-2' }}</span>
                     </div>
@@ -148,6 +149,7 @@
                   <div class="d-flex justify-content-between fw-semibold"><span>Gross</span><span>{{ r.grossPay | number:'1.2-2' }}</span></div>
                   <div class="d-flex justify-content-between"><span class="hmis-muted">Deductions</span><span>{{ r.totalDeductions | number:'1.2-2' }}</span></div>
                   <div class="d-flex justify-content-between fw-semibold"><span>Net</span><span>{{ r.netPay | number:'1.2-2' }}</span></div>
+                  <div class="d-flex justify-content-between" title="Employer-side cost; not in gross nor net"><span class="text-info-emphasis">Employer cost</span><span>{{ r.totalEmployerContributions | number:'1.2-2' }}</span></div>
                   @if (r.lines.length === 0) {
                     <div class="text-warning mt-2">No active components configured — gross = basic, no deductions.</div>
                   } @else {

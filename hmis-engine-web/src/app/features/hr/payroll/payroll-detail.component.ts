@@ -150,6 +150,8 @@ export class PayrollDetailComponent implements OnInit {
       employeeUid:      raw.employeeUid,
       grossPay:         raw.grossPay,
       totalDeductions:  raw.totalDeductions,
+      // Employer-side cost from the compute; tracked, never in gross nor net.
+      employerContributions: c ? String(c.totalEmployerContributions) : undefined,
       paymentMethod:    raw.paymentMethod?.trim() || null,
       paymentReference: raw.paymentReference?.trim() || null,
       note:             raw.note?.trim() || null,

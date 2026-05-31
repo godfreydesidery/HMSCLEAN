@@ -8,6 +8,7 @@ public final class ClinicalNoteDtos {
     private ClinicalNoteDtos() {}
 
     public record ClinicalNoteDto(
+            Long id,
             String uid,
             String consultationUid,
             String chiefComplaint,
@@ -16,6 +17,9 @@ public final class ClinicalNoteDtos {
             String examination,
             String assessment,
             String plan,
+            String drugsAndAllergyHistory,
+            String familyAndSocialHistory,
+            String reviewOfOtherSystems,
             Instant createdAt,
             Instant updatedAt) {}
 
@@ -25,5 +29,8 @@ public final class ClinicalNoteDtos {
             @Size(max = 4000) String pastMedicalHistory,
             @Size(max = 4000) String examination,
             @Size(max = 4000) String assessment,
-            @Size(max = 4000) String plan) {}
+            @Size(max = 4000) String plan,
+            @Size(max = 4000) String drugsAndAllergyHistory,
+            @Size(max = 4000) String familyAndSocialHistory,
+            @Size(max = 4000) String reviewOfOtherSystems) {}
 }

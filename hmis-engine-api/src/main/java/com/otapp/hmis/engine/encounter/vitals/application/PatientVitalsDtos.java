@@ -13,6 +13,7 @@ public final class PatientVitalsDtos {
     private PatientVitalsDtos() {}
 
     public record PatientVitalsDto(
+            Long id,
             String uid,
             String consultationUid,
             String patientUid,
@@ -25,6 +26,9 @@ public final class PatientVitalsDtos {
             Integer spo2Percent,
             BigDecimal weightKg,
             BigDecimal heightCm,
+            BigDecimal bmi,
+            BigDecimal bsa,
+            String bmiComment,
             String notes,
             Instant createdAt,
             Instant updatedAt) {}
@@ -38,5 +42,8 @@ public final class PatientVitalsDtos {
             @Min(40) @Max(100)  Integer spo2Percent,
             @DecimalMin("0.5") @DecimalMax("400.0") BigDecimal weightKg,
             @DecimalMin("20.0") @DecimalMax("260.0") BigDecimal heightCm,
+            @DecimalMin("10.0") @DecimalMax("80.0")  BigDecimal bmi,
+            @DecimalMin("0.1")  @DecimalMax("4.0")   BigDecimal bsa,
+            @Size(max = 255) String bmiComment,
             @Size(max = 500) String notes) {}
 }

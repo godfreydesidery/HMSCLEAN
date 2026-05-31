@@ -38,6 +38,13 @@ public class ClinicalNote extends AuditableEntity {
     @Setter @Column(name = "assessment",                     length = 4000) private String assessment;
     @Setter @Column(name = "plan",                           length = 4000) private String plan;
 
+    // ----- clinical-note-safety narrative fields (legacy ClinicalNote) ------
+    // drugsAndAllergyHistory is the allergy-safety field surfaced prominently
+    // to the prescriber before prescribing.
+    @Setter @Column(name = "drugs_and_allergy_history",      length = 4000) private String drugsAndAllergyHistory;
+    @Setter @Column(name = "family_and_social_history",      length = 4000) private String familyAndSocialHistory;
+    @Setter @Column(name = "review_of_other_systems",        length = 4000) private String reviewOfOtherSystems;
+
     public ClinicalNote(String consultationUid) {
         this.consultationUid = consultationUid;
     }

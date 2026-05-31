@@ -49,6 +49,14 @@ public class PatientVitals extends AuditableEntity {
     @Setter @Column(name = "height_cm", precision = 5, scale = 1) private BigDecimal heightCm;
     @Setter @Column(name = "notes", length = 500) private String notes;
 
+    // ----- clinical-note-safety derived measurements (legacy GeneralExamination) ----
+    // bmi (kg/m^2) and bsa (m^2, Mosteller). Stored as NUMERIC measured values
+    // (never float); recomputable server-side from weightKg/heightCm. bmiComment
+    // preserves any free-text narrative the clinician attaches.
+    @Setter @Column(name = "bmi", precision = 4, scale = 1) private BigDecimal bmi;
+    @Setter @Column(name = "bsa", precision = 4, scale = 2) private BigDecimal bsa;
+    @Setter @Column(name = "bmi_comment", length = 255) private String bmiComment;
+
     public PatientVitals(String consultationUid, String patientUid, Instant takenAt) {
         this.consultationUid = consultationUid;
         this.patientUid = patientUid;

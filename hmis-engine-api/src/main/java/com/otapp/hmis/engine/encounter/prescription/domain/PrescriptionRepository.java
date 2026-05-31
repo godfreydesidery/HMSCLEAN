@@ -19,6 +19,24 @@ public interface PrescriptionRepository extends JpaRepository<Prescription, Long
     List<Prescription> findAllByPatientUidAndConsultationUidIsNullOrderByRequestedAtDesc(String patientUid);
 
     /**
+     * Duplicate-drug-per-consultation guard (legacy existsByConsultationAndMedicine).
+     * True when a non-withdrawn prescription already exists for this
+     * consultation + medicine. {@code excluded} carries {CANCELLED, REJECTED}
+     * so a withdrawn order can be re-prescribed (a deliberate refinement over
+     * the legacy status-agnostic check).
+     */
+    boolean existsByConsultationUidAndMedicineUidAndStatusNotIn(
+            String consultationUid, String medicineUid, Collection<PrescriptionStatus> excluded);
+
+    /**
+     * Backs the prescribing alerts (legacy findAllByPatientAndMedicineAndStatus
+     * with status "GIVEN"; SOLD is the rewrite equivalent of GIVEN). Newest
+     * dispense first so the alert math reads the most-recent course off the head.
+     */
+    List<Prescription> findAllByPatientUidAndMedicineUidAndStatusOrderByApprovedAtDesc(
+            String patientUid, String medicineUid, PrescriptionStatus status);
+
+    /**
      * The pharmacy dispensing queue — prescriptions awaiting pharmacy action,
      * optionally scoped by patient class (legacy outpatient / inpatient /
      * outsider lists). OUTSIDER = raised directly on the patient; INPATIENT =

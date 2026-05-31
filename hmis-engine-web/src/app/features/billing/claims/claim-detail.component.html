@@ -1,0 +1,127 @@
+@if (loading()) {
+  <div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading claim…</div></div>
+} @else if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  <button type="button" class="btn btn-light border" (click)="back()"><i class="bi bi-arrow-left me-1"></i>Back</button>
+} @else if (claim()) {
+  @if (claim(); as c) {
+    <div class="hmis-page-header">
+      <div class="d-flex align-items-center gap-3">
+        <button type="button" class="btn btn-light border" (click)="back()" aria-label="Back"><i class="bi bi-arrow-left"></i></button>
+        <div>
+          <h1 class="hmis-page-title mb-0 d-flex align-items-center gap-2">
+            <span class="hmis-code">{{ c.claimNo }}</span>
+            <span [class]="statusBadgeClass(c.status)">{{ statusLabel(c.status) }}</span>
+          </h1>
+          <div class="hmis-muted small mt-1 d-flex flex-wrap gap-3">
+            <span><i class="bi bi-shield-plus me-1"></i>{{ c.payerPlanName }}@if (c.providerName) { · {{ c.providerName }} }</span>
+            <span><i class="bi bi-person-vcard me-1"></i>Member {{ c.membershipNo }}</span>
+            <span><i class="bi bi-person me-1"></i><a [routerLink]="['/patients', c.patientUid]">Patient</a></span>
+          </div>
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        @if (canSubmit()) {
+          <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="submit()">
+            <i class="bi bi-send"></i>Submit
+          </button>
+        }
+        @if (canSettle()) {
+          <button type="button" class="btn btn-success d-flex align-items-center gap-2" (click)="recordSettlement()">
+            <i class="bi bi-cash-coin"></i>Record settlement
+          </button>
+        }
+        @if (canReject()) {
+          <button type="button" class="btn btn-light border text-danger d-flex align-items-center gap-2" (click)="reject()">
+            <i class="bi bi-x-circle"></i>Reject
+          </button>
+        }
+        @if (canDiscard()) {
+          <button type="button" class="btn btn-light border text-danger d-flex align-items-center gap-2" (click)="discard()">
+            <i class="bi bi-trash"></i>Discard
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-lg-8">
+        <div class="card">
+          <div class="card-header bg-white fw-semibold">Claim lines</div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 hmis-table">
+              <thead><tr><th>Kind</th><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit</th><th class="text-end">Amount</th></tr></thead>
+              <tbody>
+                @if (c.lines.length === 0) {
+                  <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-file-medical"></i><div class="small">No lines on this claim.</div></div></td></tr>
+                } @else {
+                  @for (line of c.lines; track line.uid) {
+                    <tr>
+                      <td><span class="badge text-bg-light border">{{ line.kind }}</span></td>
+                      <td>{{ line.description }}</td>
+                      <td class="text-end">{{ line.quantity | number:'1.0-2' }}</td>
+                      <td class="text-end">{{ line.unitPrice | number:'1.2-2' }}</td>
+                      <td class="text-end fw-semibold">{{ line.amount | number:'1.2-2' }}</td>
+                    </tr>
+                  }
+                }
+              </tbody>
+              <tfoot>
+                <tr class="border-top">
+                  <td colspan="4" class="text-end fw-semibold">Claimed</td>
+                  <td class="text-end fw-semibold">{{ c.claimedAmount | number:'1.2-2' }} {{ c.currency }}</td>
+                </tr>
+                <tr>
+                  <td colspan="4" class="text-end hmis-muted">Settled</td>
+                  <td class="text-end hmis-muted">{{ c.settledAmount | number:'1.2-2' }} {{ c.currency }}</td>
+                </tr>
+                <tr class="border-top">
+                  <td colspan="4" class="text-end fw-semibold">Outstanding</td>
+                  <td class="text-end fw-bold" [class.text-success]="c.outstanding === 0" [class.text-warning-emphasis]="c.outstanding > 0">{{ c.outstanding | number:'1.2-2' }} {{ c.currency }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="card h-100">
+          <div class="card-header bg-white fw-semibold">Lifecycle</div>
+          <ul class="list-group list-group-flush">
+            <li class="list-group-item d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-semibold">Submitted</div>
+                @if (c.submittedByUsername) { <div class="hmis-muted small">by {{ c.submittedByUsername }}</div> }
+              </div>
+              <div class="hmis-muted small">{{ (c.submittedAt | date:'short') || '—' }}</div>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-semibold">Settled</div>
+                @if (c.settledByUsername) { <div class="hmis-muted small">by {{ c.settledByUsername }}</div> }
+              </div>
+              <div class="hmis-muted small">{{ (c.settledAt | date:'short') || '—' }}</div>
+            </li>
+            @if (c.status === 'REJECTED') {
+              <li class="list-group-item">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <div class="fw-semibold text-danger-emphasis">Rejected</div>
+                    @if (c.rejectedByUsername) { <div class="hmis-muted small">by {{ c.rejectedByUsername }}</div> }
+                  </div>
+                  <div class="hmis-muted small">{{ (c.rejectedAt | date:'short') || '—' }}</div>
+                </div>
+                @if (c.rejectionReason) { <div class="small mt-1">{{ c.rejectionReason }}</div> }
+              </li>
+            }
+            <li class="list-group-item d-flex justify-content-between align-items-start">
+              <div class="fw-semibold">Created</div>
+              <div class="hmis-muted small">{{ c.createdAt | date:'short' }}</div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  }
+}

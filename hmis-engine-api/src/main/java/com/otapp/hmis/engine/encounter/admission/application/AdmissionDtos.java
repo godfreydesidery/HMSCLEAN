@@ -42,6 +42,10 @@ public final class AdmissionDtos {
             Instant cancelledAt,
             String cancelReason,
 
+            /** Bill-clearance gate: false while an admission invoice is outstanding (blocks closure). */
+            boolean billsCleared,
+            Instant billsClearedAt,
+
             Instant createdAt,
             Instant updatedAt) {}
 

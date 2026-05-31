@@ -358,6 +358,9 @@ public class InvoiceService {
     public InvoiceDto issue(String uid) {
         Invoice invoice = loadOrThrow(uid);
         invoice.issue();
+        // Issuing an admission invoice with an outstanding balance arms the
+        // bill-clearance gate (blocks discharge / referral / deceased closure).
+        settlementDispatcher.onInvoiceMaybeSettled(invoice);
         return toDto(invoice);
     }
 

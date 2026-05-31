@@ -181,6 +181,28 @@ public class AdmissionService {
         }
     }
 
+    /**
+     * Idempotent — flips the admission bill-clearance gate to cleared. Called by the
+     * billing {@code SettlementDispatcher} once the admission invoice is fully settled
+     * (PAID). Billing pushes this in the allowed billing -> encounter direction so the
+     * closure gate can read a purely local flag (no encounter -> billing import).
+     */
+    @Transactional
+    public void markBillsCleared(String admissionUid) {
+        admissionRepository.findByUid(admissionUid).ifPresent(Admission::markBillsCleared);
+    }
+
+    /**
+     * Idempotent — re-arms the admission bill-clearance gate. Called by billing when an
+     * outstanding admission invoice is issued (or a refund / partial credit re-opens a
+     * positive balance), so a subsequent discharge / referral / deceased closure is blocked
+     * until the bill is settled again.
+     */
+    @Transactional
+    public void clearBillsCleared(String admissionUid) {
+        admissionRepository.findByUid(admissionUid).ifPresent(Admission::clearBillsClearedFlag);
+    }
+
     @Transactional
     public AdmissionDto cancel(String uid, CancelAdmissionRequest request) {
         Admission admission = loadOrThrow(uid);
@@ -282,6 +304,8 @@ public class AdmissionService {
                 a.getDischargeSummary(),
                 a.getCancelledAt(),
                 a.getCancelReason(),
+                a.isBillsCleared(),
+                a.getBillsClearedAt(),
                 a.getCreatedAt(),
                 a.getUpdatedAt());
     }

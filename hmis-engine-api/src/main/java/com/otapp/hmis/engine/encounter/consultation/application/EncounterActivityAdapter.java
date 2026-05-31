@@ -24,7 +24,7 @@ class EncounterActivityAdapter implements EncounterActivityPort {
     @Override
     @Transactional(readOnly = true)
     public boolean hasActiveEncounter(String patientUid) {
-        if (admissionRepository.existsByPatientUidAndStatus(patientUid, AdmissionStatus.ADMITTED)) {
+        if (admissionRepository.existsByPatientUidAndStatusIn(patientUid, AdmissionStatus.ACTIVE)) {
             return true;
         }
         return consultationRepository.countByPatientUidAndStatusIn(

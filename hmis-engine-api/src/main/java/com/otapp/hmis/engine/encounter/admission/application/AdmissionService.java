@@ -13,6 +13,7 @@ import com.otapp.hmis.engine.encounter.admission.domain.Admission;
 import com.otapp.hmis.engine.encounter.admission.domain.AdmissionRepository;
 import com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus;
 import com.otapp.hmis.engine.encounter.admission.application.event.AdmissionAdmittedEvent;
+import com.otapp.hmis.engine.encounter.admission.application.event.AdmissionCancelledEvent;
 import com.otapp.hmis.engine.encounter.admission.infrastructure.AdmissionNumberGenerator;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
@@ -24,6 +25,7 @@ import com.otapp.hmis.engine.iam.domain.User;
 import com.otapp.hmis.engine.iam.domain.UserRepository;
 import com.otapp.hmis.engine.masterdata.bed.domain.Bed;
 import com.otapp.hmis.engine.masterdata.bed.domain.BedRepository;
+import com.otapp.hmis.engine.masterdata.bed.domain.BedStatus;
 import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlan;
 import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlanRepository;
 import com.otapp.hmis.engine.masterdata.ward.domain.Ward;
@@ -33,6 +35,7 @@ import com.otapp.hmis.engine.patient.domain.PatientRepository;
 import com.otapp.hmis.engine.patient.domain.PaymentType;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -40,6 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AdmissionService {
 
     private final AdmissionRepository admissionRepository;
@@ -61,7 +65,7 @@ public class AdmissionService {
         if (!patient.isActive()) {
             throw new BusinessRuleException("Cannot admit an inactive patient");
         }
-        if (admissionRepository.existsByPatientUidAndStatus(patient.getUid(), AdmissionStatus.ADMITTED)) {
+        if (admissionRepository.existsByPatientUidAndStatusIn(patient.getUid(), AdmissionStatus.ACTIVE)) {
             throw new BusinessRuleException("Patient already has an active admission");
         }
 
@@ -104,14 +108,34 @@ public class AdmissionService {
                 planUid,
                 consultationUid,
                 emptyToNull(request.admissionReason()));
+        // Legacy deposit gate (Zana-HMIS doAdmission): a patient who owes out-of-pocket
+        // for the bed is admitted deposit-pending — the ward-bed bill is still issued
+        // (after-commit) but the bed is only RESERVED until the bill is settled, at which
+        // point billing flips the admission to ADMITTED and the bed to OCCUPIED. CASH and
+        // MIXED (insurance + cash top-up) both owe cash, so both are gated, mirroring
+        // legacy's cash + partial-insurance-top-up branches; pure INSURANCE occupies
+        // immediately (legacy's fully-covered branch).
+        // KNOWN simplification: admission ward lines are not yet coverage-routed, so an
+        // insured-but-uncovered ward (pure INSURANCE, plan doesn't cover the ward) still
+        // occupies immediately here where legacy would hold it pending — to be addressed
+        // when admission coverage routing lands.
+        boolean depositRequired = request.paymentType() == PaymentType.CASH
+                || request.paymentType() == PaymentType.MIXED;
+        if (depositRequired) {
+            admission.markAwaitingDeposit();
+        }
         admissionRepository.save(admission);
 
-        // Optional bed assignment — if a typed Bed is given, claim it
-        // and overwrite the free-text label with the canonical Bed.label.
+        // Optional bed assignment — reserve (RESERVED) for a deposit-pending admission,
+        // claim (OCCUPIED) otherwise; overwrite the free-text label with Bed.label.
         String bedUid = emptyToNull(request.bedUid());
         if (bedUid != null) {
             Bed bed = loadBedInWard(bedUid, ward.getUid());
-            bed.claim(admission.getUid());
+            if (depositRequired) {
+                bed.reserve(admission.getUid());
+            } else {
+                bed.claim(admission.getUid());
+            }
             admission.setBedUid(bed.getUid());
             admission.setBedLabel(bed.getLabel());
         }
@@ -211,11 +235,45 @@ public class AdmissionService {
         admissionRepository.findByUid(admissionUid).ifPresent(Admission::clearBillsClearedFlag);
     }
 
+    /**
+     * Activate a deposit-pending admission once its ward-bed bill is settled (legacy
+     * {@code confirmBillsPayment}: PENDING → IN-PROCESS, WAITING → OCCUPIED). Billing
+     * pushes this from the {@code SettlementDispatcher} when the admission invoice is
+     * PAID — or has nothing left to owe. Flips AWAITING_DEPOSIT → ADMITTED and occupies
+     * the reserved bed. Idempotent: a no-op once already ADMITTED or in a terminal
+     * state, so a re-fired settlement (or a cancelled admission) never re-occupies a bed.
+     */
+    @Transactional
+    public void confirmDeposit(String admissionUid) {
+        admissionRepository.findByUid(admissionUid).ifPresent(admission -> {
+            if (admission.confirmDeposit() && admission.getBedUid() != null) {
+                bedRepository.findByUid(admission.getBedUid()).ifPresent(bed -> {
+                    // Occupy the held bed — but NEVER throw: confirmDeposit runs inside the
+                    // cashier's payment transaction, so a surprise bed state (e.g. an admin
+                    // took it out of service) must not roll back the payment. The admission
+                    // still activates; the bed is just not re-occupied. Bed-state mutators
+                    // (out-of-service / free / delete) already block RESERVED, so in
+                    // practice the bed is RESERVED here.
+                    if (bed.getStatus() == BedStatus.RESERVED || bed.getStatus() == BedStatus.OCCUPIED) {
+                        bed.occupy();
+                    } else {
+                        log.warn("Deposit settled for admission {} but its bed {} is {} — "
+                                + "activating the admission without occupying the bed",
+                                admissionUid, admission.getBedUid(), bed.getStatus());
+                    }
+                });
+            }
+        });
+    }
+
     @Transactional
     public AdmissionDto cancel(String uid, CancelAdmissionRequest request) {
         Admission admission = loadOrThrow(uid);
         admission.cancel(emptyToNull(request == null ? null : request.reason()));
         releaseCurrentBed(admission);
+        // Billing voids the (now-abandoned) ward-bed invoice after-commit, so a
+        // cancelled deposit-pending admission leaves no live unpaid receivable.
+        eventPublisher.publishEvent(new AdmissionCancelledEvent(admission.getUid()));
         return toDto(admission);
     }
 

@@ -12,8 +12,9 @@ package com.otapp.hmis.engine.patient.domain;
  *       ({@code consultation_uid IS NULL}).</li>
  *   <li><b>OUTPATIENT</b> — consultation-bound work for a patient with no
  *       active admission.</li>
- *   <li><b>INPATIENT</b> — work for a patient who currently has an ADMITTED
- *       admission, regardless of their stored {@link PatientType}.</li>
+ *   <li><b>INPATIENT</b> — work for a patient who currently has an active
+ *       admission (ADMITTED or deposit-pending AWAITING_DEPOSIT), regardless of
+ *       their stored {@link PatientType}.</li>
  * </ul>
  */
 public enum PatientClassScope {

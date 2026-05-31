@@ -75,6 +75,33 @@ public class Bed extends AuditableEntity {
         occupiedByAdmissionUid = admissionUid;
     }
 
+    /**
+     * Hold the bed for a deposit-pending (AWAITING_DEPOSIT) admission: FREE → RESERVED.
+     * The bed is committed to this admission but not yet physically occupied; it
+     * occupies on {@link #occupy()} once the deposit is settled, or frees on
+     * {@link #release()} if the admission is cancelled.
+     */
+    public void reserve(String admissionUid) {
+        requireFree();
+        status = BedStatus.RESERVED;
+        occupiedByAdmissionUid = admissionUid;
+    }
+
+    /**
+     * Take physical possession once the deposit is settled: RESERVED → OCCUPIED.
+     * Idempotent — a no-op if the bed is already OCCUPIED (settlement may re-fire);
+     * throws if the bed is not currently held (RESERVED).
+     */
+    public void occupy() {
+        if (status == BedStatus.OCCUPIED) {
+            return;
+        }
+        if (status != BedStatus.RESERVED) {
+            throw new BusinessRuleException("Bed " + label + " is not reserved (current: " + status + ")");
+        }
+        status = BedStatus.OCCUPIED;
+    }
+
     public void release() {
         if (status == BedStatus.OUT_OF_SERVICE) {
             // Releasing a bed that was put out of service mid-stay is fine; the

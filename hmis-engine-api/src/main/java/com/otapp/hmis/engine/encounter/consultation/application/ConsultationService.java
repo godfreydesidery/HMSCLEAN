@@ -77,8 +77,9 @@ public class ConsultationService {
                     "Patient is registered as OUTSIDER; convert to OUTPATIENT before booking a consultation");
         }
         // Legacy do_consultation gate: refuse a new consultation while the patient
-        // has an active (ADMITTED) admission — "the patient has an active admission".
-        if (admissionRepository.existsByPatientUidAndStatus(patient.getUid(), AdmissionStatus.ADMITTED)) {
+        // has an active admission — incl. deposit-pending (AWAITING_DEPOSIT), which
+        // legacy's PENDING admission also blocked. "the patient has an active admission".
+        if (admissionRepository.existsByPatientUidAndStatusIn(patient.getUid(), AdmissionStatus.ACTIVE)) {
             throw new BusinessRuleException("The patient has an active admission");
         }
         // Legacy do_consultation gate: refuse a new consultation while the patient

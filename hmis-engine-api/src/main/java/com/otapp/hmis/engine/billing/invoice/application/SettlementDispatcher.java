@@ -56,6 +56,17 @@ public class SettlementDispatcher {
             } else {
                 admissionService.clearBillsCleared(invoice.getAdmissionUid());
             }
+            // Deposit gate (legacy confirmBillsPayment): once the ward-bed bill is
+            // settled — by real payment (PAID) or because there is genuinely nothing
+            // left to pay (free / fully-covered ward) — activate a deposit-pending
+            // admission (AWAITING_DEPOSIT → ADMITTED, reserved bed → OCCUPIED). A
+            // CANCELLED (voided) invoice is NOT a paid deposit, so it is excluded.
+            boolean depositSettled = invoice.getStatus() == InvoiceStatus.PAID
+                    || (invoice.getStatus() != InvoiceStatus.CANCELLED
+                        && invoice.balance().signum() <= 0);
+            if (depositSettled) {
+                admissionService.confirmDeposit(invoice.getAdmissionUid());
+            }
         }
         if (invoice.getStatus() != InvoiceStatus.PAID) {
             return;

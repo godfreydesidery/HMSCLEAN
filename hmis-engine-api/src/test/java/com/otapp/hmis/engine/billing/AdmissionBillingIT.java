@@ -28,7 +28,9 @@ import org.springframework.http.ResponseEntity;
 class AdmissionBillingIT extends AuthenticatedIntegrationTest {
 
     private static final String OPD_CLINIC_UID   = "01J5KQRPCD0000000000000CN1";
-    private static final String GENERAL_WARD_UID = "01J5KQRPCD0000000000000WG1";
+    // Pediatric ward — priced here (and not on the General Ward) so the deposit-gate
+    // pricing does not leak onto the General Ward used by the encounter charting ITs.
+    private static final String PEDIATRIC_WARD_UID = "01J5KQRPCD0000000000000WG2";
     private static final BigDecimal WARD_DAY     = new BigDecimal("20000.00");
 
     @Test
@@ -41,13 +43,15 @@ class AdmissionBillingIT extends AuthenticatedIntegrationTest {
         Map<String, Object> admission = expectOk(post(
                 "/encounters/admissions",
                 Map.of("patientUid", patientUid,
-                        "wardUid", GENERAL_WARD_UID,
+                        "wardUid", PEDIATRIC_WARD_UID,
                         "admittingClinicianUsername", clinicianAffiliatedWith(OPD_CLINIC_UID),
                         "paymentType", "CASH",
                         "admissionReason", "observation"),
                 Map.class));
         String admissionUid = (String) admission.get("uid");
-        assertThat(admission.get("status")).isEqualTo("ADMITTED");
+        // CASH admit to a priced ward holds the admission deposit-pending until the
+        // ward-bed bill is settled (the deposit gate, cluster #2).
+        assertThat(admission.get("status")).isEqualTo("AWAITING_DEPOSIT");
 
         // 2. The after-commit listener seeded + ISSUED the ward-bed invoice with
         //    one ward-day at the seeded price. (The admit *response* is built before
@@ -85,6 +89,9 @@ class AdmissionBillingIT extends AuthenticatedIntegrationTest {
         assertThat(afterPay.get("billsCleared"))
                 .as("Full payment clears the discharge gate")
                 .isEqualTo(Boolean.TRUE);
+        assertThat(afterPay.get("status"))
+                .as("Settling the deposit activates the admission")
+                .isEqualTo("ADMITTED");
 
         // 5. Once paid, the invoice is frozen — no further accrual rebuild.
         ResponseEntity<Map> frozen = post(
@@ -115,7 +122,7 @@ class AdmissionBillingIT extends AuthenticatedIntegrationTest {
     private void ensureWardPrice() {
         ResponseEntity<Map> r = post(
                 "/masterdata/service-prices",
-                Map.of("kind", "WARD", "serviceUid", GENERAL_WARD_UID,
+                Map.of("kind", "WARD", "serviceUid", PEDIATRIC_WARD_UID,
                         "amount", WARD_DAY, "currency", "TZS", "covered", false),
                 Map.class);
         assertThat(r.getStatusCode().is2xxSuccessful() || r.getStatusCode().value() == 409)

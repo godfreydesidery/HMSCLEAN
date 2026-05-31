@@ -264,7 +264,7 @@ public class ClinicalOrderService {
         if (o.getConsultationUid() == null) {
             return PatientClassScope.OUTSIDER;
         }
-        return admissionRepository.existsByPatientUidAndStatus(o.getPatientUid(), AdmissionStatus.ADMITTED)
+        return admissionRepository.existsByPatientUidAndStatusIn(o.getPatientUid(), AdmissionStatus.ACTIVE)
                 ? PatientClassScope.INPATIENT
                 : PatientClassScope.OUTPATIENT;
     }

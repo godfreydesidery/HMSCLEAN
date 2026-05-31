@@ -82,6 +82,15 @@ export class AdmissionDetailComponent {
   readonly activeTab = signal<TabKey>('overview');
 
   readonly isActive = computed(() => this.admission()?.status === 'ADMITTED');
+  // Deposit-pending: the bed is only RESERVED and charting / transfer / discharge stay
+  // disabled (isActive is false) until the ward-bed bill is settled, which activates it.
+  readonly isAwaitingDeposit = computed(() => this.admission()?.status === 'AWAITING_DEPOSIT');
+  // Cancel is the terminal exit for both an active admission and a deposit-pending one
+  // (the patient who left before paying) — the backend accepts cancel from either state.
+  readonly canCancel = computed(() => {
+    const s = this.admission()?.status;
+    return s === 'ADMITTED' || s === 'AWAITING_DEPOSIT';
+  });
 
   readonly transferForm = this.fb.nonNullable.group({
     wardUid: ['', [Validators.required]],

@@ -1,8 +1,9 @@
 import { PaymentType } from '../../patient/patient.types';
 
-export type AdmissionStatus = 'ADMITTED' | 'DISCHARGED' | 'DECEASED' | 'TRANSFERRED' | 'CANCELLED';
+export type AdmissionStatus = 'AWAITING_DEPOSIT' | 'ADMITTED' | 'DISCHARGED' | 'DECEASED' | 'TRANSFERRED' | 'CANCELLED';
 
 export const ADMISSION_STATUSES: { value: AdmissionStatus; label: string; badgeClass: string }[] = [
+  { value: 'AWAITING_DEPOSIT', label: 'Awaiting deposit', badgeClass: 'text-bg-warning-subtle text-warning-emphasis border border-warning-subtle' },
   { value: 'ADMITTED',    label: 'Admitted',    badgeClass: 'text-bg-primary-subtle text-primary border border-primary-subtle' },
   { value: 'DISCHARGED',  label: 'Discharged',  badgeClass: 'text-bg-success-subtle text-success-emphasis border border-success-subtle' },
   { value: 'DECEASED',    label: 'Deceased',    badgeClass: 'text-bg-dark-subtle text-dark-emphasis border border-dark-subtle' },

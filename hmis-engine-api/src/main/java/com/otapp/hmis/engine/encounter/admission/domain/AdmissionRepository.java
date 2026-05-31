@@ -17,6 +17,15 @@ public interface AdmissionRepository extends JpaRepository<Admission, Long> {
 
     boolean existsByPatientUidAndStatus(String patientUid, AdmissionStatus status);
 
+    /**
+     * Whether the patient has an admission in any of the given states. Callers use
+     * {@link AdmissionStatus#ACTIVE} ({@code ADMITTED}, {@code AWAITING_DEPOSIT}) to
+     * mean "has an in-flight admission" — the no-double-admit guard, the active-encounter
+     * lock, and the consultation gate, since a deposit-pending admission still holds
+     * the patient (legacy: a PENDING admission blocks a second admit).
+     */
+    boolean existsByPatientUidAndStatusIn(String patientUid, java.util.Collection<AdmissionStatus> statuses);
+
     @Query("""
             SELECT COUNT(a) FROM Admission a
             WHERE a.admittingClinicianUsername = :clinician
@@ -62,14 +71,18 @@ public interface AdmissionRepository extends JpaRepository<Admission, Long> {
             """)
     List<String> findAdmittedUids();
 
-    /** [wardUid, count] pairs for currently-ADMITTED admissions — drives the bed-occupancy report. */
+    /**
+     * [wardUid, count] pairs for ACTIVE (ADMITTED + AWAITING_DEPOSIT) admissions — the
+     * bed-occupancy fallback for wards with no Bed rows, mirroring the bed-table branch
+     * which counts a RESERVED (deposit-held) bed as occupied, not free.
+     */
     @Query("""
             SELECT a.wardUid, COUNT(a)
             FROM Admission a
-            WHERE a.status = com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.ADMITTED
+            WHERE a.status IN (com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.ADMITTED, com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.AWAITING_DEPOSIT)
             GROUP BY a.wardUid
             """)
-    List<Object[]> countCurrentlyAdmittedByWard();
+    List<Object[]> countActiveByWard();
 
     /** Admissions in a date range, optionally filtered by ward + status — the IPD register report. */
     @Query("""

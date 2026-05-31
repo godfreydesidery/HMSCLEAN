@@ -16,7 +16,7 @@ CREATE TABLE admission (
 
     admitting_clinician_username    VARCHAR(64)  NOT NULL,
 
-    status                          VARCHAR(16)  NOT NULL,
+    status                          VARCHAR(24)  NOT NULL,
     payment_type                    VARCHAR(16)  NOT NULL,
     insurance_plan_uid              VARCHAR(26),
     consultation_uid                VARCHAR(26),

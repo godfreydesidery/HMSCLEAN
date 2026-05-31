@@ -1,6 +1,7 @@
 package com.otapp.hmis.engine.billing.invoice.application;
 
 import com.otapp.hmis.engine.encounter.admission.application.event.AdmissionAdmittedEvent;
+import com.otapp.hmis.engine.encounter.admission.application.event.AdmissionCancelledEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,20 @@ class AdmissionFeeListeners {
         } catch (RuntimeException e) {
             log.error("Failed to seed admission invoice for {} — recover via "
                     + "POST /billing/admissions/uid/{}/invoice", event.admissionUid(), event.admissionUid(), e);
+        }
+    }
+
+    /**
+     * Voids the (now-abandoned) ward-bed invoice when an admission is cancelled, so a
+     * deposit-pending admission that was never paid leaves no live unpaid receivable.
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void onAdmissionCancelled(AdmissionCancelledEvent event) {
+        try {
+            invoiceService.cancelUnpaidAdmissionInvoice(event.admissionUid());
+        } catch (RuntimeException e) {
+            log.error("Failed to void the ward-bed invoice for cancelled admission {} — "
+                    + "void it manually via POST /billing/invoices/uid/{{uid}}/cancel", event.admissionUid(), e);
         }
     }
 }

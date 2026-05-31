@@ -13,12 +13,15 @@ import com.otapp.hmis.engine.hr.employee.application.EmployeeDtos.CreateEmployee
 import com.otapp.hmis.engine.hr.employee.application.EmployeeDtos.EmployeeDto;
 import com.otapp.hmis.engine.hr.employee.application.EmployeeDtos.SetStatusRequest;
 import com.otapp.hmis.engine.hr.employee.application.EmployeeDtos.TerminateEmployeeRequest;
+import com.otapp.hmis.engine.hr.employee.application.EmployeeDtos.UpdateCompensationRequest;
 import com.otapp.hmis.engine.hr.employee.application.EmployeeDtos.UpdateEmployeeRequest;
 import com.otapp.hmis.engine.hr.employee.domain.Employee;
 import com.otapp.hmis.engine.hr.employee.domain.EmployeeRepository;
 import com.otapp.hmis.engine.hr.employee.domain.EmploymentStatus;
 import com.otapp.hmis.engine.hr.employee.infrastructure.EmployeeNumberGenerator;
 import com.otapp.hmis.engine.iam.domain.UserRepository;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -53,6 +56,9 @@ public class EmployeeService {
                 emptyToNull(request.department()));
         applyCommonFields(e, request.middleName(), request.gender(), request.dateOfBirth(),
                 request.nationalId(), request.phone(), request.email(), request.address(), username);
+        applyCompensation(e, request.basicSalary(), request.tinNo(), request.bankName(),
+                request.bankAccountNo(), request.bankAccountName(),
+                request.socialSecurityNo(), request.socialSecurityName(), request.payable());
         repository.save(e);
         return toDto(e);
     }
@@ -70,6 +76,22 @@ public class EmployeeService {
         e.setDepartment(emptyToNull(request.department()));
         applyCommonFields(e, request.middleName(), request.gender(), request.dateOfBirth(),
                 request.nationalId(), request.phone(), request.email(), request.address(), username);
+        applyCompensation(e, request.basicSalary(), request.tinNo(), request.bankName(),
+                request.bankAccountNo(), request.bankAccountName(),
+                request.socialSecurityNo(), request.socialSecurityName(), request.payable());
+        return toDto(e);
+    }
+
+    /**
+     * Set/update just the compensation/banking/statutory fields (legacy-faithful
+     * captured data — no lifecycle gate). Companion to the generic PUT.
+     */
+    @Transactional
+    public EmployeeDto updateCompensation(String uid, UpdateCompensationRequest request) {
+        Employee e = loadOrThrow(uid);
+        applyCompensation(e, request.basicSalary(), request.tinNo(), request.bankName(),
+                request.bankAccountNo(), request.bankAccountName(),
+                request.socialSecurityNo(), request.socialSecurityName(), request.payable());
         return toDto(e);
     }
 
@@ -175,9 +197,34 @@ public class EmployeeService {
         e.setUsername(username);
     }
 
+    /**
+     * Apply the legacy-parity compensation/banking/statutory fields. A null
+     * {@code payable} keeps the existing value (defaults to true on a new
+     * employee). A non-null {@code basicSalary} is normalised to money scale.
+     */
+    @SuppressWarnings("java:S107") // mirrors the captured-field set; grouping would add no clarity
+    private void applyCompensation(Employee e, BigDecimal basicSalary, String tinNo,
+                                   String bankName, String bankAccountNo, String bankAccountName,
+                                   String socialSecurityNo, String socialSecurityName, Boolean payable) {
+        String tin = emptyToNull(tinNo);
+        if (tin != null && !tin.equals(e.getTinNo()) && repository.existsByTinNo(tin)) {
+            throw new ConflictException("TIN already in use by another employee: " + tin);
+        }
+        e.setBasicSalary(basicSalary == null ? null : basicSalary.setScale(2, RoundingMode.HALF_UP));
+        e.setTinNo(tin);
+        e.setBankName(emptyToNull(bankName));
+        e.setBankAccountNo(emptyToNull(bankAccountNo));
+        e.setBankAccountName(emptyToNull(bankAccountName));
+        e.setSocialSecurityNo(emptyToNull(socialSecurityNo));
+        e.setSocialSecurityName(emptyToNull(socialSecurityName));
+        if (payable != null) {
+            e.setPayable(payable);
+        }
+    }
+
     private static EmployeeDto toDto(Employee e) {
         return new EmployeeDto(
-                e.getUid(), e.getEmployeeNo(),
+                e.getId(), e.getUid(), e.getEmployeeNo(),
                 e.getFirstName(), e.getMiddleName(), e.getLastName(), e.fullName(),
                 e.getGender(), e.getDateOfBirth(), e.getNationalId(),
                 e.getPhone(), e.getEmail(), e.getAddress(),
@@ -185,6 +232,9 @@ public class EmployeeService {
                 e.getHireDate(),
                 e.getEmploymentStatus(),
                 e.getTerminationDate(), e.getTerminationReason(),
+                e.getBasicSalary(), e.getTinNo(),
+                e.getBankName(), e.getBankAccountNo(), e.getBankAccountName(),
+                e.getSocialSecurityNo(), e.getSocialSecurityName(), e.isPayable(),
                 e.getCreatedAt(), e.getUpdatedAt());
     }
 

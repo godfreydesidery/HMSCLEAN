@@ -25,6 +25,8 @@ public final class ServicePriceDtos {
             BigDecimal maxAmount,
             String currency,
             String note,
+            /** Whether this plan covers this service (plan rows only; cash rows report false). */
+            boolean covered,
             Instant createdAt,
             Instant updatedAt) {}
 
@@ -45,16 +47,38 @@ public final class ServicePriceDtos {
             @DecimalMin(value = "0.00", inclusive = true) BigDecimal minAmount,
             @DecimalMin(value = "0.00", inclusive = true) BigDecimal maxAmount,
             @NotBlank @Pattern(regexp = "^[A-Z]{3}$") String currency,
-            @Size(max = 255) String note) {}
+            @Size(max = 255) String note,
+            /** Plan rows only: covering a service requires amount &gt; 0 (legacy guard). */
+            boolean covered) {}
 
     /**
-     * Update an existing price (identified by its uid). Only the amount, band
-     * and note are mutable — the key (payer, service, currency) is immutable;
-     * to change those, delete the row and create a new one.
+     * Update an existing price (identified by its uid). Only the amount, band,
+     * note and coverage are mutable — the key (payer, service, currency) is
+     * immutable; to change those, delete the row and create a new one. Setting
+     * {@code amount == 0} auto-unsets {@code covered} (legacy
+     * {@code update_*_price_by_insurance}).
      */
     public record UpdateServicePriceRequest(
             @NotNull @DecimalMin(value = "0.00", inclusive = true) BigDecimal amount,
             @DecimalMin(value = "0.00", inclusive = true) BigDecimal minAmount,
             @DecimalMin(value = "0.00", inclusive = true) BigDecimal maxAmount,
-            @Size(max = 255) String note) {}
+            @Size(max = 255) String note,
+            boolean covered) {}
+
+    /**
+     * One row of the per-plan coverage grid: a catalogue item's plan price and
+     * whether the plan covers it. Carries both {@code id} and {@code uid}; URLs
+     * address the price cell by {@code uid} (null when no cell exists yet).
+     */
+    public record ServiceCoverageDto(
+            Long id,
+            String uid,
+            String planUid,
+            String planName,
+            ServiceKind kind,
+            String serviceUid,
+            String serviceName,
+            BigDecimal amount,
+            String currency,
+            boolean covered) {}
 }

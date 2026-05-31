@@ -7,6 +7,7 @@ import com.otapp.hmis.engine.common.error.NotFoundException;
 import com.otapp.hmis.engine.masterdata.currency.application.CurrencyService;
 import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlan;
 import com.otapp.hmis.engine.masterdata.insurance.domain.InsurancePlanRepository;
+import com.otapp.hmis.engine.masterdata.pricing.application.ServicePriceDtos.ServiceCoverageDto;
 import com.otapp.hmis.engine.masterdata.pricing.application.ServicePriceDtos.ServicePriceDto;
 import com.otapp.hmis.engine.masterdata.pricing.application.ServicePriceDtos.SetServicePriceRequest;
 import com.otapp.hmis.engine.masterdata.pricing.application.ServicePriceDtos.UpdateServicePriceRequest;
@@ -22,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class ServicePriceService {
+
+    private static final String PRICE_NOT_FOUND = "Price not found: ";
 
     private final ServicePriceRepository priceRepository;
     private final InsurancePlanRepository insurancePlanRepository;
@@ -46,6 +49,7 @@ public class ServicePriceService {
             throw new BusinessRuleException("Unknown or inactive currency: " + request.currency());
         }
         validateBand(request.amount(), request.minAmount(), request.maxAmount());
+        validateCoverage(planUid, request.covered(), request.amount());
         if (priceRepository.findCell(planUid, request.kind(), request.serviceUid(), request.currency()).isPresent()) {
             throw new ConflictException(
                     "A " + request.currency() + " price already exists for this payer and service — edit it instead.");
@@ -55,6 +59,8 @@ public class ServicePriceService {
                 request.amount(), request.currency(), request.note());
         price.setMinAmount(request.minAmount());
         price.setMaxAmount(request.maxAmount());
+        // Coverage applies only to plan rows; cash rows stay uncovered.
+        price.setCovered(planUid != null && request.covered());
         priceRepository.save(price);
 
         return toDto(price);
@@ -67,13 +73,75 @@ public class ServicePriceService {
     @Transactional
     public ServicePriceDto update(String uid, UpdateServicePriceRequest request) {
         ServicePrice price = priceRepository.findByUid(uid)
-                .orElseThrow(() -> new NotFoundException("Price not found: " + uid));
+                .orElseThrow(() -> new NotFoundException(PRICE_NOT_FOUND + uid));
         validateBand(request.amount(), request.minAmount(), request.maxAmount());
+        // Legacy update_*_price_by_insurance: amount == 0 auto-unsets coverage;
+        // coverage requested with amount <= 0 is rejected.
+        boolean covered = price.getPlanUid() != null && request.covered();
+        if (request.amount().signum() == 0) {
+            covered = false;
+        }
+        validateCoverage(price.getPlanUid(), covered, request.amount());
         price.setAmount(request.amount());
         price.setMinAmount(request.minAmount());
         price.setMaxAmount(request.maxAmount());
         price.setNote(request.note());
+        price.setCovered(covered);
         return toDto(price);
+    }
+
+    /**
+     * Cover a service for its plan (legacy {@code change_*_coverage} with
+     * covered=true). Refuses an unpriced cell — coverage requires {@code amount > 0}.
+     * 404 if the cell is unknown; the cell must be a plan row (cash cannot cover).
+     */
+    @Transactional
+    public ServicePriceDto cover(String uid) {
+        return setCovered(uid, true);
+    }
+
+    /** Uncover a service for its plan (legacy {@code change_*_coverage} with covered=false). */
+    @Transactional
+    public ServicePriceDto uncover(String uid) {
+        return setCovered(uid, false);
+    }
+
+    private ServicePriceDto setCovered(String uid, boolean covered) {
+        ServicePrice price = priceRepository.findByUid(uid)
+                .orElseThrow(() -> new NotFoundException(PRICE_NOT_FOUND + uid));
+        if (covered && price.getPlanUid() == null) {
+            throw new BusinessRuleException("A cash price cannot be marked as covered — coverage applies to plan prices only.");
+        }
+        validateCoverage(price.getPlanUid(), covered, price.getAmount());
+        price.setCovered(covered);
+        return toDto(price);
+    }
+
+    /**
+     * Coverage gate (legacy {@code change_*_coverage}): a covered service must
+     * carry a positive price. Rule/gate violation -> 422.
+     */
+    private static void validateCoverage(String planUid, boolean covered, BigDecimal amount) {
+        if (planUid != null && covered && amount.signum() <= 0) {
+            throw new BusinessRuleException(
+                    "Could not change coverage. Invalid price value. Should not be equal or less than zero.");
+        }
+    }
+
+    /**
+     * The per-plan coverage grid: the plan's price rows, projected as coverage
+     * rows (price + covered flag). 404 if the plan is unknown.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<ServiceCoverageDto> coverageGrid(String planUid, ServiceKind kind, String query,
+                                                         Pageable pageable) {
+        if (planUid == null || planUid.isBlank() || insurancePlanRepository.findByUid(planUid).isEmpty()) {
+            throw new NotFoundException("Insurance plan not found: " + planUid);
+        }
+        String searchFilter = (query == null || query.isBlank()) ? null : query.trim();
+        return PageResponse.from(
+                priceRepository.search(planUid, false, kind, null, null, searchFilter, pageable)
+                        .map(this::toCoverageDto));
     }
 
     /** A negotiable band must satisfy {@code min <= amount <= max} for whichever bounds are present. */
@@ -92,7 +160,7 @@ public class ServicePriceService {
     @Transactional
     public void delete(String uid) {
         ServicePrice price = priceRepository.findByUid(uid)
-                .orElseThrow(() -> new NotFoundException("Price not found: " + uid));
+                .orElseThrow(() -> new NotFoundException(PRICE_NOT_FOUND + uid));
         priceRepository.delete(price);
     }
 
@@ -126,7 +194,25 @@ public class ServicePriceService {
                 p.getMaxAmount(),
                 p.getCurrency(),
                 p.getNote(),
+                p.isCovered(),
                 p.getCreatedAt(),
                 p.getUpdatedAt());
+    }
+
+    private ServiceCoverageDto toCoverageDto(ServicePrice p) {
+        String planName = p.getPlanUid() == null
+                ? null
+                : insurancePlanRepository.findByUid(p.getPlanUid()).map(InsurancePlan::getName).orElse(null);
+        return new ServiceCoverageDto(
+                p.getId(),
+                p.getUid(),
+                p.getPlanUid(),
+                planName,
+                p.getKind(),
+                p.getServiceUid(),
+                nameResolver.resolveName(p.getKind(), p.getServiceUid()),
+                p.getAmount(),
+                p.getCurrency(),
+                p.isCovered());
     }
 }

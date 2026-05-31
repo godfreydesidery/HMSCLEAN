@@ -194,7 +194,11 @@ public class InvoiceService {
         }
 
         Invoice invoice = invoiceRepository.findByAdmissionUid(admissionUid).orElse(null);
-        if (invoice != null && invoice.getStatus() != InvoiceStatus.DRAFT) {
+        // Ward-day charges accrue over the stay, so the admission invoice may be
+        // rebuilt while it is still open and unpaid (DRAFT or ISSUED with no money
+        // taken) — this recomputes the ward-day line + consumable chart to "now".
+        // Once a payment lands (or it is cancelled) the invoice is frozen.
+        if (invoice != null && !linePricing.overridable(invoice)) {
             throw new BusinessRuleException("Invoice is already " + invoice.getStatus() + " and cannot be regenerated");
         }
         if (invoice == null) {
@@ -252,7 +256,29 @@ public class InvoiceService {
         invoiceLineRepository.saveAll(lines);
         invoice.setSubtotal(subtotal);
         invoice.setCurrency(currency);
+        // A rebuild of an already-ISSUED invoice changed the outstanding balance
+        // (e.g. another ward-day accrued) — keep the admission discharge gate
+        // (bills_cleared) in sync. issue() already does this for the DRAFT case.
+        if (invoice.getStatus() != InvoiceStatus.DRAFT) {
+            settlementDispatcher.onInvoiceMaybeSettled(invoice);
+        }
         return toDto(invoice);
+    }
+
+    /**
+     * Seed (and issue) the admission invoice from the admit after-commit listener,
+     * so the ward-bed bill exists and the discharge gate is armed the moment a
+     * patient is admitted — the legacy "doAdmission creates the ward-bed bill"
+     * step. REQUIRES_NEW because it runs outside the original (already-committed)
+     * admission transaction; idempotent (a re-fire just rebuilds the open invoice).
+     */
+    @org.springframework.transaction.annotation.Transactional(
+            propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void seedAdmissionInvoice(String admissionUid) {
+        InvoiceDto invoice = generateForAdmission(admissionUid);
+        if (invoice.status() == InvoiceStatus.DRAFT) {
+            issue(invoice.uid());
+        }
     }
 
     /**

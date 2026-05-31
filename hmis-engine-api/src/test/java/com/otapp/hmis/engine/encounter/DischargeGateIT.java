@@ -43,6 +43,11 @@ class DischargeGateIT extends AuthenticatedIntegrationTest {
         assertThat(denied.getStatusCode().is4xxClientError())
                 .as("Discharge must be refused without an APPROVED discharge plan").isTrue();
 
+        // Admitting to a priced ward now issues a ward-bed bill that arms the
+        // discharge bill-clearance gate (process-audit cluster #1) — settle it so
+        // this test exercises the discharge-plan gate, not the bills gate.
+        settleAdmissionBill(admissionUid);
+
         // Create the plan (authored by root), approve as a DIFFERENT user
         // (segregation of duties) → admission closes.
         expectOk(post("/encounters/admissions/uid/" + admissionUid + "/discharge-plan",

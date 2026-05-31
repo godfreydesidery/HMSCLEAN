@@ -214,6 +214,30 @@ public abstract class AuthenticatedIntegrationTest extends AbstractIntegrationTe
     }
 
     /**
+     * Settles any outstanding admission (ward-bed) invoice so the discharge
+     * bill-clearance gate clears. Admitting to a priced ward now issues + arms a
+     * ward-bed bill at admit time (process-audit cluster #1 / M23), so a test that
+     * admits and then discharges must clear that bill first. No-op when there is no
+     * admission invoice or nothing is outstanding.
+     */
+    @SuppressWarnings("rawtypes")
+    protected void settleAdmissionBill(String admissionUid) {
+        ResponseEntity<java.util.Map> r =
+                get("/billing/admissions/uid/" + admissionUid + "/invoice", java.util.Map.class);
+        java.util.Map body = r.getBody();
+        if (!r.getStatusCode().is2xxSuccessful() || body == null || body.get("balance") == null) {
+            return;
+        }
+        java.math.BigDecimal balance = new java.math.BigDecimal(body.get("balance").toString());
+        if (balance.signum() <= 0) {
+            return;
+        }
+        post("/billing/invoices/uid/" + body.get("uid") + "/payments",
+                java.util.Map.of("method", "CASH", "amount", balance, "currency", body.get("currency")),
+                java.util.Map.class);
+    }
+
+    /**
      * Convenience to grab a single field from a JSON response without
      * binding a DTO class. Useful when the test only needs the uid of a
      * created resource.

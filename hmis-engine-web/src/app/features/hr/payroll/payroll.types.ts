@@ -2,6 +2,13 @@
 
 export type PayrollPeriodStatus = 'DRAFT' | 'VERIFIED' | 'APPROVED' | 'PAID' | 'CANCELLED';
 
+/** Result of bulk-seeding a DRAFT period from active employees. */
+export interface ImportEmployeesResult {
+  imported: number;
+  skipped: number;
+  total: number;
+}
+
 export interface PayrollPeriodStatusOption {
   readonly value: PayrollPeriodStatus;
   readonly label: string;

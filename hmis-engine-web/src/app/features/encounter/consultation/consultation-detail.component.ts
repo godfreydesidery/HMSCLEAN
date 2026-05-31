@@ -84,16 +84,26 @@ export class ConsultationDetailComponent {
     chiefComplaint: [''],
     historyOfPresentingIllness: [''],
     pastMedicalHistory: [''],
+    drugsAndAllergyHistory: [''],
+    familyAndSocialHistory: [''],
+    reviewOfOtherSystems: [''],
     examination: [''],
     assessment: [''],
     plan: ['']
   });
 
-  readonly canStart = computed(() => this.consultation()?.status === 'BOOKED');
+  // A CASH visit cannot be opened until its consultation fee is settled (server gate).
+  readonly canStart = computed(() => {
+    const c = this.consultation();
+    return c?.status === 'BOOKED' && !(c.paymentType === 'CASH' && !c.feeSettled);
+  });
   readonly canComplete = computed(() => this.consultation()?.status === 'IN_PROGRESS');
-  readonly canCancel = computed(() => {
-    const s = this.consultation()?.status;
-    return s === 'BOOKED' || s === 'IN_PROGRESS';
+  // Cancel is BOOKED-only (legacy cancel_consultation); IN_PROGRESS closes via Complete (sign-out).
+  readonly canCancel = computed(() => this.consultation()?.status === 'BOOKED');
+  /** Awaiting cashier fee collection — Start is blocked until then. */
+  readonly awaitingFee = computed(() => {
+    const c = this.consultation();
+    return c?.status === 'BOOKED' && c.paymentType === 'CASH' && !c.feeSettled;
   });
   readonly canTransfer = computed(() => {
     const c = this.consultation();
@@ -103,10 +113,10 @@ export class ConsultationDetailComponent {
   });
   /** Once a visit is complete the next visit is a follow-up; before then it's just the current one. */
   readonly canFollowUp = computed(() => this.consultation()?.status === 'COMPLETED');
-  readonly isEditable = computed(() => {
-    const s = this.consultation()?.status;
-    return s === 'BOOKED' || s === 'IN_PROGRESS';
-  });
+  // Clinical authoring (notes/orders/Rx/diagnoses) is IN_PROGRESS-only — mirror the
+  // server gate (Consultation.requireAuthorable) via the DTO's authorable flag, so a
+  // BOOKED consultation correctly disables authoring instead of erroring on save.
+  readonly isEditable = computed(() => this.consultation()?.authorable === true);
 
   readonly workingDiagnoses = computed(() => this.diagnoses().filter((d) => d.kind === 'WORKING'));
   readonly finalDiagnoses = computed(() => this.diagnoses().filter((d) => d.kind === 'FINAL'));
@@ -214,6 +224,9 @@ export class ConsultationDetailComponent {
       chiefComplaint: emptyToNull(raw.chiefComplaint),
       historyOfPresentingIllness: emptyToNull(raw.historyOfPresentingIllness),
       pastMedicalHistory: emptyToNull(raw.pastMedicalHistory),
+      drugsAndAllergyHistory: emptyToNull(raw.drugsAndAllergyHistory),
+      familyAndSocialHistory: emptyToNull(raw.familyAndSocialHistory),
+      reviewOfOtherSystems: emptyToNull(raw.reviewOfOtherSystems),
       examination: emptyToNull(raw.examination),
       assessment: emptyToNull(raw.assessment),
       plan: emptyToNull(raw.plan)
@@ -444,6 +457,9 @@ export class ConsultationDetailComponent {
         chiefComplaint: note.chiefComplaint ?? '',
         historyOfPresentingIllness: note.historyOfPresentingIllness ?? '',
         pastMedicalHistory: note.pastMedicalHistory ?? '',
+        drugsAndAllergyHistory: note.drugsAndAllergyHistory ?? '',
+        familyAndSocialHistory: note.familyAndSocialHistory ?? '',
+        reviewOfOtherSystems: note.reviewOfOtherSystems ?? '',
         examination: note.examination ?? '',
         assessment: note.assessment ?? '',
         plan: note.plan ?? ''

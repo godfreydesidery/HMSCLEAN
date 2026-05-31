@@ -96,11 +96,13 @@
                     @if (u.locked) {
                       <button type="button" ngbDropdownItem (click)="unlock(u)"><i class="bi bi-unlock me-2 text-warning"></i>Unlock</button>
                     }
-                    <div class="dropdown-divider"></div>
-                    <button type="button" ngbDropdownItem (click)="toggleEnabled(u)">
-                      <i class="bi me-2" [class.bi-toggle-off]="u.enabled" [class.bi-toggle-on]="!u.enabled"></i>
-                      {{ u.enabled ? 'Disable' : 'Enable' }}
-                    </button>
+                    @if (!isSelf(u)) {
+                      <div class="dropdown-divider"></div>
+                      <button type="button" ngbDropdownItem (click)="toggleEnabled(u)">
+                        <i class="bi me-2" [class.bi-toggle-off]="u.enabled" [class.bi-toggle-on]="!u.enabled"></i>
+                        {{ u.enabled ? 'Disable' : 'Enable' }}
+                      </button>
+                    }
                   </div>
                 </div>
               </td>

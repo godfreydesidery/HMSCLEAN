@@ -45,15 +45,21 @@
           <div class="card-header bg-white fw-semibold">Line items</div>
           <div class="table-responsive">
             <table class="table table-hover align-middle mb-0 hmis-table">
-              <thead><tr><th>Kind</th><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit</th><th class="text-end">Amount</th></tr></thead>
+              <thead><tr><th>Kind</th><th>Description</th><th>Coverage</th><th class="text-end">Qty</th><th class="text-end">Unit</th><th class="text-end">Amount</th></tr></thead>
               <tbody>
                 @if (i.lines.length === 0) {
-                  <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-receipt"></i><div class="small">No lines on this invoice.</div></div></td></tr>
+                  <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-receipt"></i><div class="small">No lines on this invoice.</div></div></td></tr>
                 } @else {
                   @for (line of i.lines; track line.uid) {
                     <tr>
                       <td><span class="badge text-bg-light border">{{ line.kind }}</span></td>
-                      <td>{{ line.description }}</td>
+                      <td>
+                        {{ line.description }}
+                        @if (line.membershipNo) {
+                          <div class="small text-muted"><i class="bi bi-person-vcard me-1"></i>Member {{ line.membershipNo }}</div>
+                        }
+                      </td>
+                      <td><span class="badge" [ngClass]="coverageBadgeClass(line.coverageStatus)">{{ coverageLabel(line.coverageStatus) }}</span></td>
                       <td class="text-end">{{ line.quantity | number:'1.0-2' }}</td>
                       <td class="text-end">{{ line.unitPrice | number:'1.2-2' }}</td>
                       <td class="text-end fw-semibold">{{ line.amount | number:'1.2-2' }}</td>
@@ -63,15 +69,15 @@
               </tbody>
               <tfoot>
                 <tr class="border-top">
-                  <td colspan="4" class="text-end fw-semibold">Subtotal</td>
+                  <td colspan="5" class="text-end fw-semibold">Subtotal</td>
                   <td class="text-end fw-semibold">{{ i.subtotal | number:'1.2-2' }} {{ i.currency }}</td>
                 </tr>
                 <tr>
-                  <td colspan="4" class="text-end hmis-muted">Paid</td>
+                  <td colspan="5" class="text-end hmis-muted">Paid</td>
                   <td class="text-end hmis-muted">{{ i.totalPaid | number:'1.2-2' }} {{ i.currency }}</td>
                 </tr>
                 <tr class="border-top">
-                  <td colspan="4" class="text-end fw-semibold">Balance</td>
+                  <td colspan="5" class="text-end fw-semibold">Balance</td>
                   <td class="text-end fw-bold" [class.text-success]="i.balance === 0" [class.text-warning-emphasis]="i.balance > 0">{{ i.balance | number:'1.2-2' }} {{ i.currency }}</td>
                 </tr>
               </tfoot>

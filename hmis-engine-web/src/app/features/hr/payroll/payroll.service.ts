@@ -5,7 +5,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { PageResponse } from '../../../core/http/page.types';
 import {
-  CreatePayrollPeriodRequest, PayrollItem, PayrollPeriod,
+  CreatePayrollPeriodRequest, ImportEmployeesResult, PayrollItem, PayrollPeriod,
   PayrollPeriodWithItems, PayrollSearchParams, UpsertPayrollItemRequest
 } from './payroll.types';
 
@@ -55,5 +55,10 @@ export class PayrollService {
 
   cancel(periodUid: string, reason: string | null): Observable<PayrollPeriod> {
     return this.http.post<PayrollPeriod>(`${this.base}/periods/uid/${periodUid}/cancel`, { reason });
+  }
+
+  /** Bulk-seed payroll items for every active, payable employee (legacy import_employees). */
+  importEmployees(periodUid: string): Observable<ImportEmployeesResult> {
+    return this.http.post<ImportEmployeesResult>(`${this.base}/periods/uid/${periodUid}/import-employees`, {});
   }
 }

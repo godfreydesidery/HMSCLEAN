@@ -28,6 +28,14 @@ export const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: 'OTHER',           label: 'Other' }
 ];
 
+export type LineCoverageStatus = 'COVERED' | 'VERIFIED' | 'UNPAID';
+
+export const LINE_COVERAGE_STATUSES: { value: LineCoverageStatus; label: string; badgeClass: string }[] = [
+  { value: 'COVERED',  label: 'Insurer-covered', badgeClass: 'text-bg-success-subtle text-success-emphasis border border-success-subtle' },
+  { value: 'VERIFIED', label: 'Owed (insured)',  badgeClass: 'text-bg-warning-subtle text-warning-emphasis border border-warning-subtle' },
+  { value: 'UNPAID',   label: 'Cash',            badgeClass: 'text-bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle' }
+];
+
 export interface InvoiceLine {
   uid: string;
   kind: InvoiceLineKind;
@@ -37,6 +45,11 @@ export interface InvoiceLine {
   quantity: number;
   unitPrice: number;
   amount: number;
+  /** Payer routing: COVERED = insurer pays, VERIFIED = insured-but-owed, UNPAID = cash. */
+  coverageStatus: LineCoverageStatus;
+  membershipNo: string | null;
+  payerPlanUid: string | null;
+  principalLineUid: string | null;
 }
 
 export interface Payment {

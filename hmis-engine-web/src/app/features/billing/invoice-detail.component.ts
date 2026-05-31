@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 
 import { InvoiceService } from './invoice.service';
-import { INVOICE_STATUSES, Invoice, InvoiceStatus } from './invoice.types';
+import { INVOICE_STATUSES, Invoice, InvoiceStatus, LINE_COVERAGE_STATUSES, LineCoverageStatus } from './invoice.types';
 import { RecordPaymentComponent } from './record-payment.component';
 
 @Component({
@@ -77,5 +77,12 @@ export class InvoiceDetailComponent {
   }
   statusLabel(s: InvoiceStatus): string {
     return this.statuses.find((x) => x.value === s)?.label ?? s;
+  }
+
+  coverageBadgeClass(s: LineCoverageStatus): string {
+    return LINE_COVERAGE_STATUSES.find((x) => x.value === s)?.badgeClass ?? 'text-bg-light border';
+  }
+  coverageLabel(s: LineCoverageStatus): string {
+    return LINE_COVERAGE_STATUSES.find((x) => x.value === s)?.label ?? s;
   }
 }

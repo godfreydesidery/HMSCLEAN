@@ -34,7 +34,7 @@ final class IamMapper {
                 .map(Privilege::getName)
                 .sorted()
                 .toList();
-        return new RoleDto(role.getUid(), role.getName(), role.getDescription(), privileges);
+        return new RoleDto(role.getUid(), role.getName(), role.getDescription(), privileges, role.isProtected());
     }
 
     static PrivilegeDto toDto(Privilege privilege) {

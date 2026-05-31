@@ -36,6 +36,17 @@ public class Role extends AuditableEntity {
     @Column(length = 255)
     private String description;
 
+    /**
+     * System/protected role marker. Protected roles are seeded by migration V2
+     * and drive worklist routing and privilege baselines, so they may not have
+     * their privileges replaced and their names are reserved (see
+     * {@link com.otapp.hmis.engine.iam.application.ProtectedIdentityPolicy}).
+     * Read-only from the application: the flag is owned by the database
+     * (set in migration V62), never toggled through the API.
+     */
+    @Column(name = "protected", nullable = false)
+    private boolean protectedRole = false;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "iam_role_privilege",
@@ -47,6 +58,11 @@ public class Role extends AuditableEntity {
     public Role(String name, String description) {
         this.name = name;
         this.description = description;
+    }
+
+    /** @return {@code true} if this is a protected system role. */
+    public boolean isProtected() {
+        return protectedRole;
     }
 
     public void grant(Privilege privilege) {

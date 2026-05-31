@@ -22,12 +22,14 @@ public class RoleService {
 
     private final RoleRepository roleRepository;
     private final PrivilegeRepository privilegeRepository;
+    private final ProtectedIdentityPolicy protectedIdentityPolicy;
 
     @Transactional
     public RoleDto create(CreateRoleRequest request) {
         if (roleRepository.existsByName(request.name())) {
             throw new ConflictException("Role already exists: " + request.name());
         }
+        protectedIdentityPolicy.assertRoleNameAvailable(request.name());
         Role role = new Role(request.name(), request.description());
         attachPrivileges(role, request.privileges());
         roleRepository.save(role);
@@ -52,6 +54,7 @@ public class RoleService {
     public RoleDto replacePrivileges(String uid, Set<String> privilegeNames) {
         Role role = roleRepository.findByUid(uid)
                 .orElseThrow(() -> new NotFoundException("Role not found: " + uid));
+        protectedIdentityPolicy.assertCanReplacePrivileges(role);
         role.getPrivileges().clear();
         attachPrivileges(role, privilegeNames);
         return IamMapper.toDto(role);

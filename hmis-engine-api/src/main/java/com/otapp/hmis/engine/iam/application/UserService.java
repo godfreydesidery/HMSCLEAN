@@ -26,6 +26,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ProtectedIdentityPolicy protectedIdentityPolicy;
 
     @Transactional
     public UserSummary create(CreateUserRequest request) {
@@ -57,10 +58,19 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException("User not found: " + uid));
     }
 
+    /**
+     * Enable or disable a user account.
+     *
+     * <p>Guarded by the legacy SELF (de)activation rule: a user may not change
+     * their own enabled flag. {@code currentUsername} is the authenticated
+     * caller threaded in from the controller; pass {@code null} for system
+     * contexts where no self-guard applies.
+     */
     @Transactional
-    public UserSummary setEnabled(String uid, boolean enabled) {
+    public UserSummary setEnabled(String uid, boolean enabled, String currentUsername) {
         User user = userRepository.findByUid(uid)
                 .orElseThrow(() -> new NotFoundException("User not found: " + uid));
+        protectedIdentityPolicy.assertCanSetEnabled(user, enabled, currentUsername);
         user.setEnabled(enabled);
         return IamMapper.toSummary(user);
     }

@@ -34,6 +34,14 @@ public class Supplier extends AuditableEntity {
     @Setter @Column(name = "tax_id", length = 64) private String taxId;
     @Setter @Column(length = 500) private String notes;
 
+    // --- VAT, contract terms and bank-account block (legacy Supplier parity) ---
+    // These print on the LPO / cheque / remittance documents. All nullable.
+    @Setter @Column(length = 32)                            private String vrn;
+    @Setter @Column(name = "terms_of_contract", length = 1000) private String termsOfContract;
+    @Setter @Column(name = "bank_name", length = 120)       private String bankName;
+    @Setter @Column(name = "bank_account_name", length = 200) private String bankAccountName;
+    @Setter @Column(name = "bank_account_no", length = 64)  private String bankAccountNo;
+
     @Setter @Column(nullable = false) private boolean active = true;
 
     public Supplier(String code, String name, String contactName, String phone, String email,

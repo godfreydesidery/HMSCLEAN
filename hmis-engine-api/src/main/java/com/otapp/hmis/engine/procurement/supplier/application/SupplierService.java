@@ -33,6 +33,11 @@ public class SupplierService {
                 emptyToNull(request.address()),
                 emptyToNull(request.taxId()),
                 emptyToNull(request.notes()));
+        supplier.setVrn(emptyToNull(request.vrn()));
+        supplier.setTermsOfContract(emptyToNull(request.termsOfContract()));
+        supplier.setBankName(emptyToNull(request.bankName()));
+        supplier.setBankAccountName(emptyToNull(request.bankAccountName()));
+        supplier.setBankAccountNo(emptyToNull(request.bankAccountNo()));
         supplierRepository.save(supplier);
         return toDto(supplier);
     }
@@ -47,6 +52,11 @@ public class SupplierService {
         supplier.setAddress(emptyToNull(request.address()));
         supplier.setTaxId(emptyToNull(request.taxId()));
         supplier.setNotes(emptyToNull(request.notes()));
+        supplier.setVrn(emptyToNull(request.vrn()));
+        supplier.setTermsOfContract(emptyToNull(request.termsOfContract()));
+        supplier.setBankName(emptyToNull(request.bankName()));
+        supplier.setBankAccountName(emptyToNull(request.bankAccountName()));
+        supplier.setBankAccountNo(emptyToNull(request.bankAccountNo()));
         return toDto(supplier);
     }
 
@@ -87,7 +97,12 @@ public class SupplierService {
                 s.getNotes(),
                 s.isActive(),
                 s.getCreatedAt(),
-                s.getUpdatedAt());
+                s.getUpdatedAt(),
+                s.getVrn(),
+                s.getTermsOfContract(),
+                s.getBankName(),
+                s.getBankAccountName(),
+                s.getBankAccountNo());
     }
 
     private static String emptyToNull(String s) {

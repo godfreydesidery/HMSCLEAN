@@ -44,6 +44,9 @@ public class StoreStockBatch extends AuditableEntity {
     @Column(name = "batch_no", nullable = false, length = 64)
     private String batchNo;
 
+    /** Supplier-stated manufactured date for the batch (nullable). */
+    @Setter @Column(name = "manufactured_date") private LocalDate manufacturedDate;
+
     @Setter @Column(name = "expires_at") private LocalDate expiresAt;
 
     @Column(name = "received_at", nullable = false)
@@ -53,9 +56,15 @@ public class StoreStockBatch extends AuditableEntity {
     private int quantity;
 
     public StoreStockBatch(String storeUid, String medicineUid, String batchNo, LocalDate expiresAt) {
+        this(storeUid, medicineUid, batchNo, null, expiresAt);
+    }
+
+    public StoreStockBatch(String storeUid, String medicineUid, String batchNo,
+                           LocalDate manufacturedDate, LocalDate expiresAt) {
         this.storeUid = storeUid;
         this.medicineUid = medicineUid;
         this.batchNo = batchNo;
+        this.manufacturedDate = manufacturedDate;
         this.expiresAt = expiresAt;
         this.receivedAt = Instant.now();
         this.quantity = 0;

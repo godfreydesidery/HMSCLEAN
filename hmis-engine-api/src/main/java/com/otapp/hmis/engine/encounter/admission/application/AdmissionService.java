@@ -12,6 +12,7 @@ import com.otapp.hmis.engine.encounter.admission.application.AdmissionDtos.Trans
 import com.otapp.hmis.engine.encounter.admission.domain.Admission;
 import com.otapp.hmis.engine.encounter.admission.domain.AdmissionRepository;
 import com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus;
+import com.otapp.hmis.engine.encounter.admission.application.event.AdmissionAdmittedEvent;
 import com.otapp.hmis.engine.encounter.admission.infrastructure.AdmissionNumberGenerator;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
@@ -32,6 +33,7 @@ import com.otapp.hmis.engine.patient.domain.PatientRepository;
 import com.otapp.hmis.engine.patient.domain.PaymentType;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +52,7 @@ public class AdmissionService {
     private final ConsultationRepository consultationRepository;
     private final DischargePlanRepository dischargePlanRepository;
     private final AdmissionNumberGenerator numberGenerator;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public AdmissionDto admit(AdmitPatientRequest request) {
@@ -113,6 +116,11 @@ public class AdmissionService {
             admission.setBedLabel(bed.getLabel());
         }
         patientService.touchLastVisit(patient.getUid());
+        // Billing seeds + issues the admission (ward-bed) invoice on this event,
+        // after-commit — so the bill exists and the discharge gate is armed the
+        // moment a patient is admitted (legacy parity). Encounter never imports
+        // billing; the dependency runs billing -> encounter via the event.
+        eventPublisher.publishEvent(new AdmissionAdmittedEvent(admission.getUid()));
         return toDto(admission);
     }
 

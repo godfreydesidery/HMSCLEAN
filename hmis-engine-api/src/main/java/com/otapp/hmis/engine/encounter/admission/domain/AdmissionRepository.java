@@ -55,6 +55,13 @@ public interface AdmissionRepository extends JpaRepository<Admission, Long> {
             """)
     Page<Admission> nurseWorklist(@Param("wardUid") String wardUid, Pageable pageable);
 
+    /** UIDs of currently-ADMITTED admissions — drives the daily ward-day accrual job. */
+    @Query("""
+            SELECT a.uid FROM Admission a
+            WHERE a.status = com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.ADMITTED
+            """)
+    List<String> findAdmittedUids();
+
     /** [wardUid, count] pairs for currently-ADMITTED admissions — drives the bed-occupancy report. */
     @Query("""
             SELECT a.wardUid, COUNT(a)

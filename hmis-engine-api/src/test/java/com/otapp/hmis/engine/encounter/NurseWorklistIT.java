@@ -40,6 +40,11 @@ class NurseWorklistIT extends AuthenticatedIntegrationTest {
         assertThat(nurseWorklistContains(admissionUid, null)).isTrue();
         assertThat(nurseWorklistContains(admissionUid, GENERAL_WARD_UID)).isTrue();
 
+        // Admitting to a priced ward now issues a ward-bed bill that arms the
+        // discharge bill-clearance gate (process-audit cluster #1) — settle it so
+        // approval can close the admission.
+        settleAdmissionBill(admissionUid);
+
         // Discharge goes through an APPROVED discharge plan (legacy gate, M17):
         // create the plan with the required fields, then approve it as a
         // different user (segregation of duties) — approval closes the admission.

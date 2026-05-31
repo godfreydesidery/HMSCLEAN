@@ -19,7 +19,7 @@
         <label class="form-label" for="rx-medicine">Medicine <span class="text-danger">*</span></label>
         <select id="rx-medicine" name="medicineUid" class="form-select" formControlName="medicineUid">
           <option value="" disabled>{{ loadingMedicines() ? 'Loading…' : '— Select a medicine —' }}</option>
-          @for (m of medicines(); track m.uid) { <option [value]="m.uid">{{ medicineLabel(m) }}</option> }
+          @for (m of medicines(); track m.uid) { <option [value]="m.uid" [disabled]="alreadyPrescribed(m)">{{ medicineLabel(m) }}{{ alreadyPrescribed(m) ? ' (already prescribed)' : '' }}</option> }
         </select>
       </div>
       <div class="col-md-6">

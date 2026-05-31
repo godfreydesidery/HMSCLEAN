@@ -24,11 +24,12 @@ import { RecordAdministrationModalComponent } from './record-administration-moda
 import { ProgressNoteService } from './progress-note.service';
 import { PROGRESS_NOTE_KINDS, ProgressNote, ProgressNoteKind } from './progress-note.types';
 import { NursingChartService } from './nursing-chart.service';
-import { CARE_PLAN_STATUSES, CarePlanItem, CarePlanStatus, VitalsEntry } from './nursing-chart.types';
+import { CARE_PLAN_STATUSES, CarePlanItem, CarePlanStatus, DressingEntry, VitalsEntry, WOUND_STATUSES, WoundStatus } from './nursing-chart.types';
 import { RecordVitalsModalComponent } from './record-vitals-modal.component';
+import { RecordDressingModalComponent } from './record-dressing-modal.component';
 import { CarePlanItemModalComponent } from './care-plan-item-modal.component';
 
-type TabKey = 'overview' | 'notes' | 'vitals' | 'care-plan' | 'meds' | 'consumables' | 'billing';
+type TabKey = 'overview' | 'notes' | 'vitals' | 'care-plan' | 'dressings' | 'meds' | 'consumables' | 'billing';
 
 @Component({
   selector: 'app-admission-detail',
@@ -54,6 +55,7 @@ export class AdmissionDetailComponent {
   readonly noteKinds = PROGRESS_NOTE_KINDS;
   readonly invoiceStatuses = INVOICE_STATUSES;
   readonly carePlanStatuses = CARE_PLAN_STATUSES;
+  readonly woundStatuses = WOUND_STATUSES;
 
   readonly admission = signal<Admission | null>(null);
   readonly wards = signal<Ward[]>([]);
@@ -66,6 +68,8 @@ export class AdmissionDetailComponent {
   readonly vitalsLoaded = signal(false);
   readonly carePlan = signal<CarePlanItem[]>([]);
   readonly carePlanLoaded = signal(false);
+  readonly dressings = signal<DressingEntry[]>([]);
+  readonly dressingsLoaded = signal(false);
   readonly billingSummary = signal<AdmissionBillingSummary | null>(null);
 
   readonly loading = signal(true);
@@ -134,6 +138,7 @@ export class AdmissionDetailComponent {
     if (tab === 'meds' && !this.medsLoaded()) this.loadMeds();
     if (tab === 'vitals' && !this.vitalsLoaded()) this.loadVitals();
     if (tab === 'care-plan' && !this.carePlanLoaded()) this.loadCarePlan();
+    if (tab === 'dressings' && !this.dressingsLoaded()) this.loadDressings();
   }
 
   private loadMeds(): void {
@@ -157,6 +162,14 @@ export class AdmissionDetailComponent {
     this.nursingChartService.listCarePlan(a.uid).subscribe({
       next: (rows) => { this.carePlan.set(rows); this.carePlanLoaded.set(true); },
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load the care plan.')
+    });
+  }
+
+  private loadDressings(): void {
+    const a = this.admission(); if (!a) return;
+    this.nursingChartService.listDressings(a.uid).subscribe({
+      next: (rows) => { this.dressings.set(rows); this.dressingsLoaded.set(true); },
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load dressings.')
     });
   }
 
@@ -184,6 +197,15 @@ export class AdmissionDetailComponent {
     (ref.componentInstance as RecordVitalsModalComponent).admissionUid = a.uid;
     ref.closed.subscribe((entry?: VitalsEntry) => {
       if (entry) { this.vitals.update((rows) => [entry, ...rows]); this.vitalsLoaded.set(true); }
+    });
+  }
+
+  openRecordDressing(): void {
+    const a = this.admission(); if (!a) return;
+    const ref = this.modal.open(RecordDressingModalComponent, { size: 'lg', backdrop: 'static' });
+    (ref.componentInstance as RecordDressingModalComponent).admissionUid = a.uid;
+    ref.closed.subscribe((entry?: DressingEntry) => {
+      if (entry) { this.dressings.update((rows) => [entry, ...rows]); this.dressingsLoaded.set(true); }
     });
   }
 
@@ -394,6 +416,12 @@ export class AdmissionDetailComponent {
   }
   carePlanLabel(s: CarePlanStatus): string {
     return this.carePlanStatuses.find((x) => x.value === s)?.label ?? s;
+  }
+  woundStatusBadgeClass(s: WoundStatus): string {
+    return 'badge ' + (this.woundStatuses.find((x) => x.value === s)?.badgeClass ?? '');
+  }
+  woundStatusLabel(s: WoundStatus): string {
+    return this.woundStatuses.find((x) => x.value === s)?.label ?? s;
   }
   patientInitials(a: Admission): string {
     const parts = (a.patientName ?? '').split(' ').filter((p) => p.length > 0);

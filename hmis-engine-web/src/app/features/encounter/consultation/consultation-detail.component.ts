@@ -362,6 +362,7 @@ export class ConsultationDetailComponent {
     const ref = this.modal.open(AddPrescriptionComponent, { size: 'lg', backdrop: 'static' });
     (ref.componentInstance as AddPrescriptionComponent).consultationUid = c.uid;
     (ref.componentInstance as AddPrescriptionComponent).patientUid = c.patientUid;
+    (ref.componentInstance as AddPrescriptionComponent).existingMedicineUids = this.prescriptions().filter(p => p.status !== 'CANCELLED' && p.status !== 'REJECTED').map(p => p.medicineUid);
     ref.closed.subscribe(() => this.refreshPrescriptions());
   }
 

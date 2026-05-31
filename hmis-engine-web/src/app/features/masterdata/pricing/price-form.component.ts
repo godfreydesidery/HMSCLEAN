@@ -67,7 +67,8 @@ export class PriceFormComponent implements OnInit {
     minAmount: [null as number | null, [Validators.min(0)]],
     maxAmount: [null as number | null, [Validators.min(0)]],
     currency: ['TZS', [Validators.required, Validators.pattern(/^[A-Z]{3}$/)]],
-    note: ['', [Validators.maxLength(255)]]
+    note: ['', [Validators.maxLength(255)]],
+    covered: [false]                        // plan rows only — cash rows are never covered
   });
 
   ngOnInit(): void {
@@ -97,7 +98,8 @@ export class PriceFormComponent implements OnInit {
         minAmount: e.minAmount,
         maxAmount: e.maxAmount,
         currency: e.currency,
-        note: e.note ?? ''
+        note: e.note ?? '',
+        covered: e.covered
       });
       this.form.controls.kind.disable();
       this.form.controls.serviceUid.disable();
@@ -124,9 +126,28 @@ export class PriceFormComponent implements OnInit {
         this.loadServiceOptions(k);
       });
     }
+
+    // Coverage applies to plan rows only — cash rows are never covered. Keep the
+    // checkbox disabled (and forced off) whenever there is no plan selected, and
+    // react to plan changes on new/preset entries.
+    this.syncCoveredState();
+    this.form.controls.planUid.valueChanges.subscribe(() => this.syncCoveredState());
+  }
+
+  /** Disable + clear the covered flag when no plan is selected (cash price). */
+  private syncCoveredState(): void {
+    const hasPlan = !!this.form.controls.planUid.value;
+    if (hasPlan) {
+      this.form.controls.covered.enable({ emitEvent: false });
+    } else {
+      this.form.controls.covered.setValue(false, { emitEvent: false });
+      this.form.controls.covered.disable({ emitEvent: false });
+    }
   }
 
   get isEdit(): boolean { return !!this.existing; }
+  /** Cash rows can never be covered — used to hide/disable the checkbox in the template. */
+  get coverageAvailable(): boolean { return !!this.form.controls.planUid.value; }
   get title(): string {
     if (this.isEdit) return 'Edit price';
     if (this.presetServiceLabel) return `Set price — ${this.presetServiceLabel}`;
@@ -185,9 +206,11 @@ export class PriceFormComponent implements OnInit {
     const min = raw.minAmount === null || raw.minAmount === undefined ? null : Number(raw.minAmount);
     const max = raw.maxAmount === null || raw.maxAmount === undefined ? null : Number(raw.maxAmount);
     const existing = this.existing;
+    // Coverage is a plan-only concept; the backend also auto-unsets it when amount == 0.
+    const covered = raw.planUid ? raw.covered : false;
     const req$ = existing
       ? this.priceService.update(existing.uid, {
-          amount: Number(raw.amount), minAmount: min, maxAmount: max, note: raw.note?.trim() || null
+          amount: Number(raw.amount), minAmount: min, maxAmount: max, note: raw.note?.trim() || null, covered
         })
       : this.priceService.create({
           planUid: raw.planUid ? raw.planUid : null,
@@ -197,7 +220,8 @@ export class PriceFormComponent implements OnInit {
           minAmount: min,
           maxAmount: max,
           currency: raw.currency.toUpperCase(),
-          note: raw.note?.trim() || null
+          note: raw.note?.trim() || null,
+          covered
         });
     req$.pipe(finalize(() => this.submitting.set(false)))
       .subscribe({

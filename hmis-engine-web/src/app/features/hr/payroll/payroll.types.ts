@@ -1,5 +1,7 @@
 /** Mirrors backend `com.otapp.hmis.engine.hr.payroll.*` DTOs (Phase 47). */
 
+import { PayrollComponentType } from './payroll-component.types';
+
 export type PayrollPeriodStatus = 'DRAFT' | 'VERIFIED' | 'APPROVED' | 'PAID' | 'CANCELLED';
 
 /** Result of bulk-seeding a DRAFT period from active employees. */
@@ -49,7 +51,7 @@ export interface PayrollItemLine {
   uid: string;
   code: string | null;
   name: string;
-  type: 'EARNING' | 'DEDUCTION';
+  type: PayrollComponentType;
   amount: string;
   sortOrder: number;
 }
@@ -63,6 +65,7 @@ export interface PayrollItem {
   grossPay: string;
   totalDeductions: string;
   netPay: string;
+  employerContributions: string;   // employer-side cost; tracked, NOT subtracted from net
   paymentMethod: string | null;
   paymentReference: string | null;
   note: string | null;
@@ -88,7 +91,7 @@ export interface CreatePayrollPeriodRequest {
 export interface UpsertPayrollItemLineRequest {
   code?: string | null;
   name: string;
-  type: 'EARNING' | 'DEDUCTION';
+  type: PayrollComponentType;
   amount: string;
 }
 
@@ -96,6 +99,7 @@ export interface UpsertPayrollItemRequest {
   employeeUid: string;
   grossPay: string;
   totalDeductions: string;
+  employerContributions?: string;   // employer-side cost (optional, default 0); tracked, not in net
   paymentMethod?: string | null;
   paymentReference?: string | null;
   note?: string | null;

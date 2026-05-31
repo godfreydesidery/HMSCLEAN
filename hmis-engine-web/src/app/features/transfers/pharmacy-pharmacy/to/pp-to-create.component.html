@@ -1,0 +1,121 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">New transfer order</h1>
+    <p class="hmis-muted mb-0 small">Issue stock from the delivering pharmacy against an approved inter-pharmacy requisition.</p>
+  </div>
+  <button type="button" class="btn btn-light border" (click)="cancel()"><i class="bi bi-arrow-left me-1"></i>Back</button>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<!-- Step 1: pick an RO (only when none was supplied / chosen yet) -->
+@if (!ro()) {
+  <div class="card">
+    <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-clipboard-check me-2 text-primary"></i>Select a requisition to issue against</div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 hmis-table">
+        <thead><tr><th>RO #</th><th>Requesting pharmacy</th><th>Delivering pharmacy</th><th>Status</th><th class="text-end">Lines</th><th>Order date</th><th class="text-end"></th></tr></thead>
+        <tbody>
+          @if (loadingRos() || loadingRo()) {
+            @for (i of [1,2,3,4]; track i) {
+              <tr><td><span class="hmis-skeleton" style="width:110px;"></span></td><td><span class="hmis-skeleton" style="width:160px;"></span></td><td><span class="hmis-skeleton" style="width:140px;"></span></td><td><span class="hmis-skeleton" style="width:90px;"></span></td><td><span class="hmis-skeleton" style="width:40px;"></span></td><td><span class="hmis-skeleton" style="width:90px;"></span></td><td></td></tr>
+            }
+          } @else if (ros().length === 0) {
+            <tr><td colspan="7"><div class="hmis-empty"><i class="bi bi-clipboard-x"></i><div class="fw-semibold mb-1">No requisitions ready to issue</div><div class="small">Approved or submitted requisitions appear here.</div></div></td></tr>
+          } @else {
+            @for (r of ros(); track r.uid) {
+              <tr (click)="selectRo(r.uid)" style="cursor:pointer;">
+                <td><span class="hmis-code">{{ r.roNo }}</span></td>
+                <td><div class="fw-semibold">{{ r.requestingPharmacyName || '—' }}</div></td>
+                <td class="hmis-muted">{{ r.deliveringPharmacyName || '—' }}</td>
+                <td><span [class]="statusBadgeClass(r.status)">{{ statusLabel(r.status) }}</span></td>
+                <td class="text-end">{{ r.lineCount }}</td>
+                <td class="hmis-muted small">{{ r.orderDate || '—' }}</td>
+                <td class="text-end">
+                  <button type="button" class="btn btn-sm btn-primary" (click)="selectRo(r.uid); $event.stopPropagation()">
+                    Issue against this <i class="bi bi-arrow-right ms-1"></i>
+                  </button>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+}
+
+<!-- Step 2: prefilled line table for the chosen RO -->
+@if (ro(); as r) {
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3"><div class="hmis-muted small">Requisition</div><div class="fw-semibold hmis-code">{{ r.roNo }}</div></div>
+        <div class="col-md-3"><div class="hmis-muted small">Requesting pharmacy</div><div class="fw-semibold">{{ r.requestingPharmacyName || '—' }}</div></div>
+        <div class="col-md-3"><div class="hmis-muted small">Delivering pharmacy</div><div class="fw-semibold">{{ r.deliveringPharmacyName || '—' }}</div></div>
+        <div class="col-md-2"><div class="hmis-muted small">Status</div><span [class]="statusBadgeClass(r.status)">{{ statusLabel(r.status) }}</span></div>
+        <div class="col-md-1 text-md-end">
+          <button type="button" class="btn btn-sm btn-light border" (click)="changeRo()" [disabled]="submitting()"><i class="bi bi-arrow-repeat me-1"></i>Change</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="card mb-3">
+      <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-list-check me-2 text-primary"></i>Lines to issue</div>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead><tr><th>Code</th><th>Medicine</th><th>Unit</th><th class="text-end">Requested</th><th class="text-end">Outstanding</th><th class="text-end" style="width:160px;">Issue quantity</th></tr></thead>
+          <tbody formArrayName="lines">
+            @if (lines.controls.length === 0) {
+              <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-list-check"></i><div class="small">This requisition has no lines.</div></div></td></tr>
+            } @else {
+              @for (g of lines.controls; track g; let i = $index) {
+                <tr [formGroupName]="i">
+                  <td><span class="hmis-code">{{ g.value.medicineCode || '—' }}</span></td>
+                  <td>
+                    <div class="fw-semibold">{{ g.value.medicineName }}</div>
+                    @if (g.value.medicineStrength) { <div class="hmis-muted small">{{ g.value.medicineStrength }}</div> }
+                  </td>
+                  <td class="hmis-muted">{{ g.value.unitCode || '—' }}</td>
+                  <td class="text-end">{{ g.value.requestedQuantity }}</td>
+                  <td class="text-end fw-semibold">{{ g.value.outstandingQuantity }}</td>
+                  <td class="text-end">
+                    @if (g.value.outstandingQuantity > 0) {
+                      <input type="number" class="form-control form-control-sm text-end" formControlName="quantity"
+                             min="1" [max]="g.value.outstandingQuantity" step="1"
+                             [class.is-invalid]="g.get('quantity')?.invalid && g.get('quantity')?.touched">
+                      @if (g.get('quantity')?.invalid && g.get('quantity')?.touched) {
+                        <div class="invalid-feedback d-block small">1–{{ g.value.outstandingQuantity }}</div>
+                      }
+                    } @else {
+                      <span class="badge text-bg-light border">Fully issued</span>
+                    }
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <label class="form-label" for="pp-to-note">Note</label>
+        <textarea id="pp-to-note" name="note" rows="2" class="form-control" formControlName="note" maxlength="500" placeholder="Optional note for this transfer order"></textarea>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2">
+      <button type="button" class="btn btn-light border" (click)="cancel()" [disabled]="submitting()">Cancel</button>
+      <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting() || !hasIssuableLines()">
+        @if (submitting()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }
+        <i class="bi bi-truck"></i>Create transfer order
+      </button>
+    </div>
+  </form>
+}

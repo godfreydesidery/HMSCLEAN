@@ -27,6 +27,14 @@ export interface Employee {
   employmentStatus: EmploymentStatus;
   terminationDate: string | null;
   terminationReason: string | null;
+  basicSalary: string | number | null;
+  tinNo: string | null;
+  bankName: string | null;
+  bankAccountNo: string | null;
+  bankAccountName: string | null;
+  socialSecurityNo: string | null;
+  socialSecurityName: string | null;
+  payable: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -56,6 +64,14 @@ export interface CreateEmployeeRequest {
   designation: string | null;
   department: string | null;
   hireDate: string;
+  basicSalary: string | number | null;
+  tinNo: string | null;
+  bankName: string | null;
+  bankAccountNo: string | null;
+  bankAccountName: string | null;
+  socialSecurityNo: string | null;
+  socialSecurityName: string | null;
+  payable: boolean;
 }
 
 export type UpdateEmployeeRequest = Omit<CreateEmployeeRequest, 'hireDate'>;

@@ -68,6 +68,16 @@
         <label class="form-label" for="pr-note">Note</label>
         <input id="pr-note" name="note" type="text" class="form-control" formControlName="note" autocomplete="off">
       </div>
+
+      @if (coverageAvailable) {
+        <div class="col-12">
+          <div class="form-check form-switch">
+            <input id="pr-covered" name="covered" type="checkbox" class="form-check-input" formControlName="covered">
+            <label class="form-check-label" for="pr-covered">Plan covers this service</label>
+          </div>
+          <div class="form-text">Covering a service requires a price above zero — coverage is cleared automatically when the standard price is zero.</div>
+        </div>
+      }
     </div>
   </div>
   <div class="modal-footer">

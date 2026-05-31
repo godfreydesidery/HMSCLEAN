@@ -4,7 +4,8 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../../../../environments/environment';
 import {
-  CarePlanItem, CreateVitalsEntryRequest, SaveCarePlanItemRequest, VitalsEntry
+  CarePlanItem, CreateDressingEntryRequest, CreateVitalsEntryRequest, DressingEntry,
+  SaveCarePlanItemRequest, VitalsEntry
 } from './nursing-chart.types';
 
 /**
@@ -47,5 +48,15 @@ export class NursingChartService {
 
   cancelCarePlanItem(itemUid: string, reason: string | null): Observable<CarePlanItem> {
     return this.http.post<CarePlanItem>(`${this.base}/care-plan-items/uid/${itemUid}/cancel`, { reason });
+  }
+
+  // ----- dressing chart -----------------------------------------------------
+
+  listDressings(admissionUid: string): Observable<DressingEntry[]> {
+    return this.http.get<DressingEntry[]>(`${this.base}/admissions/uid/${admissionUid}/dressings`);
+  }
+
+  recordDressing(admissionUid: string, req: CreateDressingEntryRequest): Observable<DressingEntry> {
+    return this.http.post<DressingEntry>(`${this.base}/admissions/uid/${admissionUid}/dressings`, req);
   }
 }

@@ -1,0 +1,89 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">Inter-pharmacy transfer orders</h1>
+    <p class="hmis-muted mb-0 small">Delivering pharmacy issues of stock raised against inter-pharmacy requisitions.</p>
+  </div>
+  <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="newOrder()">
+    <i class="bi bi-plus-lg"></i>New transfer order
+  </button>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <div class="row g-2 align-items-center">
+      <div class="col-md-6">
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0"><i class="bi bi-search hmis-muted"></i></span>
+          <input type="search" name="query" autocomplete="off" class="form-control border-start-0 ps-0" placeholder="Search by TO or RO number…" [formControl]="query" aria-label="Search">
+        </div>
+      </div>
+      <div class="col-md-auto ms-md-auto">
+        <fieldset class="btn-group btn-group-sm border-0 p-0 m-0 flex-wrap">
+          <legend class="visually-hidden">Status filter</legend>
+          <button type="button" class="btn btn-outline-secondary" [class.active]="statusFilter() === 'ALL'" (click)="setStatusFilter('ALL')">All</button>
+          @for (s of statuses; track s.value) {
+            <button type="button" class="btn btn-outline-secondary" [class.active]="statusFilter() === s.value" (click)="setStatusFilter(s.value)">{{ s.label }}</button>
+          }
+        </fieldset>
+      </div>
+    </div>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 hmis-table">
+      <thead><tr><th>TO #</th><th>RO #</th><th>Requesting pharmacy</th><th>Delivering pharmacy</th><th>Status</th><th class="text-end">Lines</th><th>Order date</th><th>Created</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        @if (loading()) {
+          @for (i of [1,2,3,4,5,6]; track i) {
+            <tr><td><span class="hmis-skeleton" style="width:110px;"></span></td><td><span class="hmis-skeleton" style="width:110px;"></span></td><td><span class="hmis-skeleton" style="width:160px;"></span></td><td><span class="hmis-skeleton" style="width:140px;"></span></td><td><span class="hmis-skeleton" style="width:90px;"></span></td><td><span class="hmis-skeleton" style="width:40px;"></span></td><td><span class="hmis-skeleton" style="width:90px;"></span></td><td><span class="hmis-skeleton" style="width:120px;"></span></td><td></td></tr>
+          }
+        } @else if (orders().length === 0) {
+          <tr><td colspan="9"><div class="hmis-empty"><i class="bi bi-truck"></i><div class="fw-semibold mb-1">No transfer orders yet</div><div class="small">Raise one against an approved requisition to issue stock.</div></div></td></tr>
+        } @else {
+          @for (o of orders(); track o.uid) {
+            <tr (click)="view(o)" style="cursor:pointer;">
+              <td><a class="hmis-code" [routerLink]="['/transfers/pp/to', o.uid]" (click)="$event.stopPropagation()">{{ o.toNo }}</a></td>
+              <td class="hmis-muted">{{ o.roNo || '—' }}</td>
+              <td><div class="fw-semibold">{{ o.requestingPharmacyName || '—' }}</div></td>
+              <td class="hmis-muted">{{ o.deliveringPharmacyName || '—' }}</td>
+              <td><span [class]="statusBadgeClass(o.status)">{{ statusLabel(o.status) }}</span></td>
+              <td class="text-end">{{ o.lineCount }}</td>
+              <td class="hmis-muted small">{{ o.orderDate || '—' }}</td>
+              <td class="hmis-muted small">{{ o.createdAt | date:'medium' }}</td>
+              <td class="text-end">
+                <button type="button" class="btn btn-sm btn-light border" (click)="view(o); $event.stopPropagation()">
+                  Open <i class="bi bi-arrow-right ms-1"></i>
+                </button>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (!loading() && orders().length > 0) {
+    <div class="card-footer bg-white d-flex flex-wrap align-items-center gap-2">
+      <div class="hmis-muted small">Showing {{ orders().length }} of {{ totalElements() }}</div>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <label class="hmis-muted small mb-0" for="pp-to-page-size">Rows</label>
+        <select id="pp-to-page-size" name="pageSize" class="form-select form-select-sm" style="width:auto;" [value]="pageSize()" (change)="changePageSize(+$any($event.target).value)">
+          <option [value]="10">10</option><option [value]="15">15</option><option [value]="25">25</option><option [value]="50">50</option>
+        </select>
+        <nav aria-label="Pagination" class="ms-2">
+          <ul class="pagination pagination-sm mb-0">
+            <li class="page-item" [class.disabled]="page() === 0"><button type="button" class="page-link" (click)="goToPage(page() - 1)" aria-label="Previous"><i class="bi bi-chevron-left"></i></button></li>
+            @for (p of pageWindow(); track p) { <li class="page-item" [class.active]="p === page()"><button type="button" class="page-link" (click)="goToPage(p)">{{ p + 1 }}</button></li> }
+            <li class="page-item" [class.disabled]="page() >= totalPages() - 1"><button type="button" class="page-link" (click)="goToPage(page() + 1)" aria-label="Next"><i class="bi bi-chevron-right"></i></button></li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+  }
+</div>

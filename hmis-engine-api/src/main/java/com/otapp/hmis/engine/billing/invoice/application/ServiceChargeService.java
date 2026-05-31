@@ -141,17 +141,17 @@ public class ServiceChargeService {
                                       String serviceUid, String referenceUid, String description,
                                       BigDecimal qty, BigDecimal cashUnit, PaymentType paymentType) {
         CoverageResolution coverage = coverageResolver.resolve(
-                serviceKind, serviceUid, invoice.getPatientUid(), invoice.getCurrency(), cashUnit);
+                serviceKind, serviceUid, invoice.getInsurancePlanUid(), invoice.getPaymentType(),
+                invoice.getPatientUid(), invoice.getCurrency(), cashUnit);
 
         if (coverage.covered()) {
-            InvoiceLine principal = addRoutedLine(invoice, lineKind, serviceUid, referenceUid, description, qty,
+            // Plan covers this service in full: price at the plan ceiling, stamp
+            // membership / payer plan, insurer settles it up front. This service
+            // only bills consultation lab / radiology / procedure / medicine, which
+            // route COVERED-whole — the legacy ward co-pay supplementary split is an
+            // admission-billing concern (no WARD line is ever charged here).
+            addRoutedLine(invoice, lineKind, serviceUid, referenceUid, description, qty,
                     coverage.coveredAmount(), LineCoverageStatus.COVERED, coverage.membershipNo(), coverage.planUid());
-            // Co-pay applies to WARD only (legacy admitPatient supplementary split);
-            // lab / radiology / procedure / medicine route COVERED-whole, no top-up.
-            if (lineKind == InvoiceLineKind.WARD && coverage.copayAmount().signum() > 0) {
-                addSupplementaryLine(invoice, lineKind, serviceUid, referenceUid,
-                        description + " (Top up)", qty, coverage.copayAmount(), principal.getUid());
-            }
             return true; // insurer settles the covered principal
         }
 
@@ -198,15 +198,13 @@ public class ServiceChargeService {
                 invoice.getUid(), kind, serviceUid, referenceUid, description, qty, unitPrice, amount,
                 status, membershipNo, payerPlanUid));
         invoice.setSubtotal(invoice.getSubtotal().add(amount));
+        // A COVERED line is billed AND paid by the insurer up front (legacy gives
+        // the covered bill balance 0): record the insurer payment so the covered
+        // amount drops out of what the PATIENT owes — otherwise it stays in the
+        // subtotal as patient balance and double-charges the patient.
+        if (status == LineCoverageStatus.COVERED) {
+            invoice.recordInsurerCovered(amount);
+        }
         return line;
-    }
-
-    @SuppressWarnings("java:S107")
-    private void addSupplementaryLine(Invoice invoice, InvoiceLineKind kind, String serviceUid, String referenceUid,
-                                      String description, BigDecimal qty, BigDecimal unitPrice, String principalLineUid) {
-        BigDecimal amount = unitPrice.multiply(qty);
-        invoiceLineRepository.save(InvoiceLine.supplementaryLine(
-                invoice.getUid(), kind, serviceUid, referenceUid, description, qty, unitPrice, amount, principalLineUid));
-        invoice.setSubtotal(invoice.getSubtotal().add(amount));
     }
 }

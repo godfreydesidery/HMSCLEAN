@@ -1,6 +1,8 @@
 package com.otapp.hmis.engine.billing.invoice.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.otapp.hmis.engine.billing.invoice.application.CoverageResolver.CoverageResolution;
@@ -24,9 +26,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 /**
  * Unit coverage of the charge-time payer routing DECISION (no Spring, no DB).
  * Faithful to legacy Zana-HMIS {@code PatientServiceImpl} accrual: coverage is
- * keyed off the per-service {@code ServicePrice.covered} flag (NOT
- * price-existence), the membership number is stamped on a covered line, and the
- * cash remainder above the plan ceiling becomes a (never-negative) co-pay.
+ * keyed off the <em>encounter's</em> chosen payer (the payment type + plan
+ * snapshotted on the invoice) AND the per-service {@code ServicePrice.covered}
+ * flag — NOT off the patient's current saved plan, and NOT off price-existence.
+ * The membership number is stamped on a covered line, and the cash remainder
+ * above the plan ceiling becomes a (never-negative) co-pay.
  */
 @ExtendWith(MockitoExtension.class)
 class CoverageResolverTest {
@@ -55,25 +59,39 @@ class CoverageResolverTest {
     }
 
     @Test
-    void patientWithNoPlanIsNotCovered() {
-        Patient p = insuredPatient();
-        p.setInsurancePlanUid(null);
-        when(patientRepository.findByUid(PATIENT)).thenReturn(Optional.of(p));
-
-        CoverageResolution r = resolver.resolve(ServiceKind.LAB_TEST, LAB, PATIENT, CCY, new BigDecimal("100.00"));
+    void encounterWithNoPlanIsNotCovered() {
+        CoverageResolution r = resolver.resolve(
+                ServiceKind.LAB_TEST, LAB, null, PaymentType.INSURANCE, PATIENT, CCY, new BigDecimal("100.00"));
 
         assertThat(r.covered()).isFalse();
         assertThat(r.coveredAmount()).isEqualByComparingTo("100.00"); // cash baseline echoed
         assertThat(r.planUid()).isNull();
         assertThat(r.membershipNo()).isNull();
+        verify(priceRepository, never()).findCoveredCell(PLAN, ServiceKind.LAB_TEST, LAB, CCY);
+    }
+
+    @Test
+    void cashVisitByOtherwiseInsuredPatientIsNotCovered() {
+        // The patient HAS a saved plan, but this visit was opened CASH — coverage
+        // must key off the encounter, not the patient's saved plan (BLOCKING #2:
+        // a cash visit by an insured patient was wrongly routing COVERED).
+        CoverageResolution r = resolver.resolve(
+                ServiceKind.LAB_TEST, LAB, PLAN, PaymentType.CASH, PATIENT, CCY, new BigDecimal("100.00"));
+
+        assertThat(r.covered()).isFalse();
+        assertThat(r.coveredAmount()).isEqualByComparingTo("100.00");
+        assertThat(r.planUid()).isNull();
+        // Cash short-circuits before any coverage / membership lookup.
+        verify(priceRepository, never()).findCoveredCell(PLAN, ServiceKind.LAB_TEST, LAB, CCY);
+        verify(patientRepository, never()).findByUid(PATIENT);
     }
 
     @Test
     void insuredButPlanDoesNotCoverServiceIsNotCovered() {
-        when(patientRepository.findByUid(PATIENT)).thenReturn(Optional.of(insuredPatient()));
         when(priceRepository.findCoveredCell(PLAN, ServiceKind.LAB_TEST, LAB, CCY)).thenReturn(Optional.empty());
 
-        CoverageResolution r = resolver.resolve(ServiceKind.LAB_TEST, LAB, PATIENT, CCY, new BigDecimal("100.00"));
+        CoverageResolution r = resolver.resolve(
+                ServiceKind.LAB_TEST, LAB, PLAN, PaymentType.INSURANCE, PATIENT, CCY, new BigDecimal("100.00"));
 
         assertThat(r.covered()).isFalse();
         assertThat(r.coveredAmount()).isEqualByComparingTo("100.00");
@@ -82,12 +100,13 @@ class CoverageResolverTest {
 
     @Test
     void coveredServiceRoutesToInsurerWithMembershipStampedAndCopaySplit() {
-        when(patientRepository.findByUid(PATIENT)).thenReturn(Optional.of(insuredPatient()));
         when(priceRepository.findCoveredCell(PLAN, ServiceKind.LAB_TEST, LAB, CCY))
                 .thenReturn(Optional.of(coveredPlanCell(new BigDecimal("80.00"))));
+        when(patientRepository.findByUid(PATIENT)).thenReturn(Optional.of(insuredPatient()));
 
         // cash 100, plan ceiling 80 -> insurer pays 80, patient co-pay 20.
-        CoverageResolution r = resolver.resolve(ServiceKind.LAB_TEST, LAB, PATIENT, CCY, new BigDecimal("100.00"));
+        CoverageResolution r = resolver.resolve(
+                ServiceKind.LAB_TEST, LAB, PLAN, PaymentType.INSURANCE, PATIENT, CCY, new BigDecimal("100.00"));
 
         assertThat(r.covered()).isTrue();
         assertThat(r.coveredAmount()).isEqualByComparingTo("80.00");
@@ -98,11 +117,12 @@ class CoverageResolverTest {
 
     @Test
     void coveredCeilingAtOrAboveCashYieldsNoCopay() {
-        when(patientRepository.findByUid(PATIENT)).thenReturn(Optional.of(insuredPatient()));
         when(priceRepository.findCoveredCell(PLAN, ServiceKind.LAB_TEST, LAB, CCY))
                 .thenReturn(Optional.of(coveredPlanCell(new BigDecimal("120.00"))));
+        when(patientRepository.findByUid(PATIENT)).thenReturn(Optional.of(insuredPatient()));
 
-        CoverageResolution r = resolver.resolve(ServiceKind.LAB_TEST, LAB, PATIENT, CCY, new BigDecimal("100.00"));
+        CoverageResolution r = resolver.resolve(
+                ServiceKind.LAB_TEST, LAB, PLAN, PaymentType.INSURANCE, PATIENT, CCY, new BigDecimal("100.00"));
 
         assertThat(r.covered()).isTrue();
         assertThat(r.copayAmount()).isEqualByComparingTo("0"); // max(100-120, 0)

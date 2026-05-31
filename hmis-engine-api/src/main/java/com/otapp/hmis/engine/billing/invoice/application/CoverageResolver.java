@@ -5,6 +5,7 @@ import com.otapp.hmis.engine.masterdata.pricing.domain.ServicePrice;
 import com.otapp.hmis.engine.masterdata.pricing.domain.ServicePriceRepository;
 import com.otapp.hmis.engine.patient.domain.Patient;
 import com.otapp.hmis.engine.patient.domain.PatientRepository;
+import com.otapp.hmis.engine.patient.domain.PaymentType;
 import java.math.BigDecimal;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -34,23 +35,35 @@ class CoverageResolver {
     private final PatientRepository patientRepository;
 
     /**
-     * Resolves coverage for a (service, patient) in a target currency, given the
-     * cash price already resolved by {@link PriceLookup}.
+     * Resolves coverage for a service in a target currency, given the cash price
+     * already resolved by {@link PriceLookup}.
+     *
+     * <p>Coverage is decided by the <em>encounter's</em> chosen payer — the
+     * {@code paymentType} and {@code planUid} snapshotted on the invoice at
+     * booking — NOT by the patient's current saved insurance plan. This mirrors
+     * legacy {@code PatientServiceImpl}, where a visit's {@code PAYMENT_TYPE} /
+     * scheme drove the {@code findBy...AndInsurancePlanAndCovered} lookup: an
+     * otherwise-insured patient who walks in CASH must be billed cash, and a
+     * patient whose saved plan changed after booking is still billed against the
+     * plan the encounter was opened under.
      *
      * <ul>
-     *   <li>Not insured (no plan) -&gt; {@link CoverageResolution#cash(BigDecimal)}.</li>
+     *   <li>CASH visit, or no plan on the encounter -&gt; {@link CoverageResolution#cash(BigDecimal)}.</li>
      *   <li>Insured but the plan does not flag this service covered ->
      *       {@link CoverageResolution#cash(BigDecimal)} (the caller decides
      *       UNPAID vs VERIFIED by scope, mirroring legacy outpatient-vs-admission).</li>
      *   <li>Insured and covered -> COVERED at the plan ceiling, with the
      *       membership number stamped and any co-pay remainder computed.</li>
      * </ul>
+     *
+     * @param planUid     the plan snapshotted on the invoice (the encounter's payer), or {@code null}
+     * @param paymentType the payment type snapshotted on the invoice
+     * @param patientUid  used only to stamp the membership number on a covered line
      */
-    CoverageResolution resolve(ServiceKind kind, String serviceUid, String patientUid,
-                               String currency, BigDecimal cashAmount) {
-        Patient patient = patientUid == null ? null : patientRepository.findByUid(patientUid).orElse(null);
-        String planUid = patient == null ? null : patient.getInsurancePlanUid();
-        if (planUid == null || planUid.isBlank()) {
+    @SuppressWarnings("java:S107")
+    CoverageResolution resolve(ServiceKind kind, String serviceUid, String planUid, PaymentType paymentType,
+                               String patientUid, String currency, BigDecimal cashAmount) {
+        if (paymentType == PaymentType.CASH || planUid == null || planUid.isBlank()) {
             return CoverageResolution.cash(cashAmount);
         }
 
@@ -64,7 +77,9 @@ class CoverageResolver {
         // Co-pay: the cash remainder above the plan ceiling (ward top-up case);
         // never negative.
         BigDecimal copay = cashAmount.subtract(coveredAmount).max(BigDecimal.ZERO);
-        return CoverageResolution.covered(coveredAmount, copay, planUid, patient.getMembershipNo());
+        String membershipNo = patientUid == null ? null
+                : patientRepository.findByUid(patientUid).map(Patient::getMembershipNo).orElse(null);
+        return CoverageResolution.covered(coveredAmount, copay, planUid, membershipNo);
     }
 
     /**

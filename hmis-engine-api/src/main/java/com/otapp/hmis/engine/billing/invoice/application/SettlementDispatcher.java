@@ -39,15 +39,23 @@ public class SettlementDispatcher {
      * the admission closure gate so an outstanding bill blocks discharge again.
      */
     public void onInvoiceMaybeSettled(Invoice invoice) {
-        // Keep the admission bill-clearance gate in sync with this invoice's outstanding
-        // balance on every state change. A live admission invoice with a positive balance
-        // (ISSUED / PARTIALLY_PAID — including after a refund or partial credit) re-arms the
-        // gate; a fully-settled or cancelled one clears it below via settle().
-        if (invoice.getScope() == InvoiceScope.ADMISSION && invoice.getAdmissionUid() != null
-                && invoice.getStatus() != InvoiceStatus.PAID
-                && invoice.getStatus() != InvoiceStatus.CANCELLED
-                && invoice.balance().signum() > 0) {
-            admissionService.clearBillsCleared(invoice.getAdmissionUid());
+        // Keep the admission bill-clearance (discharge) gate in sync with what this
+        // invoice still owes, on EVERY state change. When the invoice is PAID, is
+        // CANCELLED (the bill was voided), or has a non-positive balance, nothing
+        // is owed and the gate is cleared so closure / discharge is allowed. A live
+        // positive balance (ISSUED or PARTIALLY_PAID, including after a refund or a
+        // partial credit) re-arms the gate so it blocks again. Cancelling or
+        // re-pricing an admission invoice down to nothing must not leave the gate
+        // stuck blocked, so cancel / overrideLinePrice now route through here too.
+        if (invoice.getScope() == InvoiceScope.ADMISSION && invoice.getAdmissionUid() != null) {
+            boolean nothingOwed = invoice.getStatus() == InvoiceStatus.PAID
+                    || invoice.getStatus() == InvoiceStatus.CANCELLED
+                    || invoice.balance().signum() <= 0;
+            if (nothingOwed) {
+                admissionService.markBillsCleared(invoice.getAdmissionUid());
+            } else {
+                admissionService.clearBillsCleared(invoice.getAdmissionUid());
+            }
         }
         if (invoice.getStatus() != InvoiceStatus.PAID) {
             return;

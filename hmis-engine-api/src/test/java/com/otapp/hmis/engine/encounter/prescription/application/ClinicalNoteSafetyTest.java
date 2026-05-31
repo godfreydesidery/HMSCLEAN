@@ -87,6 +87,13 @@ class ClinicalNoteSafetyTest {
         assertThat(VitalsCalculator.bsaMosteller(new BigDecimal("70"), BigDecimal.ZERO)).isNull();
     }
 
+    @Test
+    void bmiIsNullWhenResultExceedsColumnRange() {
+        // Height typed in metres (1.75) instead of cm -> 70 / 0.0175^2 ≈ 228_571,
+        // which would overflow NUMERIC(4,1). The convenience value is dropped.
+        assertThat(VitalsCalculator.bmi(new BigDecimal("70.0"), new BigDecimal("1.75"))).isNull();
+    }
+
     // ---------------------------------------------------------------------
     // PrescribingAlertService — same-medicine-this-month
     // ---------------------------------------------------------------------
@@ -94,7 +101,7 @@ class ClinicalNoteSafetyTest {
     @Test
     void sameMedicineThisMonthFiresWhenLastGivenWithin30Days() {
         Prescription last = sold(10, Instant.now().minus(5, ChronoUnit.DAYS));
-        when(prescriptionRepository.findAllByPatientUidAndMedicineUidAndStatusOrderByApprovedAtDesc(
+        when(prescriptionRepository.findAllByPatientUidAndMedicineUidAndStatusOrderByDispensedAtDesc(
                 PATIENT_UID, MEDICINE_UID, PrescriptionStatus.SOLD)).thenReturn(List.of(last));
         when(medicineRepository.findByUid(MEDICINE_UID)).thenReturn(Optional.of(medicine()));
 
@@ -109,7 +116,7 @@ class ClinicalNoteSafetyTest {
     @Test
     void sameMedicineThisMonthSilentWhenOlderThanAMonth() {
         Prescription last = sold(10, Instant.now().minus(40, ChronoUnit.DAYS));
-        when(prescriptionRepository.findAllByPatientUidAndMedicineUidAndStatusOrderByApprovedAtDesc(
+        when(prescriptionRepository.findAllByPatientUidAndMedicineUidAndStatusOrderByDispensedAtDesc(
                 PATIENT_UID, MEDICINE_UID, PrescriptionStatus.SOLD)).thenReturn(List.of(last));
 
         assertThat(alertService.sameMedicineThisMonth(PATIENT_UID, MEDICINE_UID)).isEmpty();
@@ -117,7 +124,7 @@ class ClinicalNoteSafetyTest {
 
     @Test
     void sameMedicineThisMonthSilentWhenNeverGiven() {
-        when(prescriptionRepository.findAllByPatientUidAndMedicineUidAndStatusOrderByApprovedAtDesc(
+        when(prescriptionRepository.findAllByPatientUidAndMedicineUidAndStatusOrderByDispensedAtDesc(
                 PATIENT_UID, MEDICINE_UID, PrescriptionStatus.SOLD)).thenReturn(List.of());
 
         assertThat(alertService.sameMedicineThisMonth(PATIENT_UID, MEDICINE_UID)).isEmpty();
@@ -131,7 +138,7 @@ class ClinicalNoteSafetyTest {
     void unfinishedCourseFiresWhenElapsedLessThanDuration() {
         // 10-day course dispensed 3 days ago -> 7 days remaining
         Prescription last = sold(10, Instant.now().minus(3, ChronoUnit.DAYS));
-        when(prescriptionRepository.findAllByPatientUidAndMedicineUidAndStatusOrderByApprovedAtDesc(
+        when(prescriptionRepository.findAllByPatientUidAndMedicineUidAndStatusOrderByDispensedAtDesc(
                 PATIENT_UID, MEDICINE_UID, PrescriptionStatus.SOLD)).thenReturn(List.of(last));
         when(medicineRepository.findByUid(MEDICINE_UID)).thenReturn(Optional.of(medicine()));
 
@@ -148,7 +155,7 @@ class ClinicalNoteSafetyTest {
     void unfinishedCourseSilentWhenCourseFinished() {
         // 10-day course dispensed 15 days ago -> finished, no alert
         Prescription last = sold(10, Instant.now().minus(15, ChronoUnit.DAYS));
-        when(prescriptionRepository.findAllByPatientUidAndMedicineUidAndStatusOrderByApprovedAtDesc(
+        when(prescriptionRepository.findAllByPatientUidAndMedicineUidAndStatusOrderByDispensedAtDesc(
                 PATIENT_UID, MEDICINE_UID, PrescriptionStatus.SOLD)).thenReturn(List.of(last));
 
         assertThat(alertService.unfinishedCourse(PATIENT_UID, MEDICINE_UID)).isEmpty();
@@ -157,7 +164,7 @@ class ClinicalNoteSafetyTest {
     @Test
     void unfinishedCourseSilentWhenDurationMissing() {
         Prescription last = sold(null, Instant.now().minus(1, ChronoUnit.DAYS));
-        when(prescriptionRepository.findAllByPatientUidAndMedicineUidAndStatusOrderByApprovedAtDesc(
+        when(prescriptionRepository.findAllByPatientUidAndMedicineUidAndStatusOrderByDispensedAtDesc(
                 PATIENT_UID, MEDICINE_UID, PrescriptionStatus.SOLD)).thenReturn(List.of(last));
 
         assertThat(alertService.unfinishedCourse(PATIENT_UID, MEDICINE_UID)).isEmpty();
@@ -172,7 +179,7 @@ class ClinicalNoteSafetyTest {
         Prescription last = sold(10, Instant.now().minus(2, ChronoUnit.DAYS));
         when(patientRepository.findByUid(PATIENT_UID)).thenReturn(Optional.of(patient()));
         when(medicineRepository.findByUid(MEDICINE_UID)).thenReturn(Optional.of(medicine()));
-        when(prescriptionRepository.findAllByPatientUidAndMedicineUidAndStatusOrderByApprovedAtDesc(
+        when(prescriptionRepository.findAllByPatientUidAndMedicineUidAndStatusOrderByDispensedAtDesc(
                 PATIENT_UID, MEDICINE_UID, PrescriptionStatus.SOLD)).thenReturn(List.of(last));
 
         PrescribingAlertsDto dto = alertService.alertsFor(PATIENT_UID, MEDICINE_UID);
@@ -186,7 +193,7 @@ class ClinicalNoteSafetyTest {
     void alertsForReturnsEmptyListWhenNoHistory() {
         when(patientRepository.findByUid(PATIENT_UID)).thenReturn(Optional.of(patient()));
         when(medicineRepository.findByUid(MEDICINE_UID)).thenReturn(Optional.of(medicine()));
-        when(prescriptionRepository.findAllByPatientUidAndMedicineUidAndStatusOrderByApprovedAtDesc(
+        when(prescriptionRepository.findAllByPatientUidAndMedicineUidAndStatusOrderByDispensedAtDesc(
                 PATIENT_UID, MEDICINE_UID, PrescriptionStatus.SOLD)).thenReturn(List.of());
 
         assertThat(alertService.alertsFor(PATIENT_UID, MEDICINE_UID).alerts()).isEmpty();
@@ -213,11 +220,11 @@ class ClinicalNoteSafetyTest {
     // fixtures
     // ---------------------------------------------------------------------
 
-    private static Prescription sold(Integer durationDays, Instant approvedAt) {
+    private static Prescription sold(Integer durationDays, Instant dispensedAt) {
         Prescription p = new Prescription("RX-1", "01HCONSULT00000000000AAAAA", PATIENT_UID,
                 MEDICINE_UID, "1 tab", "BD", durationDays, 20, null);
         p.setStatus(PrescriptionStatus.SOLD);
-        p.setApprovedAt(approvedAt);
+        p.setDispensedAt(dispensedAt);
         return p;
     }
 

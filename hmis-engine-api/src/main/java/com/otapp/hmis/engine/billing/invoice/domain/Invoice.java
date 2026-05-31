@@ -50,6 +50,13 @@ public class Invoice extends AuditableEntity {
     @Setter @Column(name = "total_paid", nullable = false, precision = 14, scale = 2) private BigDecimal totalPaid = BigDecimal.ZERO;
     /** Sum of applied credit notes — write-downs that reduce the patient's outstanding balance. */
     @Setter @Column(name = "total_credited", nullable = false, precision = 14, scale = 2) private BigDecimal totalCredited = BigDecimal.ZERO;
+    /**
+     * Sum of insurer-covered line amounts — billed on this invoice but paid by the
+     * patient's plan up front, so they do NOT count toward what the patient owes.
+     * Kept separate from {@link #totalPaid} (cash) and {@link #totalCredited}
+     * (write-downs) so each settlement channel is auditable on its own.
+     */
+    @Setter @Column(name = "total_covered", nullable = false, precision = 14, scale = 2) private BigDecimal totalCovered = BigDecimal.ZERO;
 
     @Setter
     @Enumerated(EnumType.STRING)
@@ -117,14 +124,22 @@ public class Invoice extends AuditableEntity {
         return scope == InvoiceScope.REGISTRATION;
     }
 
-    /** What the patient still owes: billed amount minus cash received minus authorised write-downs. */
+    /**
+     * What the patient still owes: billed amount minus cash received, minus
+     * authorised write-downs, minus what the insurer covers. The covered portion
+     * is netted out so an insured patient is never billed for a covered service.
+     */
     public BigDecimal balance() {
-        return subtotal.subtract(totalPaid).subtract(totalCredited);
+        return subtotal.subtract(totalPaid).subtract(totalCredited).subtract(totalCovered);
     }
 
-    /** Cash received + write-downs — used by status roll-ups so a fully-credited invoice settles. */
+    /**
+     * Everything that settles the invoice — cash received + write-downs +
+     * insurer-covered — used by status roll-ups so a fully-covered (or
+     * fully-credited) invoice reaches PAID.
+     */
     public BigDecimal settledAmount() {
-        return totalPaid.add(totalCredited);
+        return totalPaid.add(totalCredited).add(totalCovered);
     }
 
     public void issue() {
@@ -155,7 +170,7 @@ public class Invoice extends AuditableEntity {
             throw new BusinessRuleException("Cannot apply payment to a cancelled invoice");
         }
         BigDecimal newTotal = totalPaid.add(amount);
-        if (newTotal.add(totalCredited).compareTo(subtotal) > 0) {
+        if (newTotal.add(totalCredited).add(totalCovered).compareTo(subtotal) > 0) {
             throw new BusinessRuleException("Payment exceeds invoice balance");
         }
         totalPaid = newTotal;
@@ -179,11 +194,34 @@ public class Invoice extends AuditableEntity {
             throw new BusinessRuleException("Cannot credit a cancelled invoice");
         }
         BigDecimal newCredited = totalCredited.add(amount);
-        if (newCredited.add(totalPaid).compareTo(subtotal) > 0) {
+        if (newCredited.add(totalPaid).add(totalCovered).compareTo(subtotal) > 0) {
             throw new BusinessRuleException("Credit-note exceeds invoice outstanding balance");
         }
         totalCredited = newCredited;
         recomputeStatusAfterCredit();
+    }
+
+    /**
+     * Records that the patient's insurer covers (pays) {@code amount} of this
+     * invoice — billed on a COVERED line but settled by the plan up front. Adds
+     * to {@link #totalCovered} so the covered portion nets out of the patient
+     * balance, and rolls the status forward like a payment / credit. Mirrors the
+     * legacy covered bill landing at balance 0, settled by the scheme. Called as
+     * the COVERED line is added, after its amount is already in the subtotal.
+     */
+    public void recordInsurerCovered(BigDecimal amount) {
+        if (amount == null || amount.signum() < 0) {
+            throw new BusinessRuleException("Insurer-covered amount must be non-negative");
+        }
+        if (status == InvoiceStatus.CANCELLED) {
+            throw new BusinessRuleException("Cannot record insurer coverage on a cancelled invoice");
+        }
+        totalCovered = totalCovered.add(amount);
+        // A DRAFT invoice accrues coverage silently; its status moves on issue /
+        // settlement. An issued invoice rolls forward (PARTIALLY_PAID / PAID).
+        if (status != InvoiceStatus.DRAFT) {
+            recomputeStatusAfterCredit();
+        }
     }
 
     /**

@@ -24,16 +24,36 @@ class InvoiceLinePricing {
     private final PriceLookup priceLookup;
 
     /**
-     * The price band resolved for a line, honouring the invoice's insurance
-     * plan and currency. Returns {@code null} when the line kind has no priced
-     * catalogue (e.g. CONSUMABLE, which is billed at snapshot cost).
+     * The negotiable price band for a line, resolved from the SAME price cell the
+     * line was actually charged from so the band never contradicts the charge.
+     * Returns {@code null} when the line kind has no priced catalogue (e.g.
+     * CONSUMABLE, billed at snapshot cost).
+     *
+     * <p>An insured-but-uncovered service is charged at CASH by
+     * {@link ServiceChargeService} even though the invoice carries an insurance
+     * plan, so its band must come from the cash cell — not the plan cell. The
+     * cell is identified by matching the line's charged unit price: cash-charged
+     * lines (and every line on a cash invoice) get the cash band; lines charged at
+     * the plan-negotiated price (covered ceilings, plan consultation / ward rates)
+     * get the plan band. The plan band is the fallback for an insured invoice when
+     * the charge matches neither cell (e.g. a zero price or an earlier override).
      */
-    PriceLookup.Resolved bandFor(InvoiceLine line, String planUid, String currency) {
+    PriceLookup.Resolved bandFor(InvoiceLine line, String invoicePlanUid, String currency) {
         ServiceKind kind = serviceKindFor(line.getKind());
         if (kind == null || line.getServiceUid() == null) {
             return null;
         }
-        return priceLookup.resolve(kind, line.getServiceUid(), planUid, currency);
+        PriceLookup.Resolved cash = priceLookup.resolve(kind, line.getServiceUid(), null, currency);
+        if (invoicePlanUid == null || invoicePlanUid.isBlank()) {
+            return cash; // cash invoice — only the cash cell applies
+        }
+        PriceLookup.Resolved plan = priceLookup.resolve(kind, line.getServiceUid(), invoicePlanUid, currency);
+        BigDecimal charged = line.getUnitPrice();
+        if (charged != null) {
+            if (charged.compareTo(cash.amount()) == 0) return cash;
+            if (charged.compareTo(plan.amount()) == 0) return plan;
+        }
+        return plan; // insured invoice default
     }
 
     /** A price may be renegotiated only before any money has been taken or written down. */

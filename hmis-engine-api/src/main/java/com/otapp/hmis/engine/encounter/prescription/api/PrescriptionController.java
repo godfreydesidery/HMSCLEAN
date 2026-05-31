@@ -1,6 +1,8 @@
 package com.otapp.hmis.engine.encounter.prescription.api;
 
 import com.otapp.hmis.engine.common.api.PageResponse;
+import com.otapp.hmis.engine.encounter.prescription.application.PrescribingAlertDtos.PrescribingAlertsDto;
+import com.otapp.hmis.engine.encounter.prescription.application.PrescribingAlertService;
 import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos.CancelPrescriptionRequest;
 import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos.CreatePrescriptionRequest;
 import com.otapp.hmis.engine.encounter.prescription.application.PrescriptionDtos.PrescriptionDto;
@@ -25,10 +27,23 @@ import org.springframework.web.bind.annotation.*;
 public class PrescriptionController {
 
     private final PrescriptionService prescriptionService;
+    private final PrescribingAlertService prescribingAlertService;
 
     @GetMapping("/encounters/consultations/uid/{consultationUid}/prescriptions")
     public ResponseEntity<List<PrescriptionDto>> list(@PathVariable String consultationUid) {
         return ResponseEntity.ok(prescriptionService.listForConsultation(consultationUid));
+    }
+
+    /**
+     * Non-blocking prescribing advisories (same-medicine-this-month +
+     * unfinished-course) for a patient/medicine pair. 200 with a possibly-empty
+     * list; 404 only if the patient or medicine uid is unknown. Never 4xx/5xx
+     * for missing dispense history.
+     */
+    @GetMapping("/encounters/patients/uid/{patientUid}/medicines/uid/{medicineUid}/prescribing-alerts")
+    public ResponseEntity<PrescribingAlertsDto> prescribingAlerts(@PathVariable String patientUid,
+                                                                  @PathVariable String medicineUid) {
+        return ResponseEntity.ok(prescribingAlertService.alertsFor(patientUid, medicineUid));
     }
 
     /** Pharmacy dispensing queue — prescriptions awaiting pharmacy action, scoped by patient class. */

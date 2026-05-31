@@ -1,0 +1,153 @@
+<div class="modal-header">
+  <div>
+    <h5 class="modal-title">Analytes &amp; reference ranges</h5>
+    <div class="hmis-muted small mt-1">
+      <span class="hmis-code me-2">{{ labTest.code }}</span><span>{{ labTest.name }}</span>
+    </div>
+  </div>
+  <button type="button" class="btn-close" (click)="activeModal.dismiss()" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  }
+
+  @if (loading()) {
+    <div class="hmis-muted small"><span class="spinner-border spinner-border-sm me-2"></span>Loading analytes…</div>
+  } @else {
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <span class="hmis-muted small">{{ analytes().length }} analyte(s). A single-value test is just one analyte.</span>
+      @if (!showAnalyteForm()) {
+        <button type="button" class="btn btn-sm btn-outline-primary" (click)="startAddAnalyte()"><i class="bi bi-plus-lg me-1"></i>Add analyte</button>
+      }
+    </div>
+
+    @if (showAnalyteForm()) {
+      <form [formGroup]="analyteForm" (ngSubmit)="submitAnalyte()" class="border rounded p-3 mb-3 bg-light-subtle" novalidate>
+        <div class="row g-2">
+          <div class="col-sm-3">
+            <label class="form-label small" for="an-code">Code</label>
+            <input id="an-code" class="form-control form-control-sm" formControlName="code" placeholder="WBC" maxlength="32">
+          </div>
+          <div class="col-sm-5">
+            <label class="form-label small" for="an-name">Name</label>
+            <input id="an-name" class="form-control form-control-sm" formControlName="name" placeholder="White Blood Cells" maxlength="120">
+          </div>
+          <div class="col-sm-2">
+            <label class="form-label small" for="an-unit">Unit</label>
+            <input id="an-unit" class="form-control form-control-sm" formControlName="unit" placeholder="10^9/L" maxlength="32">
+          </div>
+          <div class="col-sm-2">
+            <label class="form-label small" for="an-order">Order</label>
+            <input id="an-order" type="number" min="0" class="form-control form-control-sm" formControlName="displayOrder">
+          </div>
+          <div class="col-sm-4">
+            <label class="form-label small" for="an-kind">Value type</label>
+            <select id="an-kind" class="form-select form-select-sm" formControlName="valueKind">
+              @for (k of valueKinds; track k.value) { <option [value]="k.value">{{ k.label }}</option> }
+            </select>
+          </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mt-2">
+          <button type="button" class="btn btn-sm btn-light border" (click)="cancelAnalyteForm()" [disabled]="busy()">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy() || analyteForm.invalid">
+            {{ editingAnalyteUid() ? 'Save analyte' : 'Add analyte' }}
+          </button>
+        </div>
+      </form>
+    }
+
+    @if (analytes().length === 0 && !showAnalyteForm()) {
+      <div class="alert alert-light border small mb-0">No analytes yet. Add one to capture structured, flagged results for this test.</div>
+    }
+
+    <div class="vstack gap-2">
+      @for (a of analytes(); track a.uid) {
+        <div class="border rounded">
+          <div class="d-flex align-items-center justify-content-between px-3 py-2">
+            <div>
+              <span class="fw-medium">{{ a.name }}</span>
+              <span class="hmis-code small ms-1">{{ a.code }}</span>
+              @if (a.unit) { <span class="hmis-muted small ms-1">({{ a.unit }})</span> }
+              <span class="badge text-bg-light border ms-2">{{ valueKindLabel(a.valueKind) }}</span>
+              @if (!a.active) { <span class="badge text-bg-secondary-subtle text-secondary-emphasis border ms-1">inactive</span> }
+            </div>
+            <div class="btn-group btn-group-sm">
+              <button type="button" class="btn btn-light border" (click)="toggleRanges(a)">
+                <i class="bi" [class.bi-chevron-down]="expanded() !== a.uid" [class.bi-chevron-up]="expanded() === a.uid"></i>
+                Ranges ({{ a.ranges.length }})
+              </button>
+              <button type="button" class="btn btn-light border" (click)="startEditAnalyte(a)" [disabled]="busy()">Edit</button>
+              <button type="button" class="btn btn-light border" (click)="toggleActive(a)" [disabled]="busy()">{{ a.active ? 'Deactivate' : 'Activate' }}</button>
+              <button type="button" class="btn btn-light border text-danger" (click)="deleteAnalyte(a)" [disabled]="busy()">Delete</button>
+            </div>
+          </div>
+
+          @if (expanded() === a.uid) {
+            <div class="border-top px-3 py-2">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="hmis-muted small">Sex/age-banded reference ranges. The most specific match wins at result time.</span>
+                @if (rangeFormAnalyteUid() !== a.uid) {
+                  <button type="button" class="btn btn-sm btn-outline-primary" (click)="startAddRange(a)"><i class="bi bi-plus-lg me-1"></i>Add range</button>
+                }
+              </div>
+
+              @if (a.ranges.length > 0) {
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-2">
+                    <thead><tr class="hmis-muted small"><th>Sex</th><th>Age</th><th>Reference</th><th>Critical</th><th>Normal text</th><th></th></tr></thead>
+                    <tbody>
+                      @for (r of a.ranges; track r.uid) {
+                        <tr>
+                          <td>{{ r.sex }}</td>
+                          <td class="hmis-muted small">{{ ageBand(r) }}</td>
+                          <td>{{ refSummary(r) }}</td>
+                          <td class="hmis-muted small">{{ r.criticalLow ?? '–' }} … {{ r.criticalHigh ?? '–' }}</td>
+                          <td class="hmis-muted small">{{ r.normalText || '—' }}</td>
+                          <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-link p-0 me-2" (click)="startEditRange(a, r)" [disabled]="busy()">Edit</button>
+                            <button type="button" class="btn btn-sm btn-link text-danger p-0" (click)="deleteRange(r)" [disabled]="busy()">Delete</button>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+
+              @if (rangeFormAnalyteUid() === a.uid) {
+                <form [formGroup]="rangeForm" (ngSubmit)="submitRange()" class="border rounded p-3 bg-light-subtle" novalidate>
+                  <div class="row g-2">
+                    <div class="col-sm-3">
+                      <label class="form-label small" for="rg-sex">Sex</label>
+                      <select id="rg-sex" class="form-select form-select-sm" formControlName="sex">
+                        @for (s of sexes; track s.value) { <option [value]="s.value">{{ s.label }}</option> }
+                      </select>
+                    </div>
+                    <div class="col-sm-3"><label class="form-label small" for="rg-amin">Age min (days)</label><input id="rg-amin" type="number" min="0" class="form-control form-control-sm" formControlName="ageMinDays" placeholder="any"></div>
+                    <div class="col-sm-3"><label class="form-label small" for="rg-amax">Age max (days)</label><input id="rg-amax" type="number" min="0" class="form-control form-control-sm" formControlName="ageMaxDays" placeholder="any"></div>
+                    <div class="col-sm-3"><label class="form-label small" for="rg-disp">Display</label><input id="rg-disp" class="form-control form-control-sm" formControlName="rangeDisplay" placeholder="4.0 - 11.0" maxlength="120"></div>
+                    <div class="col-sm-3"><label class="form-label small" for="rg-rl">Ref low</label><input id="rg-rl" type="number" step="any" class="form-control form-control-sm" formControlName="refLow"></div>
+                    <div class="col-sm-3"><label class="form-label small" for="rg-rh">Ref high</label><input id="rg-rh" type="number" step="any" class="form-control form-control-sm" formControlName="refHigh"></div>
+                    <div class="col-sm-3"><label class="form-label small" for="rg-cl">Critical low</label><input id="rg-cl" type="number" step="any" class="form-control form-control-sm" formControlName="criticalLow"></div>
+                    <div class="col-sm-3"><label class="form-label small" for="rg-ch">Critical high</label><input id="rg-ch" type="number" step="any" class="form-control form-control-sm" formControlName="criticalHigh"></div>
+                    <div class="col-sm-6"><label class="form-label small" for="rg-nt">Normal text (for text analytes)</label><input id="rg-nt" class="form-control form-control-sm" formControlName="normalText" placeholder="Negative" maxlength="200"></div>
+                  </div>
+                  <div class="d-flex justify-content-end gap-2 mt-2">
+                    <button type="button" class="btn btn-sm btn-light border" (click)="cancelRangeForm()" [disabled]="busy()">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy() || rangeForm.invalid">{{ editingRangeUid() ? 'Save range' : 'Add range' }}</button>
+                  </div>
+                </form>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.close()" [disabled]="busy()">Done</button>
+</div>

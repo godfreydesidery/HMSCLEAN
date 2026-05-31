@@ -17,11 +17,12 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 /**
  * Base class for persistent entities that need auditing.
  *
- * <p>Every entity has an internal numeric {@code id} (used only inside the
- * service / persistence layer) and an externally-facing {@code uid}
- * (Crockford-base32 ULID, 26 characters) that is what gets exposed in URLs,
- * DTOs and to the frontend. The numeric {@code id} must never appear in REST
- * paths or response bodies.
+ * <p>Every entity has a numeric {@code id} and an externally-facing {@code uid}
+ * (Crockford-base32 ULID, 26 characters). The {@code uid} is what appears in
+ * REST URLs (behind a literal {@code /uid/} segment). The numeric {@code id}
+ * must NEVER appear in a REST path — that would leak row order and invite
+ * enumeration — but it MAY be carried in DTOs / response bodies, where it is
+ * useful for client-side joins and table row keys.
  *
  * <p>ULIDs are lexicographically sortable and time-ordered, which keeps
  * indexed lookups and paginated listings efficient compared to random UUIDs.

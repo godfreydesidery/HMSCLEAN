@@ -30,9 +30,64 @@
     }
 
     <form [formGroup]="form" novalidate>
+      @if (isLab) {
+        <div class="mb-3">
+          <label class="form-label">Analyte values</label>
+          @if (analytes().length === 0) {
+            <div class="alert alert-light border small mb-0">
+              No analytes are defined for this test yet. Define them under
+              <strong>Master data → Lab tests → Analytes</strong>, or record narrative findings below.
+            </div>
+          } @else {
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-1">
+                <thead>
+                  <tr class="hmis-muted small">
+                    <th style="width: 34%">Analyte</th>
+                    <th style="width: 24%">Value</th>
+                    <th style="width: 10%">Unit</th>
+                    <th style="width: 16%">Reference</th>
+                    <th style="width: 16%">Flag</th>
+                  </tr>
+                </thead>
+                <tbody formArrayName="lines">
+                  @for (a of analytes(); track a.uid; let i = $index) {
+                    <tr [formGroupName]="i">
+                      <td>
+                        <span class="fw-medium">{{ a.name }}</span>
+                        <span class="hmis-code small ms-1">{{ a.code }}</span>
+                      </td>
+                      <td>
+                        @if (a.valueKind === 'NUMERIC') {
+                          <input type="number" step="any" class="form-control form-control-sm"
+                                 formControlName="valueNumeric" placeholder="—" [attr.aria-label]="a.name + ' value'">
+                        } @else {
+                          <input type="text" class="form-control form-control-sm" maxlength="2000"
+                                 formControlName="valueText" placeholder="—" [attr.aria-label]="a.name + ' value'">
+                        }
+                      </td>
+                      <td class="hmis-muted small">{{ a.unit || '—' }}</td>
+                      <td class="hmis-muted small">{{ savedLine(a.uid)?.rangeDisplay || '—' }}</td>
+                      <td>
+                        @if (savedLine(a.uid); as l) {
+                          <span [class]="flagBadgeClass(l.flag)">{{ flagLabel(l.flag) }}</span>
+                        } @else {
+                          <span class="hmis-muted small">—</span>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <div class="form-text">Flags are computed against the patient's sex/age reference range when you save.</div>
+          }
+        </div>
+      }
+
       <div class="mb-3">
         <label class="form-label" for="er-narrative">{{ narrativeLabel }}</label>
-        <textarea id="er-narrative" name="narrative" rows="8" class="form-control" formControlName="narrative" maxlength="8000" placeholder="Detailed findings, observations, or notes…"></textarea>
+        <textarea id="er-narrative" name="narrative" [rows]="isLab ? 4 : 8" class="form-control" formControlName="narrative" maxlength="8000" placeholder="Detailed findings, observations, or notes…"></textarea>
       </div>
       <div class="mb-2">
         <label class="form-label" for="er-impression">Impression / conclusion</label>

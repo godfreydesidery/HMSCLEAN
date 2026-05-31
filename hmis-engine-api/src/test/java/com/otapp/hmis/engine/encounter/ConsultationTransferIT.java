@@ -63,7 +63,14 @@ class ConsultationTransferIT extends AuthenticatedIntegrationTest {
                 Map.class));
         String firstUid = (String) first.get("uid");
 
-        // 3. Book a follow-up to it.
+        // 2b. Release the patient by closing the first visit. The active-consultation
+        //     guard refuses a second booking for the same patient while one is still
+        //     active, and legacy books a follow-up only once the prior visit is
+        //     signed out — so pay + open + complete it before booking the follow-up.
+        openConsultation(firstUid);
+        expectOk(post("/encounters/consultations/uid/" + firstUid + "/complete", null, Map.class));
+
+        // 3. Book a follow-up to it (allowed now that the first visit is closed).
         Map followUp = expectOk(post(
                 "/encounters/consultations",
                 Map.of(
@@ -75,10 +82,11 @@ class ConsultationTransferIT extends AuthenticatedIntegrationTest {
                         "followUpOfConsultationUid",  firstUid),
                 Map.class));
         assertThat(followUp.get("followUpOfConsultationUid")).isEqualTo(firstUid);
+        String followUpUid = (String) followUp.get("uid");
 
-        // 4. Transfer the original to Pediatrics.
+        // 4. Transfer the (now-active, BOOKED) follow-up to Pediatrics.
         Map receiver = expectOk(post(
-                "/encounters/consultations/uid/" + firstUid + "/transfer",
+                "/encounters/consultations/uid/" + followUpUid + "/transfer",
                 Map.of(
                         "targetClinicUid",         PED_CLINIC_UID,
                         "targetClinicianUsername", clinicianAffiliatedWith(PED_CLINIC_UID),
@@ -87,11 +95,11 @@ class ConsultationTransferIT extends AuthenticatedIntegrationTest {
         String receiverUid = (String) receiver.get("uid");
         assertThat(receiver.get("status")).isEqualTo("BOOKED");
         assertThat(receiver.get("clinicUid")).isEqualTo(PED_CLINIC_UID);
-        assertThat(receiver.get("transferredFromConsultationUid")).isEqualTo(firstUid);
+        assertThat(receiver.get("transferredFromConsultationUid")).isEqualTo(followUpUid);
 
-        // 5. Original now reads as TRANSFERRED with transferredTo set.
+        // 5. The transferred follow-up now reads as TRANSFERRED with transferredTo set.
         Map original = expectOk(get(
-                "/encounters/consultations/uid/" + firstUid,
+                "/encounters/consultations/uid/" + followUpUid,
                 Map.class));
         assertThat(original.get("status")).isEqualTo("TRANSFERRED");
         assertThat(original.get("transferredToConsultationUid")).isEqualTo(receiverUid);
@@ -99,7 +107,7 @@ class ConsultationTransferIT extends AuthenticatedIntegrationTest {
 
         // 6. Re-transferring an already-TRANSFERRED consultation is refused.
         ResponseEntity<Map> denied = post(
-                "/encounters/consultations/uid/" + firstUid + "/transfer",
+                "/encounters/consultations/uid/" + followUpUid + "/transfer",
                 Map.of(
                         "targetClinicUid",         PED_CLINIC_UID,
                         "targetClinicianUsername", clinicianAffiliatedWith(PED_CLINIC_UID)),

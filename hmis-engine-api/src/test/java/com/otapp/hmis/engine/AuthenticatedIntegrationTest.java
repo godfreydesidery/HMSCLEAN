@@ -101,6 +101,44 @@ public abstract class AuthenticatedIntegrationTest extends AbstractIntegrationTe
         return sharedClinicianUsername;
     }
 
+    /**
+     * Drives a freshly-booked consultation to IN_PROGRESS so clinical entries
+     * (notes, orders, prescriptions) can be authored — legacy
+     * {@code open_consultation} confines authoring to IN_PROGRESS. Settles the
+     * consultation-fee invoice first (the CASH fee gate) when it still carries a
+     * balance, paying in the invoice's own currency, then opens the consultation.
+     * A zero-fee (covered / follow-up) consultation settles at booking, so the
+     * payment step is skipped.
+     */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    protected void openConsultation(String consultationUid) {
+        ResponseEntity<java.util.Map> invoiceResp = get(
+                "/billing/consultations/uid/" + consultationUid + "/invoice", java.util.Map.class);
+        if (invoiceResp.getStatusCode().is2xxSuccessful() && invoiceResp.getBody() != null) {
+            java.util.Map<String, Object> invoice = invoiceResp.getBody();
+            Object balanceRaw = invoice.get("balance");
+            java.math.BigDecimal balance = balanceRaw == null
+                    ? java.math.BigDecimal.ZERO : new java.math.BigDecimal(balanceRaw.toString());
+            if (balance.signum() > 0) {
+                ResponseEntity<java.util.Map> paid = post(
+                        "/billing/invoices/uid/" + invoice.get("uid") + "/payments",
+                        java.util.Map.of("method", "CASH", "amount", balance,
+                                "currency", String.valueOf(invoice.get("currency"))),
+                        java.util.Map.class);
+                if (!paid.getStatusCode().is2xxSuccessful()) {
+                    throw new IllegalStateException("Failed to settle consultation fee for "
+                            + consultationUid + ": " + paid.getStatusCode());
+                }
+            }
+        }
+        ResponseEntity<java.util.Map> started = post(
+                "/encounters/consultations/uid/" + consultationUid + "/start", null, java.util.Map.class);
+        if (!started.getStatusCode().is2xxSuccessful()) {
+            throw new IllegalStateException("Failed to open consultation "
+                    + consultationUid + ": " + started.getStatusCode());
+        }
+    }
+
     /** Provision a fresh, uniquely-named user with the given roles and return its access token. */
     protected String tokenForRoles(String prefix, java.util.Set<String> roles) {
         String username = prefix + Long.toString(System.nanoTime(), 36);
@@ -131,6 +169,32 @@ public abstract class AuthenticatedIntegrationTest extends AbstractIntegrationTe
         h.setBearerAuth(token);
         h.setContentType(MediaType.APPLICATION_JSON);
         return rest.exchange(path, HttpMethod.POST, new HttpEntity<>(body, h), type);
+    }
+
+    /** GET as a specific bearer token (not the default ROOT). */
+    protected <T> ResponseEntity<T> getAs(String token, String path, Class<T> type) {
+        HttpHeaders h = new HttpHeaders();
+        h.setBearerAuth(token);
+        h.setContentType(MediaType.APPLICATION_JSON);
+        return rest.exchange(path, HttpMethod.GET, new HttpEntity<>(h), type);
+    }
+
+    /**
+     * Access token for the shared CLINICIAN provisioned by
+     * {@link #clinicianAffiliatedWith(String)}. Needed when a test must query a
+     * clinician-scoped endpoint (e.g. the reception queue) AS the clinician who
+     * owns the consultation, rather than as ROOT.
+     */
+    protected String sharedClinicianToken() {
+        if (sharedClinicianUsername == null) {
+            throw new IllegalStateException("Call clinicianAffiliatedWith(...) before sharedClinicianToken()");
+        }
+        LoginResponse login = rest.postForObject(
+                "/auth/login", new LoginRequest(sharedClinicianUsername, "Clinician!123"), LoginResponse.class);
+        if (login == null || login.tokens() == null) {
+            throw new IllegalStateException("Login failed for shared clinician " + sharedClinicianUsername);
+        }
+        return login.tokens().accessToken();
     }
 
     protected <T> ResponseEntity<T> post(String path, Object body, Class<T> type) {

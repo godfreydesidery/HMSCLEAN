@@ -171,13 +171,19 @@ class WastageAndMultiPharmacyIT extends AuthenticatedIntegrationTest {
                 .sum();
     }
 
+    /** Reads the content array of the paginated stock-balance listing (PageResponse). */
+    @SuppressWarnings("unchecked")
     private List<Map<String, Object>> expectOkList(String path) {
-        ResponseEntity<List<Map<String, Object>>> resp = get(
-                path, new ParameterizedTypeReference<>() {});
+        String paged = path + (path.contains("?") ? "&" : "?") + "size=200";
+        ResponseEntity<Map<String, Object>> resp = get(
+                paged, new ParameterizedTypeReference<>() {});
         assertThat(resp.getStatusCode().is2xxSuccessful())
                 .as("Expected 2xx but got %s with body %s", resp.getStatusCode(), resp.getBody())
                 .isTrue();
-        return resp.getBody();
+        Map<String, Object> body = resp.getBody();
+        if (body == null) return List.of();
+        List<Map<String, Object>> content = (List<Map<String, Object>>) body.get("content");
+        return content == null ? List.of() : content;
     }
 
     private static <T> T expectOk(ResponseEntity<T> response) {

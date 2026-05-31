@@ -110,8 +110,10 @@ class PharmacyStoreTransferIT extends AuthenticatedIntegrationTest {
         assertThat(rn.get("status")).isEqualTo("COMPLETED");
 
         // ----- pharmacy stock balance should now show 60 ------------------
-        List<Map> pharmacyStock = expectOk(get(
-                "/pharmacy/pharmacies/uid/" + MAIN_PHARMACY_UID + "/stock", List.class));
+        // The stock-balance listing is now a paginated PageResponse object.
+        Map stockPage = expectOk(get(
+                "/pharmacy/pharmacies/uid/" + MAIN_PHARMACY_UID + "/stock?size=200", Map.class));
+        List<Map> pharmacyStock = (List<Map>) stockPage.get("content");
         Map panadolBalance = pharmacyStock.stream()
                 .filter(b -> PANADOL_UID.equals(b.get("medicineUid")))
                 .findFirst()

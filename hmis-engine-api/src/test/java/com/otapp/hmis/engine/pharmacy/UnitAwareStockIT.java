@@ -62,14 +62,20 @@ class UnitAwareStockIT extends AuthenticatedIntegrationTest {
                 .isEqualTo(50);
     }
 
+    @SuppressWarnings("unchecked")
     private int coartemTotalAt(String pharmacyUid) {
-        ResponseEntity<List<Map<String, Object>>> resp = get(
-                "/pharmacy/pharmacies/uid/" + pharmacyUid + "/stock",
+        // The stock-balance listing is now a paginated PageResponse object
+        // ({content:[...], ...}); read the content array. size=200 keeps the
+        // target row on page 0 in the JVM-lifetime shared DB.
+        ResponseEntity<Map<String, Object>> resp = get(
+                "/pharmacy/pharmacies/uid/" + pharmacyUid + "/stock?size=200",
                 new ParameterizedTypeReference<>() {});
         assertThat(resp.getStatusCode().is2xxSuccessful()).isTrue();
-        List<Map<String, Object>> body = resp.getBody();
+        Map<String, Object> body = resp.getBody();
         if (body == null) return 0;
-        return body.stream()
+        List<Map<String, Object>> content = (List<Map<String, Object>>) body.get("content");
+        if (content == null) return 0;
+        return content.stream()
                 .filter(r -> COARTEM_UID.equals(r.get("medicineUid")))
                 .mapToInt(r -> ((Number) r.get("totalQuantity")).intValue())
                 .sum();

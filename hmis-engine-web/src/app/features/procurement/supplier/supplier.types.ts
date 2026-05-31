@@ -8,6 +8,11 @@ export interface Supplier {
   address: string | null;
   taxId: string | null;
   notes: string | null;
+  vrn: string | null;
+  termsOfContract: string | null;
+  bankName: string | null;
+  bankAccountName: string | null;
+  bankAccountNo: string | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -22,6 +27,11 @@ export interface CreateSupplierRequest {
   address: string | null;
   taxId: string | null;
   notes: string | null;
+  vrn: string | null;
+  termsOfContract: string | null;
+  bankName: string | null;
+  bankAccountName: string | null;
+  bankAccountNo: string | null;
 }
 
 export interface UpdateSupplierRequest {
@@ -32,6 +42,11 @@ export interface UpdateSupplierRequest {
   address: string | null;
   taxId: string | null;
   notes: string | null;
+  vrn: string | null;
+  termsOfContract: string | null;
+  bankName: string | null;
+  bankAccountName: string | null;
+  bankAccountNo: string | null;
 }
 
 export interface SupplierSearchParams {

@@ -74,7 +74,9 @@ export class PurchaseOrderDetailComponent {
   openAddLine(): void {
     const o = this.order(); if (!o) return;
     const r = this.modal.open(AddLineComponent, { backdrop: 'static' });
-    (r.componentInstance as AddLineComponent).orderUid = o.uid;
+    const inst = r.componentInstance as AddLineComponent;
+    inst.orderUid = o.uid;
+    inst.supplierUid = o.supplierUid;
     r.closed.subscribe((po: PurchaseOrder | undefined) => { if (po) this.order.set(po); });
   }
 
@@ -83,6 +85,7 @@ export class PurchaseOrderDetailComponent {
     const r = this.modal.open(AddLineComponent, { backdrop: 'static' });
     const inst = r.componentInstance as AddLineComponent;
     inst.orderUid = o.uid;
+    inst.supplierUid = o.supplierUid;
     inst.existing = line;
     r.closed.subscribe((po: PurchaseOrder | undefined) => { if (po) this.order.set(po); });
   }

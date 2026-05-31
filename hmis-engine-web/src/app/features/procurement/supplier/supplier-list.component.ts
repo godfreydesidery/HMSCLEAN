@@ -3,6 +3,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
+import { RouterLink } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
 import { SupplierFormComponent } from './supplier-form.component';
@@ -12,7 +13,7 @@ import { Supplier } from './supplier.types';
 @Component({
   selector: 'app-supplier-list',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, NgbDropdownModule],
+  imports: [CommonModule, ReactiveFormsModule, NgbDropdownModule, RouterLink],
   templateUrl: './supplier-list.component.html'
 })
 export class SupplierListComponent {

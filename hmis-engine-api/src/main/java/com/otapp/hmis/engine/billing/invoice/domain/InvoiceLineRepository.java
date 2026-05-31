@@ -48,6 +48,25 @@ public interface InvoiceLineRepository extends JpaRepository<InvoiceLine, Long> 
     List<Object[]> sumAmountByKindInIssuedRange(@Param("from") Instant from,
                                                 @Param("to") Instant to);
 
+    /**
+     * Unclaimed COVERED lines routed to a payer plan + member, on invoices that
+     * are on the books (not DRAFT / CANCELLED) — backs insurance-claim assembly.
+     * Oldest first so a claim reads in charge order.
+     */
+    @Query("""
+            SELECT l
+            FROM Invoice i, InvoiceLine l
+            WHERE l.invoiceUid = i.uid
+              AND l.coverageStatus = 'COVERED'
+              AND l.payerPlanUid = :payerPlanUid
+              AND l.membershipNo = :membershipNo
+              AND l.claimId IS NULL
+              AND i.status NOT IN ('DRAFT', 'CANCELLED')
+            ORDER BY l.createdAt ASC
+            """)
+    List<InvoiceLine> findClaimableCoveredLines(@Param("payerPlanUid") String payerPlanUid,
+                                                @Param("membershipNo") String membershipNo);
+
     /** Sum of all line amounts for invoices issued in range (excludes DRAFT / CANCELLED). */
     @Query("""
             SELECT COALESCE(SUM(l.amount), 0)

@@ -1,5 +1,6 @@
 package com.otapp.hmis.engine.billing.invoice.domain;
 
+import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.persistence.AuditableEntity;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
@@ -58,6 +59,15 @@ public class InvoiceLine extends AuditableEntity {
      */
     @Column(name = "principal_line_uid", length = 26) private String principalLineUid;
 
+    /**
+     * The insurance claim this COVERED line was rolled into (intra-billing FK ->
+     * insurance_claims.id); {@code null} until the claim ledger gathers it. A line
+     * is claimable only while this is null — the single guard against claiming the
+     * same covered line twice. Stamping it does NOT affect the patient balance
+     * (the insurer already settled this line at charge time via Invoice.totalCovered).
+     */
+    @Column(name = "claim_id") private Long claimId;
+
     @SuppressWarnings("java:S107") // private — the public surface is the named factories below
     private InvoiceLine(String invoiceUid, InvoiceLineKind kind, String serviceUid, String referenceUid,
                         String description, BigDecimal quantity, BigDecimal unitPrice, BigDecimal amount,
@@ -114,5 +124,26 @@ public class InvoiceLine extends AuditableEntity {
                                                 BigDecimal unitPrice, BigDecimal amount, String principalLineUid) {
         return new InvoiceLine(invoiceUid, kind, serviceUid, referenceUid, description, quantity, unitPrice, amount,
                 LineCoverageStatus.UNPAID, null, null, principalLineUid);
+    }
+
+    /**
+     * Stamp the insurance claim this COVERED line was rolled into. Guards that
+     * the line is COVERED and not already claimed — the application half of the
+     * claim-at-most-once invariant (the DB {@code UNIQUE(invoice_line_uid)} on
+     * the claim-line table is the backstop). Touches no money field.
+     */
+    public void markClaimed(Long claimId) {
+        if (coverageStatus != LineCoverageStatus.COVERED) {
+            throw new BusinessRuleException("Only a COVERED line can be claimed");
+        }
+        if (this.claimId != null) {
+            throw new BusinessRuleException("This line is already on a claim");
+        }
+        this.claimId = claimId;
+    }
+
+    /** Release this line from a discarded DRAFT claim so it becomes claimable again. */
+    public void releaseClaim() {
+        this.claimId = null;
     }
 }

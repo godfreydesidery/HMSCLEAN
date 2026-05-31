@@ -45,4 +45,14 @@ export class ClinicalOrderService {
   cancel(orderUid: string, reason: string | null): Observable<ClinicalOrder> {
     return this.http.post<ClinicalOrder>(`${this.apiBase}/orders/uid/${orderUid}/cancel`, { reason });
   }
+
+  /** Reject a lab/radiology order with a reason (recoverable — re-accept resumes it). */
+  reject(orderUid: string, reason: string): Observable<ClinicalOrder> {
+    return this.http.post<ClinicalOrder>(`${this.apiBase}/orders/uid/${orderUid}/reject`, { reason });
+  }
+
+  /** Hold an accepted lab/radiology order (bounces it back to the pending queue). */
+  hold(orderUid: string): Observable<ClinicalOrder> {
+    return this.http.post<ClinicalOrder>(`${this.apiBase}/orders/uid/${orderUid}/hold`, {});
+  }
 }

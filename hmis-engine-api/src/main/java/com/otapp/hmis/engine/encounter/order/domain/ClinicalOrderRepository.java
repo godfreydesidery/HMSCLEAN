@@ -14,6 +14,16 @@ public interface ClinicalOrderRepository extends JpaRepository<ClinicalOrder, Lo
     Optional<ClinicalOrder> findByUid(String uid);
 
     /**
+     * Duplicate-order-type guard (legacy parity): no two orders of the same
+     * service type within one encounter. Consultation path (OUTPATIENT/INPATIENT)
+     * and outsider path (consultation_uid IS NULL). Matches the legacy {@code
+     * existsByConsultationAndType} with no status filter.
+     */
+    boolean existsByConsultationUidAndKindAndServiceUid(String consultationUid, ClinicalOrderKind kind, String serviceUid);
+
+    boolean existsByPatientUidAndConsultationUidIsNullAndKindAndServiceUid(String patientUid, ClinicalOrderKind kind, String serviceUid);
+
+    /**
      * Cross-patient worklist for the Orders &amp; Results module — optional
      * kind / status / patient-class / settled filters. {@code scope} is passed
      * as a String ('OUTPATIENT' / 'INPATIENT' / 'OUTSIDER') to avoid Hibernate's

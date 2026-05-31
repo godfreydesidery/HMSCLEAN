@@ -9,6 +9,7 @@ import {
 } from '../encounter/order/clinical-order.types';
 import { ClinicalOrderService } from '../encounter/order/clinical-order.service';
 import { EnterResultComponent } from '../encounter/order/enter-result.component';
+import { RejectOrderModalComponent } from '../encounter/order/reject-order-modal.component';
 import {
   PATIENT_CLASS_SCOPES, PatientClassScope, patientClassBadgeClass, patientClassLabel
 } from '../../shared/patient-class/patient-class';
@@ -83,9 +84,16 @@ export class OrderWorklistComponent implements OnInit {
     ref.result.then(() => this.load(), () => { /* dismissed */ });
   }
 
-  /** The accept (lab/radiology) or approve (procedure) gate that must clear before result entry. */
-  needsGate(s: ClinicalOrderStatus): boolean { return s === 'REQUESTED'; }
-  gateLabel(k: ClinicalOrderKind): string { return k === 'PROCEDURE' ? 'Approve' : 'Accept'; }
+  /**
+   * The accept (lab/radiology) or approve (procedure) gate that must clear
+   * before result entry. A REJECTED lab/radiology order re-enters via the same
+   * accept call (the legacy re-accept loop).
+   */
+  needsGate(s: ClinicalOrderStatus): boolean { return s === 'REQUESTED' || s === 'REJECTED'; }
+  gateLabel(row: OrderWorklistRow): string {
+    if (row.status === 'REJECTED') return 'Re-accept';
+    return row.kind === 'PROCEDURE' ? 'Approve' : 'Accept';
+  }
 
   passGate(row: OrderWorklistRow): void {
     if (this.busyUid()) return;
@@ -97,6 +105,43 @@ export class OrderWorklistComponent implements OnInit {
     op.pipe(finalize(() => this.busyUid.set(null))).subscribe({
       next: () => this.load(),
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not advance the order.')
+    });
+  }
+
+  /** Lab/radiology only: reject a REQUESTED/ACCEPTED order with a reason. */
+  canReject(row: OrderWorklistRow): boolean {
+    return row.kind !== 'PROCEDURE' && (row.status === 'REQUESTED' || row.status === 'ACCEPTED');
+  }
+  /** Lab/radiology only: hold an ACCEPTED order (bounces it back to pending). */
+  canHold(row: OrderWorklistRow): boolean {
+    return row.kind !== 'PROCEDURE' && row.status === 'ACCEPTED';
+  }
+
+  reject(row: OrderWorklistRow): void {
+    if (this.busyUid()) return;
+    const ref = this.modal.open(RejectOrderModalComponent, { centered: true });
+    (ref.componentInstance as RejectOrderModalComponent).orderLabel = `${row.serviceName ?? row.serviceCode ?? ''} · ${row.orderNo}`;
+    ref.result.then(
+      (reason: string) => {
+        this.busyUid.set(row.uid);
+        this.errorMessage.set(null);
+        this.orderService.reject(row.uid, reason).pipe(finalize(() => this.busyUid.set(null))).subscribe({
+          next: () => this.load(),
+          error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not reject the order.')
+        });
+      },
+      () => { /* dismissed */ }
+    );
+  }
+
+  hold(row: OrderWorklistRow): void {
+    if (this.busyUid()) return;
+    if (!globalThis.confirm(`Hold ${row.serviceName ?? row.orderNo}? It returns to the pending queue.`)) return;
+    this.busyUid.set(row.uid);
+    this.errorMessage.set(null);
+    this.orderService.hold(row.uid).pipe(finalize(() => this.busyUid.set(null))).subscribe({
+      next: () => this.load(),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not hold the order.')
     });
   }
 

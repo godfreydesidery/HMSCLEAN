@@ -55,7 +55,7 @@ public class Admission extends AuditableEntity {
 
     @Setter
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
+    @Column(nullable = false, length = 24)
     private AdmissionStatus status = AdmissionStatus.ADMITTED;
 
     @Setter
@@ -103,6 +103,33 @@ public class Admission extends AuditableEntity {
         this.consultationUid = consultationUid;
         this.admissionReason = admissionReason;
         this.admittedAt = Instant.now();
+    }
+
+    /**
+     * Hold the admission deposit-pending (legacy {@code PENDING}). Set at admit for
+     * CASH admissions: the ward-bed bill is issued but the bed is only RESERVED until
+     * the deposit is settled. Only valid from the freshly-constructed ADMITTED default.
+     */
+    public void markAwaitingDeposit() {
+        if (status != AdmissionStatus.ADMITTED) {
+            throw new BusinessRuleException("Only a fresh admission can be held for deposit (current: " + status + ")");
+        }
+        status = AdmissionStatus.AWAITING_DEPOSIT;
+    }
+
+    /**
+     * Activate a deposit-pending admission once the ward-bed bill is settled — billing
+     * pushes this from the {@code SettlementDispatcher}. Idempotent: flips
+     * AWAITING_DEPOSIT → ADMITTED and reports {@code true} so the caller occupies the
+     * reserved bed; a no-op (returns {@code false}) once already ADMITTED (settlement
+     * re-fired) or in any terminal state (it never reactivates a cancelled admission).
+     */
+    public boolean confirmDeposit() {
+        if (status == AdmissionStatus.AWAITING_DEPOSIT) {
+            status = AdmissionStatus.ADMITTED;
+            return true;
+        }
+        return false;
     }
 
     public void transferWard(String newWardUid, String newBedLabel) {
@@ -177,8 +204,11 @@ public class Admission extends AuditableEntity {
         if (status == AdmissionStatus.CANCELLED) {
             return;
         }
-        if (status != AdmissionStatus.ADMITTED) {
-            throw new BusinessRuleException("Admission can only be cancelled while ADMITTED (current: " + status + ")");
+        // AWAITING_DEPOSIT is the terminal-exit path for a patient who left before
+        // paying the deposit — cancelling releases the RESERVED bed (legacy had no
+        // such path; this is an additive cleanup the new flow needs).
+        if (status != AdmissionStatus.ADMITTED && status != AdmissionStatus.AWAITING_DEPOSIT) {
+            throw new BusinessRuleException("Admission can only be cancelled while active (current: " + status + ")");
         }
         status = AdmissionStatus.CANCELLED;
         cancelledAt = Instant.now();

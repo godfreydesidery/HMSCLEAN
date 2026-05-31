@@ -52,9 +52,10 @@ public class BedService {
     @Transactional
     public BedDto setActive(String bedUid, boolean active) {
         Bed b = loadOrThrow(bedUid);
-        if (!active && b.getStatus() == BedStatus.OCCUPIED) {
+        if (!active && inUse(b)) {
             throw new BusinessRuleException(
-                    "Cannot deactivate an occupied bed — discharge or transfer the patient first");
+                    "Cannot deactivate a bed that is in use (" + b.getStatus()
+                            + ") — discharge, transfer or cancel the admission first");
         }
         b.setActive(active);
         return toDto(b);
@@ -63,6 +64,15 @@ public class BedService {
     @Transactional
     public BedDto markOutOfService(String bedUid, OutOfServiceRequest request) {
         Bed b = loadOrThrow(bedUid);
+        // A bed RESERVED for a deposit-pending admission is committed to that patient —
+        // taking it offline would orphan the reservation (and the deposit payment would
+        // then have no bed to occupy). Cancel the admission first. (An OCCUPIED bed may
+        // still be taken offline mid-stay, e.g. equipment failure — unchanged.)
+        if (b.getStatus() == BedStatus.RESERVED) {
+            throw new BusinessRuleException(
+                    "Bed is RESERVED for a deposit-pending admission — cancel the admission "
+                            + "before taking the bed out of service");
+        }
         b.markOutOfService(request == null ? null : emptyToNull(request.reason()));
         return toDto(b);
     }
@@ -70,9 +80,10 @@ public class BedService {
     @Transactional
     public BedDto markFree(String bedUid) {
         Bed b = loadOrThrow(bedUid);
-        if (b.getStatus() == BedStatus.OCCUPIED) {
+        if (inUse(b)) {
             throw new BusinessRuleException(
-                    "Bed is OCCUPIED — discharge the admission instead of manually freeing the bed");
+                    "Bed is in use (" + b.getStatus() + ") — discharge or cancel the admission "
+                            + "instead of manually freeing the bed");
         }
         b.markFree();
         return toDto(b);
@@ -81,10 +92,16 @@ public class BedService {
     @Transactional
     public void delete(String bedUid) {
         Bed b = loadOrThrow(bedUid);
-        if (b.getStatus() == BedStatus.OCCUPIED) {
-            throw new BusinessRuleException("Cannot delete an occupied bed");
+        if (inUse(b)) {
+            throw new BusinessRuleException("Cannot delete a bed that is in use (" + b.getStatus() + ")");
         }
         repo.delete(b);
+    }
+
+    /** A bed is "in use" — and so cannot be deactivated, freed or deleted — while it is
+     *  physically OCCUPIED or held (RESERVED) for a deposit-pending admission. */
+    private static boolean inUse(Bed b) {
+        return b.getStatus() == BedStatus.OCCUPIED || b.getStatus() == BedStatus.RESERVED;
     }
 
     @Transactional(readOnly = true)

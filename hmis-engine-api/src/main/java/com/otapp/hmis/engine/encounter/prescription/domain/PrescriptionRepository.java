@@ -58,12 +58,12 @@ public interface PrescriptionRepository extends JpaRepository<Prescription, Long
                      AND p.consultationUid IS NOT NULL
                      AND EXISTS (SELECT 1 FROM com.otapp.hmis.engine.encounter.admission.domain.Admission a
                                  WHERE a.patientUid = p.patientUid
-                                   AND a.status = com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.ADMITTED))
+                                   AND a.status IN (com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.ADMITTED, com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.AWAITING_DEPOSIT)))
                  OR (:scope = 'OUTPATIENT'
                      AND p.consultationUid IS NOT NULL
                      AND NOT EXISTS (SELECT 1 FROM com.otapp.hmis.engine.encounter.admission.domain.Admission a
                                      WHERE a.patientUid = p.patientUid
-                                       AND a.status = com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.ADMITTED))
+                                       AND a.status IN (com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.ADMITTED, com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.AWAITING_DEPOSIT)))
               )
             ORDER BY p.requestedAt ASC
             """)

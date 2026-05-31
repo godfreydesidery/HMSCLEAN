@@ -43,12 +43,12 @@ public interface ClinicalOrderRepository extends JpaRepository<ClinicalOrder, Lo
                      AND o.consultationUid IS NOT NULL
                      AND EXISTS (SELECT 1 FROM com.otapp.hmis.engine.encounter.admission.domain.Admission a
                                  WHERE a.patientUid = o.patientUid
-                                   AND a.status = com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.ADMITTED))
+                                   AND a.status IN (com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.ADMITTED, com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.AWAITING_DEPOSIT)))
                  OR (:scope = 'OUTPATIENT'
                      AND o.consultationUid IS NOT NULL
                      AND NOT EXISTS (SELECT 1 FROM com.otapp.hmis.engine.encounter.admission.domain.Admission a
                                      WHERE a.patientUid = o.patientUid
-                                       AND a.status = com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.ADMITTED))
+                                       AND a.status IN (com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.ADMITTED, com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.AWAITING_DEPOSIT)))
               )
             """)
     Page<ClinicalOrder> searchWorklist(@Param("kind") ClinicalOrderKind kind,

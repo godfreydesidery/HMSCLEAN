@@ -1,11 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize, forkJoin } from 'rxjs';
 
 import { StaffDirectoryService, StaffOption } from '../../../core/directory/staff-directory.service';
 import { PatientSearchComponent } from '../../../shared/patient-search/patient-search.component';
+import { BedService } from '../../masterdata/wards/bed.service';
+import { Bed } from '../../masterdata/wards/bed.types';
 import { InsurancePlanService } from '../../masterdata/insurance-plans/insurance-plan.service';
 import { InsurancePlan } from '../../masterdata/insurance-plans/insurance-plan.types';
 import { WardService } from '../../masterdata/wards/ward.service';
@@ -28,6 +31,7 @@ export class AdmitPatientComponent {
   private readonly router = inject(Router);
   private readonly admissionService = inject(AdmissionService);
   private readonly wardService = inject(WardService);
+  private readonly bedService = inject(BedService);
   private readonly planService = inject(InsurancePlanService);
   private readonly staffService = inject(StaffDirectoryService);
   private readonly consultationService = inject(ConsultationService);
@@ -36,6 +40,9 @@ export class AdmitPatientComponent {
 
   readonly patient = signal<Patient | null>(null);
   readonly wards = signal<Ward[]>([]);
+  /** FREE, active beds for the currently-selected ward — the typed-bed picker. */
+  readonly freeBeds = signal<Bed[]>([]);
+  readonly loadingBeds = signal(false);
   readonly clinicians = signal<StaffOption[]>([]);
   readonly plans = signal<InsurancePlan[]>([]);
   /** The selected patient's recent consultations, for the optional linkage dropdown. */
@@ -50,6 +57,7 @@ export class AdmitPatientComponent {
   readonly form = this.fb.nonNullable.group({
     patientUid: ['', [Validators.required]],
     wardUid: ['', [Validators.required]],
+    bedUid: [''],
     bedLabel: ['', [Validators.maxLength(32)]],
     admittingClinicianUsername: ['', [Validators.required]],
     paymentType: ['CASH' as PaymentType, [Validators.required]],
@@ -76,6 +84,21 @@ export class AdmitPatientComponent {
     if (consultationUid) {
       this.form.controls.consultationUid.setValue(consultationUid);
     }
+
+    // When the ward changes, load its FREE (available) beds so the user can claim a
+    // real bed — selecting one sends bedUid and drives the RESERVED/OCCUPIED flow.
+    this.form.controls.wardUid.valueChanges.pipe(takeUntilDestroyed()).subscribe((wardUid) => {
+      this.form.controls.bedUid.setValue('');
+      this.freeBeds.set([]);
+      if (!wardUid) return;
+      this.loadingBeds.set(true);
+      this.bedService.listForWard(wardUid)
+        .pipe(finalize(() => this.loadingBeds.set(false)))
+        .subscribe({
+          next: (beds) => this.freeBeds.set(beds.filter((b) => b.active && b.status === 'FREE')),
+          error: () => this.freeBeds.set([])
+        });
+    });
   }
 
   /** Patient chosen via the search typeahead (or preloaded from the deep-link). */
@@ -120,6 +143,7 @@ export class AdmitPatientComponent {
     this.admissionService.admit({
       patientUid: raw.patientUid,
       wardUid: raw.wardUid,
+      bedUid: raw.bedUid || null,
       bedLabel: raw.bedLabel?.trim() || null,
       admittingClinicianUsername: raw.admittingClinicianUsername,
       paymentType: raw.paymentType,

@@ -34,7 +34,10 @@ class NurseWorklistIT extends AuthenticatedIntegrationTest {
                         "admissionReason",            "observation"),
                 Map.class));
         String admissionUid = (String) admission.get("uid");
-        assertThat(admission.get("status")).isEqualTo("ADMITTED");
+        // CASH admit to the unpriced General Ward owes no deposit, so it activates
+        // immediately; the admit response is the pre-activation snapshot, so re-read.
+        assertThat(expectOk(get("/encounters/admissions/uid/" + admissionUid, Map.class)).get("status"))
+                .isEqualTo("ADMITTED");
 
         // Appears on the worklist, and under the correct ward filter.
         assertThat(nurseWorklistContains(admissionUid, null)).isTrue();

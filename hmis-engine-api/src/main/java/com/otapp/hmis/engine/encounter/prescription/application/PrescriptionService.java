@@ -236,7 +236,7 @@ public class PrescriptionService {
         if (p.getConsultationUid() == null) {
             return PatientClassScope.OUTSIDER;
         }
-        return admissionRepository.existsByPatientUidAndStatus(p.getPatientUid(), AdmissionStatus.ADMITTED)
+        return admissionRepository.existsByPatientUidAndStatusIn(p.getPatientUid(), AdmissionStatus.ACTIVE)
                 ? PatientClassScope.INPATIENT
                 : PatientClassScope.OUTPATIENT;
     }

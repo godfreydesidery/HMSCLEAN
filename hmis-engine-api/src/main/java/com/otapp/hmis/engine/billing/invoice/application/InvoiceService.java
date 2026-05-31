@@ -282,6 +282,26 @@ public class InvoiceService {
     }
 
     /**
+     * Void the ward-bed invoice when its admission is cancelled, so an abandoned
+     * deposit-pending admission leaves no live unpaid receivable — the admission
+     * analogue of the consultation cancel reversal. Only voids while still unpaid
+     * (DRAFT / ISSUED); a part-paid or paid deposit is left for manual refund.
+     * REQUIRES_NEW — runs from the AdmissionCancelledEvent after-commit listener.
+     */
+    @org.springframework.transaction.annotation.Transactional(
+            propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void cancelUnpaidAdmissionInvoice(String admissionUid) {
+        Invoice invoice = invoiceRepository.findByAdmissionUid(admissionUid).orElse(null);
+        if (invoice == null) {
+            return;
+        }
+        if (invoice.getStatus() == InvoiceStatus.DRAFT || invoice.getStatus() == InvoiceStatus.ISSUED) {
+            invoice.cancel("Admission cancelled");
+            settlementDispatcher.onInvoiceMaybeSettled(invoice);
+        }
+    }
+
+    /**
      * Generate or regenerate the OUTSIDER (walk-in) invoice for a patient.
      * Picks up every COMPLETED outsider clinical order and every DISPENSED
      * outsider prescription for the patient that hasn't already been billed

@@ -17,7 +17,7 @@
           <button ngbDropdownItem [disabled]="!isActive()" (click)="openTransfer(transferModal)"><i class="bi bi-arrow-left-right me-2"></i>Transfer ward / bed</button>
           <button ngbDropdownItem [disabled]="!isActive()" (click)="openDischargePlan()"><i class="bi bi-clipboard2-check me-2 text-success"></i>Discharge / closure plan…</button>
           <div class="dropdown-divider"></div>
-          <button ngbDropdownItem [disabled]="!isActive()" class="text-danger" (click)="openCancel(cancelModal)"><i class="bi bi-x-octagon me-2"></i>Cancel admission</button>
+          <button ngbDropdownItem [disabled]="!canCancel()" class="text-danger" (click)="openCancel(cancelModal)"><i class="bi bi-x-octagon me-2"></i>Cancel admission</button>
         </div>
       </div>
     }
@@ -29,6 +29,14 @@
 }
 @if (actionMessage()) {
   <div class="alert alert-success d-flex align-items-center gap-2" role="alert"><i class="bi bi-check-circle"></i><span>{{ actionMessage() }}</span></div>
+}
+@if (isAwaitingDeposit()) {
+  <div class="alert alert-warning d-flex align-items-center gap-2" role="alert">
+    <i class="bi bi-hourglass-split"></i>
+    <span>Awaiting deposit — the bed is reserved but not yet occupied. Settle the ward-bed bill
+      on the <strong>Billing</strong> tab to activate the admission; charting, transfer and
+      discharge stay disabled until then.</span>
+  </div>
 }
 
 @if (loading()) {

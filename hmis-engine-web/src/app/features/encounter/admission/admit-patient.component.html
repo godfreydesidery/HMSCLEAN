@@ -57,8 +57,25 @@
     </div>
 
     <div class="col-md-6">
-      <label class="form-label" for="ad-bed">Bed label</label>
-      <input id="ad-bed" name="bedLabel" type="text" class="form-control" formControlName="bedLabel" maxlength="32" placeholder="e.g. B-12">
+      <label class="form-label" for="ad-bed-uid">Bed</label>
+      <select id="ad-bed-uid" name="bedUid" class="form-select" formControlName="bedUid">
+        <option value="">{{ loadingBeds() ? 'Loading beds…' : '— Unassigned / free-text label —' }}</option>
+        @for (b of freeBeds(); track b.uid) {
+          <option [value]="b.uid">{{ b.label }}</option>
+        }
+      </select>
+      @if (form.controls.wardUid.value && !loadingBeds() && freeBeds().length === 0) {
+        <div class="form-text"><i class="bi bi-info-circle me-1"></i>No free beds for this ward — use a free-text label, or add beds under Masterdata → Wards → Beds.</div>
+      } @else if (form.controls.bedUid.value) {
+        <div class="form-text text-success"><i class="bi bi-check-circle me-1"></i>This bed will be {{ form.controls.paymentType.value === 'INSURANCE' ? 'occupied immediately' : 'reserved until the deposit is paid' }}.</div>
+      }
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label" for="ad-bed">Bed label
+        @if (form.controls.bedUid.value) { <span class="hmis-muted small">(set from the selected bed)</span> }
+      </label>
+      <input id="ad-bed" name="bedLabel" type="text" class="form-control" formControlName="bedLabel" maxlength="32" placeholder="e.g. B-12" [class.bg-light]="form.controls.bedUid.value">
     </div>
 
     <div class="col-md-6">

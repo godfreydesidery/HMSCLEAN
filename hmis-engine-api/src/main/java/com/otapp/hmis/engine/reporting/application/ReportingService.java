@@ -166,9 +166,11 @@ public class ReportingService {
             Long count = (Long) row[2];
             bedCountsByWard.computeIfAbsent(wardUid, k -> new EnumMap<>(BedStatus.class)).put(status, count);
         }
-        // Fallback: count of active admissions per ward, for wards with no beds defined.
+        // Fallback for wards with no Bed rows: count ACTIVE (ADMITTED + deposit-pending
+        // AWAITING_DEPOSIT) admissions as occupied, consistent with the bed-table branch
+        // which counts a RESERVED held bed as occupied.
         Map<String, Long> activeByWard = new HashMap<>();
-        for (Object[] row : admissionRepository.countCurrentlyAdmittedByWard()) {
+        for (Object[] row : admissionRepository.countActiveByWard()) {
             activeByWard.put((String) row[0], (Long) row[1]);
         }
 
@@ -181,9 +183,12 @@ public class ReportingService {
             long free;
             long outOfService;
             if (total > 0) {
-                occupied     = beds.getOrDefault(BedStatus.OCCUPIED, 0L);
-                free         = beds.getOrDefault(BedStatus.FREE, 0L)
+                // A RESERVED bed is held for a deposit-pending (AWAITING_DEPOSIT)
+                // admission — it is not available, so it counts as occupied, not free
+                // (it would otherwise overstate capacity now that reservations are live).
+                occupied     = beds.getOrDefault(BedStatus.OCCUPIED, 0L)
                              + beds.getOrDefault(BedStatus.RESERVED, 0L);
+                free         = beds.getOrDefault(BedStatus.FREE, 0L);
                 outOfService = beds.getOrDefault(BedStatus.OUT_OF_SERVICE, 0L);
             } else {
                 // No Bed rows for this ward yet — use active admissions vs. ward capacity.

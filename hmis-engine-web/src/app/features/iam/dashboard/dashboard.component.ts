@@ -178,6 +178,7 @@ export class DashboardComponent {
   }
   admissionStatusBadge(status: string): string {
     switch (status) {
+      case 'AWAITING_DEPOSIT': return 'text-bg-warning-subtle text-warning-emphasis border border-warning-subtle';
       case 'ADMITTED':    return 'text-bg-primary-subtle text-primary border border-primary-subtle';
       case 'DISCHARGED':  return 'text-bg-success-subtle text-success-emphasis border border-success-subtle';
       case 'DECEASED':    return 'text-bg-dark-subtle text-dark-emphasis border border-dark-subtle';

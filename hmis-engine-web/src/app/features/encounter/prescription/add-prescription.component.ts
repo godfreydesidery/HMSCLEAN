@@ -1,12 +1,14 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit, inject, signal } from '@angular/core';
+import { Component, DestroyRef, Input, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { finalize } from 'rxjs';
+import { debounceTime, finalize } from 'rxjs';
 
 import { MedicineService } from '../../masterdata/medicines/medicine.service';
 import { Medicine } from '../../masterdata/medicines/medicine.types';
 import { PrescriptionService } from './prescription.service';
+import { PrescribingAlert } from './prescription.types';
 
 @Component({
   selector: 'app-add-prescription',
@@ -19,16 +21,21 @@ export class AddPrescriptionComponent implements OnInit {
   @Input() consultationUid: string | null = null;
   /** Set for the OUTSIDER pathway (direct-to-patient retail / OTC prescription). */
   @Input() outsiderPatientUid: string | null = null;
+  /** Patient whose dispense history drives the advisory pre-prescribe alerts. */
+  @Input() patientUid: string | null = null;
 
   private readonly fb = inject(FormBuilder);
   private readonly prescriptionService = inject(PrescriptionService);
   private readonly medicineService = inject(MedicineService);
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly activeModal = inject(NgbActiveModal);
 
   readonly medicines = signal<Medicine[]>([]);
   readonly loadingMedicines = signal(false);
   readonly submitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  /** Advisory, non-blocking pre-prescribe alerts for the selected patient/medicine. */
+  readonly alerts = signal<PrescribingAlert[]>([]);
 
   readonly form = this.fb.nonNullable.group({
     medicineUid:  ['', [Validators.required]],
@@ -47,6 +54,22 @@ export class AddPrescriptionComponent implements OnInit {
         next: (res) => this.medicines.set(res.content),
         error: () => this.errorMessage.set('Could not load medicines catalogue.')
       });
+
+    // Advisory pre-prescribe check: react to medicine selection, debounced. Never blocks Save.
+    this.form.controls.medicineUid.valueChanges
+      .pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
+      .subscribe((medicineUid) => this.loadAlerts(medicineUid));
+  }
+
+  private loadAlerts(medicineUid: string | null): void {
+    if (!this.patientUid || !medicineUid || medicineUid.length !== 26) {
+      this.alerts.set([]);
+      return;
+    }
+    this.prescriptionService.prescribingAlerts(this.patientUid, medicineUid).subscribe({
+      next: (res) => this.alerts.set(res.alerts ?? []),
+      error: () => this.alerts.set([]) // advisory only — swallow errors, never block
+    });
   }
 
   submit(): void {

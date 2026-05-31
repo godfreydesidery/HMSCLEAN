@@ -4,7 +4,37 @@ export const REPORTING_ROUTES: Routes = [
   {
     path: '',
     loadComponent: () =>
-      import('../placeholder/placeholder.component').then((m) => m.PlaceholderComponent),
-    data: { title: 'Reporting' }
+      import('./reporting-hub.component').then((m) => m.ReportingHubComponent),
+    data: { title: 'Reports' }
+  },
+  {
+    path: 'revenue',
+    loadComponent: () =>
+      import('./revenue-report.component').then((m) => m.RevenueReportComponent),
+    data: { title: 'Revenue summary' }
+  },
+  {
+    path: 'ipd-register',
+    loadComponent: () =>
+      import('./ipd-register-report.component').then((m) => m.IpdRegisterReportComponent),
+    data: { title: 'IPD register' }
+  },
+  {
+    path: 'bed-occupancy',
+    loadComponent: () =>
+      import('./bed-occupancy-report.component').then((m) => m.BedOccupancyReportComponent),
+    data: { title: 'Bed occupancy' }
+  },
+  {
+    path: 'stock-out',
+    loadComponent: () =>
+      import('./stock-out-report.component').then((m) => m.StockOutReportComponent),
+    data: { title: 'Stock-out' }
+  },
+  {
+    path: 'expiring-batches',
+    loadComponent: () =>
+      import('./expiring-batches-report.component').then((m) => m.ExpiringBatchesReportComponent),
+    data: { title: 'Expiring batches' }
   }
 ];

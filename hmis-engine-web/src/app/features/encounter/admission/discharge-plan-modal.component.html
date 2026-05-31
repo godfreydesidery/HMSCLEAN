@@ -85,6 +85,13 @@
       }
     </form>
   }
+  @if (isPending && billingSummary && !billingSummary.cleared) {
+    <div class="alert alert-warning d-flex align-items-center gap-2 mt-3 mb-0"><i class="bi bi-cash-coin"></i>
+      <span>Outstanding balance {{ billingSummary.balance | number:'1.2-2' }} — discharge is blocked until the admission bill is settled.</span>
+    </div>
+  } @else if (isPending && billingSummary?.cleared) {
+    <div class="alert alert-success d-flex align-items-center gap-2 mt-3 mb-0"><i class="bi bi-check-circle"></i><span>Bill cleared — closure allowed.</span></div>
+  }
 </div>
 
 <div class="modal-footer">
@@ -96,7 +103,8 @@
     </button>
   }
   @if (isPending) {
-    <button type="button" class="btn btn-success d-flex align-items-center gap-2" (click)="approve()" [disabled]="busy()">
+    <button type="button" class="btn btn-success d-flex align-items-center gap-2" (click)="approve()"
+            [disabled]="busy() || (!!billingSummary && !billingSummary.cleared)">
       <i class="bi bi-check2-circle"></i>Approve &amp; close admission
     </button>
   }

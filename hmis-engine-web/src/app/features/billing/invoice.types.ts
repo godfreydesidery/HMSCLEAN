@@ -110,6 +110,19 @@ export interface InvoiceSummary {
   createdAt: string;
 }
 
+/** Admission discharge bill-clearance gate read (AdmissionBillingSummaryDto). */
+export interface AdmissionBillingSummary {
+  id: number;
+  invoiceUid: string;
+  invoiceNo: string;
+  status: InvoiceStatus;
+  subtotal: number;
+  totalPaid: number;
+  totalCredited: number;
+  balance: number;
+  cleared: boolean;
+}
+
 export interface RecordPaymentRequest {
   method: PaymentMethod;
   amount: number;

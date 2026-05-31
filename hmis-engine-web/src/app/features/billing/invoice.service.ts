@@ -6,7 +6,7 @@ import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { PageResponse } from '../../core/http/page.types';
 import {
-  Invoice, InvoiceSearchParams, InvoiceSummary, RecordPaymentRequest
+  AdmissionBillingSummary, Invoice, InvoiceSearchParams, InvoiceSummary, RecordPaymentRequest
 } from './invoice.types';
 
 @Injectable({ providedIn: 'root' })
@@ -81,5 +81,12 @@ export class InvoiceService {
 
   recordPayment(uid: string, req: RecordPaymentRequest): Observable<Invoice> {
     return this.http.post<Invoice>(`${this.base}/invoices/uid/${uid}/payments`, req);
+  }
+
+  /** Admission discharge bill-clearance gate read (V66). 204 → null when no invoice yet. */
+  admissionBillingSummary(admissionUid: string): Observable<AdmissionBillingSummary | null> {
+    return this.http
+      .get<AdmissionBillingSummary>(`${this.base}/admissions/uid/${admissionUid}/billing-summary`, { observe: 'response' })
+      .pipe(map((res) => (res.status === 204 ? null : res.body)));
   }
 }

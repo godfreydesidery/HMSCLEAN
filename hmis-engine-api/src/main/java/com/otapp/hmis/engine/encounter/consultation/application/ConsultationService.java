@@ -59,6 +59,8 @@ public class ConsultationService {
     private final StaffDirectoryService staffDirectoryService;
     private final AdmissionRepository admissionRepository;
     private final ConsultationCloseService consultationCloseService;
+    private final com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderRepository clinicalOrderRepository;
+    private final com.otapp.hmis.engine.encounter.prescription.domain.PrescriptionRepository prescriptionRepository;
     private final ConsultationNumberGenerator numberGenerator;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -158,9 +160,22 @@ public class ConsultationService {
         if (targetClinic.getUid().equals(source.getClinicUid())) {
             throw new BusinessRuleException("Cannot transfer to the same clinic");
         }
-        // TODO OPC-1: legacy also blocks on un-acted PENDING orders / prescriptions
-        // on the source consultation — skipped for now to avoid coupling to the
-        // orders / prescription internals.
+        // Legacy parity (OPC-1): block the transfer while the source consultation
+        // still has an un-acted (initial-state) order or prescription — a REQUESTED
+        // order or PENDING script. The downstream hasn't picked it up, so handing
+        // the patient off would orphan it; the doctor must cancel or complete it first.
+        if (clinicalOrderRepository.existsByConsultationUidAndStatus(
+                source.getUid(),
+                com.otapp.hmis.engine.encounter.order.domain.ClinicalOrderStatus.REQUESTED)) {
+            throw new BusinessRuleException(
+                    "The consultation has a pending (un-accepted) order — cancel or complete it before transferring");
+        }
+        if (prescriptionRepository.existsByConsultationUidAndStatus(
+                source.getUid(),
+                com.otapp.hmis.engine.encounter.prescription.domain.PrescriptionStatus.PENDING)) {
+            throw new BusinessRuleException(
+                    "The consultation has a pending (un-dispensed) prescription — cancel or complete it before transferring");
+        }
 
         ConsultationTransfer transferReq = new ConsultationTransfer(
                 source.getUid(),

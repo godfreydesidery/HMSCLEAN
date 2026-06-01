@@ -32,6 +32,7 @@ class ConsultationTransferIT extends AuthenticatedIntegrationTest {
 
     private static final String OPD_CLINIC_UID = "01J5KQRPCD0000000000000CN1";
     private static final String PED_CLINIC_UID = "01J5KQRPCD0000000000000CN2";
+    private static final String CBC_UID        = "01J5KQRPCD0000000000000LB1";
 
     /**
      * Register a CASH patient, pay the registration fee, book a consultation at OPD
@@ -175,6 +176,35 @@ class ConsultationTransferIT extends AuthenticatedIntegrationTest {
         assertThat(denied.getStatusCode().is4xxClientError())
                 .as("Cannot transfer to the same clinic")
                 .isTrue();
+    }
+
+    @Test
+    @SuppressWarnings("rawtypes")
+    void pendingOrderBlocksTransferUntilCancelled() {
+        String sourceUid = openOpdConsultation("Pending");
+
+        // Raise an order — it sits in REQUESTED (un-acted) on the source.
+        String orderUid = (String) expectOk(post(
+                "/encounters/consultations/uid/" + sourceUid + "/orders",
+                Map.of("kind", "LAB_TEST", "serviceUid", CBC_UID, "urgency", "NORMAL"),
+                Map.class)).get("uid");
+
+        // Transfer is blocked while the un-acted order exists.
+        ResponseEntity<Map> blocked = post(
+                "/encounters/consultations/uid/" + sourceUid + "/transfer",
+                Map.of("targetClinicUid", PED_CLINIC_UID),
+                Map.class);
+        assertThat(blocked.getStatusCode().is4xxClientError())
+                .as("a pending (un-accepted) order blocks the transfer").isTrue();
+
+        // Cancel the order, then the transfer goes through.
+        expectOk(post("/encounters/orders/uid/" + orderUid + "/cancel",
+                Map.of("reason", "transferring patient"), Map.class));
+        Map transfer = expectOk(post(
+                "/encounters/consultations/uid/" + sourceUid + "/transfer",
+                Map.of("targetClinicUid", PED_CLINIC_UID),
+                Map.class));
+        assertThat(transfer.get("status")).isEqualTo("PENDING");
     }
 
     @Test

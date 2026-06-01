@@ -28,7 +28,7 @@ export interface PatientVitals {
   updatedAt: string;
 }
 
-export interface RecordVitalsRequest {
+export interface SaveVitalsRequest {
   temperatureC: number | null;
   pulseBpm: number | null;
   respirationBpm: number | null;

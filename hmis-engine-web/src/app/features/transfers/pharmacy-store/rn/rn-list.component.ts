@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
 import {
@@ -20,6 +20,7 @@ import { RNSummary } from './rn.types';
 export class RnListComponent {
   private readonly rnService = inject(RnService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly statuses = RECEIVE_NOTE_STATUSES;
   readonly query = new FormControl('', { nonNullable: true });
@@ -73,8 +74,8 @@ export class RnListComponent {
   goToPage(p: number): void { if (p < 0 || p >= this.totalPages() || p === this.page()) return; this.page.set(p); this.refresh$.next(); }
   changePageSize(s: number): void { this.pageSize.set(s); this.page.set(0); this.refresh$.next(); }
 
-  newNote(): void { void this.router.navigate(['/transfers/rn/new']); }
-  view(n: RNSummary): void { void this.router.navigate(['/transfers/rn', n.uid]); }
+  newNote(): void { void this.router.navigate(['new'], { relativeTo: this.route }); }
+  view(n: RNSummary): void { void this.router.navigate([n.uid], { relativeTo: this.route }); }
 
   statusBadgeClass(s: ReceiveNoteStatus): string { return receiveNoteBadgeClass(s); }
   statusLabel(s: ReceiveNoteStatus): string { return receiveNoteLabel(s); }

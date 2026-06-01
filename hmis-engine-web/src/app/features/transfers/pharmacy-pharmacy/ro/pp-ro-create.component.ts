@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize, forkJoin } from 'rxjs';
 
+import { WorkingLocationService } from '../../../../core/working-location/working-location.service';
 import { MedicineService } from '../../../masterdata/medicines/medicine.service';
 import { Medicine, MedicineUnit } from '../../../masterdata/medicines/medicine.types';
 import { PharmacyService } from '../../../masterdata/pharmacies/pharmacy.service';
@@ -22,8 +23,13 @@ export class PpRoCreateComponent implements OnInit {
   private readonly roService = inject(PpROService);
   private readonly pharmacyService = inject(PharmacyService);
   private readonly medicineService = inject(MedicineService);
+  private readonly workingLocation = inject(WorkingLocationService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
+  /** The requesting pharmacy = the operator's own working pharmacy (read-only, legacy). */
+  readonly workingPharmacy = this.workingLocation.workingPharmacy;
+  /** Counterparty: the other pharmacies this one can request FROM (kept as a dropdown). */
   readonly pharmacies = signal<Pharmacy[]>([]);
   readonly medicines = signal<Medicine[]>([]);
   /** Units loaded per medicineUid, used to populate the unit picker once a medicine is chosen. */
@@ -33,7 +39,7 @@ export class PpRoCreateComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
 
   readonly form = this.fb.nonNullable.group({
-    requestingPharmacyUid: ['', [Validators.required]],
+    // Counterparty: the source pharmacy this one requests FROM (kept as a dropdown).
     deliveringPharmacyUid: ['', [Validators.required]],
     validUntil: [''],
     note: ['', [Validators.maxLength(500)]],
@@ -45,6 +51,12 @@ export class PpRoCreateComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // The requesting pharmacy is the working pharmacy only (no own-pharmacy picker);
+    // gate behind the Select page when the workspace is not set.
+    if (!this.workingPharmacy()) {
+      void this.router.navigate(['/pharmacy/select']);
+      return;
+    }
     forkJoin({
       pharmacies: this.pharmacyService.search({ active: true, size: 200, sort: 'name,asc' }),
       medicines: this.medicineService.search({ active: true, size: 300, sort: 'name,asc' })
@@ -88,6 +100,8 @@ export class PpRoCreateComponent implements OnInit {
 
   submit(): void {
     if (this.submitting()) return;
+    const working = this.workingPharmacy();
+    if (!working) { void this.router.navigate(['/pharmacy/select']); return; }
     if (this.form.invalid || this.lines.length === 0) { this.form.markAllAsTouched(); return; }
     this.submitting.set(true);
     this.errorMessage.set(null);
@@ -102,16 +116,16 @@ export class PpRoCreateComponent implements OnInit {
       };
     });
     this.roService.create({
-      requestingPharmacyUid: raw.requestingPharmacyUid,
+      requestingPharmacyUid: working.uid,
       deliveringPharmacyUid: raw.deliveringPharmacyUid,
       validUntil: raw.validUntil || null,
       note: raw.note?.trim() || null,
       lines
     }).pipe(finalize(() => this.submitting.set(false))).subscribe({
-      next: (ro: RODto) => void this.router.navigate(['/transfers/pp/ro', ro.uid]),
+      next: (ro: RODto) => void this.router.navigate(['..', ro.uid], { relativeTo: this.route }),
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not create requisition.')
     });
   }
 
-  cancel(): void { void this.router.navigate(['/transfers/pp/ro']); }
+  cancel(): void { void this.router.navigate(['..'], { relativeTo: this.route }); }
 }

@@ -4,23 +4,14 @@
     <p class="hmis-muted mb-0 small">Per-batch on-hand quantities (FEFO dispensing) and the movement ledger.</p>
   </div>
   <div class="d-flex gap-2">
-    <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="openReceive()" [disabled]="!selectedPharmacyUid()"><i class="bi bi-box-arrow-in-down"></i>Receive stock</button>
+    <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="openReceive()" [disabled]="!workingPharmacy()"><i class="bi bi-box-arrow-in-down"></i>Receive stock</button>
   </div>
 </div>
 
 <div class="card mb-3">
   <div class="card-body py-3">
-    <form [formGroup]="pharmacyForm" novalidate>
+    <form novalidate>
       <div class="row g-2 align-items-center">
-        <div class="col-md-4">
-          <label class="form-label small hmis-muted mb-1" for="st-pharm">Pharmacy</label>
-          <select id="st-pharm" name="pharmacyUid" class="form-select" formControlName="pharmacyUid">
-            <option value="" disabled>— Select pharmacy —</option>
-            @for (p of pharmacies(); track p.uid) {
-              <option [value]="p.uid">{{ p.name }} ({{ p.code }})</option>
-            }
-          </select>
-        </div>
         <div class="col-md-4">
           <label class="form-label small hmis-muted mb-1" for="st-q">Search medicine</label>
           <div class="input-group">

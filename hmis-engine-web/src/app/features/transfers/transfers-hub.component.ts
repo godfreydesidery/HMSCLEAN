@@ -50,14 +50,14 @@ interface HubLink { label: string; path: string; icon: string; hint: string; }
 })
 export class TransfersHubComponent {
   readonly storeLinks: HubLink[] = [
-    { label: 'Requisitions (RO)', path: '/transfers/ro', icon: 'bi-clipboard-plus', hint: 'Pharmacy requests stock from a store' },
-    { label: 'Transfer orders (TO)', path: '/transfers/to', icon: 'bi-box-arrow-right', hint: 'Store issues against a requisition' },
-    { label: 'Receive notes (RN)', path: '/transfers/rn', icon: 'bi-box-arrow-in-down', hint: 'Pharmacy receives the issued stock' },
-    { label: 'Returns', path: '/transfers/returns', icon: 'bi-arrow-return-left', hint: 'Pharmacy returns stock to a store' }
+    { label: 'Requisitions (RO)', path: 'ro', icon: 'bi-clipboard-plus', hint: 'Pharmacy requests stock from a store' },
+    { label: 'Transfer orders (TO)', path: 'to', icon: 'bi-box-arrow-right', hint: 'Store issues against a requisition' },
+    { label: 'Receive notes (RN)', path: 'rn', icon: 'bi-box-arrow-in-down', hint: 'Pharmacy receives the issued stock' },
+    { label: 'Returns', path: 'returns', icon: 'bi-arrow-return-left', hint: 'Pharmacy returns stock to a store' }
   ];
   readonly pharmacyLinks: HubLink[] = [
-    { label: 'Requisitions (RO)', path: '/transfers/pp/ro', icon: 'bi-clipboard-plus', hint: 'A pharmacy requests stock from another' },
-    { label: 'Transfer orders (TO)', path: '/transfers/pp/to', icon: 'bi-box-arrow-right', hint: 'Delivering pharmacy issues against a requisition' },
-    { label: 'Receive notes (RN)', path: '/transfers/pp/rn', icon: 'bi-box-arrow-in-down', hint: 'Requesting pharmacy receives the stock' }
+    { label: 'Requisitions (RO)', path: 'pp/ro', icon: 'bi-clipboard-plus', hint: 'A pharmacy requests stock from another' },
+    { label: 'Transfer orders (TO)', path: 'pp/to', icon: 'bi-box-arrow-right', hint: 'Delivering pharmacy issues against a requisition' },
+    { label: 'Receive notes (RN)', path: 'pp/rn', icon: 'bi-box-arrow-in-down', hint: 'Requesting pharmacy receives the stock' }
   ];
 }

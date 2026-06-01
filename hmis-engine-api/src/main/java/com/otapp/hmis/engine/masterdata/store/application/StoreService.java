@@ -62,7 +62,7 @@ public class StoreService {
         return storeRepository.findByUid(uid).orElseThrow(() -> new NotFoundException("Store not found: " + uid));
     }
 
-    private static StoreDto toDto(Store s) {
+    static StoreDto toDto(Store s) {
         return new StoreDto(s.getUid(), s.getCode(), s.getName(), s.getLocation(),
                 s.getDescription(), s.isActive(), s.getCreatedAt(), s.getUpdatedAt());
     }

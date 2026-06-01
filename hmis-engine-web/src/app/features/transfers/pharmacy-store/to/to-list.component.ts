@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
 import {
@@ -20,6 +20,7 @@ import { TOSummary } from './to.types';
 export class ToListComponent {
   private readonly toService = inject(ToService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly statuses = TRANSFER_DOC_STATUSES;
   readonly query = new FormControl('', { nonNullable: true });
@@ -73,8 +74,8 @@ export class ToListComponent {
   goToPage(p: number): void { if (p < 0 || p >= this.totalPages() || p === this.page()) return; this.page.set(p); this.refresh$.next(); }
   changePageSize(s: number): void { this.pageSize.set(s); this.page.set(0); this.refresh$.next(); }
 
-  newOrder(): void { void this.router.navigate(['/transfers/to/new']); }
-  view(o: TOSummary): void { void this.router.navigate(['/transfers/to', o.uid]); }
+  newOrder(): void { void this.router.navigate(['new'], { relativeTo: this.route }); }
+  view(o: TOSummary): void { void this.router.navigate([o.uid], { relativeTo: this.route }); }
 
   statusBadgeClass(s: TransferDocStatus): string { return transferDocBadgeClass(s); }
   statusLabel(s: TransferDocStatus): string { return transferDocLabel(s); }

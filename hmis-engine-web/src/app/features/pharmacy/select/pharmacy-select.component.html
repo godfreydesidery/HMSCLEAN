@@ -1,0 +1,54 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">Select pharmacy</h1>
+    <p class="hmis-muted mb-0 small">Choose the pharmacy you are working in. Your dispensing, stock, sales and transfers are scoped to it for this session.</p>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <label class="form-label small hmis-muted mb-1" for="ps-q">Search pharmacy</label>
+    <div class="input-group" style="max-width: 420px;">
+      <span class="input-group-text bg-white border-end-0"><i class="bi bi-search hmis-muted"></i></span>
+      <input id="ps-q" type="search" class="form-control border-start-0 ps-0" placeholder="Name or code"
+             [value]="query()" (input)="query.set($any($event.target).value)">
+    </div>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="row g-3">
+    @for (i of [1,2,3,4,5,6]; track i) {
+      <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><span class="hmis-skeleton" style="width:180px;"></span></div></div></div>
+    }
+  </div>
+} @else if (filtered().length === 0) {
+  <div class="hmis-empty"><i class="bi bi-shop"></i><div class="fw-semibold mb-1">No pharmacies</div><div class="small">No active pharmacy matches your search.</div></div>
+} @else {
+  <div class="row g-3">
+    @for (p of filtered(); track p.uid) {
+      <div class="col-md-6 col-xl-4">
+        <button type="button" class="card h-100 w-100 text-start border-0 shadow-sm"
+                [class.border]="current()?.uid === p.uid" [class.border-primary]="current()?.uid === p.uid"
+                (click)="select(p)">
+          <div class="card-body d-flex align-items-center gap-3">
+            <span class="rounded-circle bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center" style="width:42px;height:42px;">
+              <i class="bi bi-capsule fs-5"></i>
+            </span>
+            <div class="flex-grow-1">
+              <div class="fw-semibold">{{ p.name }}</div>
+              <div class="hmis-muted small"><span class="hmis-code">{{ p.code }}</span>@if (p.location) { <span> · {{ p.location }}</span> }</div>
+            </div>
+            @if (current()?.uid === p.uid) {
+              <span class="badge text-bg-primary-subtle text-primary-emphasis border border-primary-subtle"><i class="bi bi-check-lg me-1"></i>Current</span>
+            } @else { <i class="bi bi-chevron-right hmis-muted"></i> }
+          </div>
+        </button>
+      </div>
+    }
+  </div>
+}

@@ -1,15 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { finalize, forkJoin } from 'rxjs';
 
+import { WorkingLocationService } from '../../../core/working-location/working-location.service';
 import { InsurancePlanService } from '../../masterdata/insurance-plans/insurance-plan.service';
 import { InsurancePlan } from '../../masterdata/insurance-plans/insurance-plan.types';
 import { MedicineService } from '../../masterdata/medicines/medicine.service';
 import { Medicine } from '../../masterdata/medicines/medicine.types';
-import { PharmacyService } from '../../masterdata/pharmacies/pharmacy.service';
-import { Pharmacy } from '../../masterdata/pharmacies/pharmacy.types';
 import { PAYMENT_TYPES, PaymentType } from '../../patient/patient.types';
 import { PharmacySaleOrderService } from './pharmacy-sale.service';
 import { AddLineRequest } from './pharmacy-sale.types';
@@ -21,20 +20,22 @@ interface CartLine extends AddLineRequest {
 @Component({
   selector: 'app-new-pharmacy-sale',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './new-sale.component.html'
 })
 export class NewSaleComponent {
   private readonly fb = inject(FormBuilder);
   private readonly saleService = inject(PharmacySaleOrderService);
-  private readonly pharmacyService = inject(PharmacyService);
   private readonly medicineService = inject(MedicineService);
   private readonly planService = inject(InsurancePlanService);
+  private readonly workingLocation = inject(WorkingLocationService);
   private readonly router = inject(Router);
 
   readonly paymentTypes = PAYMENT_TYPES;
 
-  readonly pharmacies = signal<Pharmacy[]>([]);
+  /** The selling pharmacy = the operator's own working pharmacy (read-only, legacy). */
+  readonly workingPharmacy = this.workingLocation.workingPharmacy;
+
   readonly medicines = signal<Medicine[]>([]);
   readonly plans = signal<InsurancePlan[]>([]);
   readonly loadingLookups = signal(true);
@@ -46,7 +47,6 @@ export class NewSaleComponent {
     this.cart().reduce((sum, l) => sum + (l.quantity * l.unitPrice), 0));
 
   readonly form = this.fb.nonNullable.group({
-    pharmacyUid: ['', [Validators.required]],
     customerName: ['', [Validators.required, Validators.maxLength(160)]],
     customerPhone: ['', [Validators.maxLength(40)]],
     paymentType: ['CASH' as PaymentType, [Validators.required]],
@@ -64,13 +64,17 @@ export class NewSaleComponent {
   });
 
   constructor() {
+    // The selling pharmacy comes only from the working location (legacy "selected
+    // pharmacy"); with none set, gate the action behind the Select page.
+    if (!this.workingPharmacy()) {
+      void this.router.navigate(['/pharmacy/select']);
+      return;
+    }
     forkJoin({
-      pharmacies: this.pharmacyService.search({ active: true, size: 200, sort: 'name,asc' }),
       medicines: this.medicineService.search({ active: true, size: 500, sort: 'name,asc' }),
       plans: this.planService.search({ active: true, size: 200, sort: 'name,asc' })
     }).pipe(finalize(() => this.loadingLookups.set(false))).subscribe({
-      next: ({ pharmacies, medicines, plans }) => {
-        this.pharmacies.set(pharmacies.content);
+      next: ({ medicines, plans }) => {
         this.medicines.set(medicines.content);
         this.plans.set(plans.content);
       },
@@ -116,6 +120,8 @@ export class NewSaleComponent {
 
   submit(): void {
     if (this.submitting()) return;
+    const working = this.workingPharmacy();
+    if (!working) { void this.router.navigate(['/pharmacy/select']); return; }
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     if (this.cart().length === 0) {
       this.errorMessage.set('Add at least one medicine to the cart.');
@@ -129,7 +135,7 @@ export class NewSaleComponent {
     this.errorMessage.set(null);
     const raw = this.form.getRawValue();
     this.saleService.create({
-      pharmacyUid: raw.pharmacyUid,
+      pharmacyUid: working.uid,
       customerName: raw.customerName.trim(),
       customerPhone: raw.customerPhone?.trim() || null,
       patientUid: null,

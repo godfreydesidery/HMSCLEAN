@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize, forkJoin } from 'rxjs';
 
+import { WorkingLocationService } from '../../../../core/working-location/working-location.service';
 import { TransferDocStatus, transferDocBadgeClass, transferDocLabel } from '../../transfer-common.types';
 import { PpTOService } from './pp-to.service';
 import { CreateTOLineRequest, RoPickDetail, RoPickSummary } from './pp-to.types';
@@ -14,14 +15,18 @@ const ISSUABLE_RO_STATUSES: TransferDocStatus[] = ['APPROVED', 'SUBMITTED', 'IN_
 @Component({
   selector: 'app-pp-to-create',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './pp-to-create.component.html'
 })
 export class PpToCreateComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly toService = inject(PpTOService);
+  private readonly workingLocation = inject(WorkingLocationService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+
+  /** The issuing (delivering) location = the operator's own working pharmacy (read-only, legacy). */
+  readonly workingPharmacy = this.workingLocation.workingPharmacy;
 
   /** Candidate ROs for the picker (when no roUid query param was supplied). */
   readonly ros = signal<RoPickSummary[]>([]);
@@ -43,6 +48,11 @@ export class PpToCreateComponent implements OnInit {
   readonly hasIssuableLines = computed(() => this.ro()?.lines.some((l) => l.outstandingQuantity > 0) ?? false);
 
   ngOnInit(): void {
+    // The issuing (delivering) pharmacy is the operator's own working pharmacy; enforce the workspace.
+    if (!this.workingPharmacy()) {
+      void this.router.navigate(['/pharmacy/select']);
+      return;
+    }
     const roUid = this.route.snapshot.queryParamMap.get('roUid');
     if (roUid) {
       this.loadRo(roUid);
@@ -141,12 +151,12 @@ export class PpToCreateComponent implements OnInit {
     this.toService.create({ roUid: ro.uid, note: note || null, lines })
       .pipe(finalize(() => this.submitting.set(false)))
       .subscribe({
-        next: (to) => void this.router.navigate(['/transfers/pp/to', to.uid]),
+        next: (to) => void this.router.navigate(['..', to.uid], { relativeTo: this.route }),
         error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not create transfer order.')
       });
   }
 
-  cancel(): void { void this.router.navigate(['/transfers/pp/to']); }
+  cancel(): void { void this.router.navigate(['..'], { relativeTo: this.route }); }
 
   statusBadgeClass(s: TransferDocStatus): string { return transferDocBadgeClass(s); }
   statusLabel(s: TransferDocStatus): string { return transferDocLabel(s); }

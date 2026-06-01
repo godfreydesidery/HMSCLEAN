@@ -4,23 +4,14 @@
     <p class="hmis-muted mb-0 small">Per-batch on-hand quantities for the central store and its movement ledger.</p>
   </div>
   <div class="d-flex gap-2">
-    <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="openReceive()" [disabled]="!selectedStoreUid()"><i class="bi bi-box-arrow-in-down"></i>Receive stock</button>
+    <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="openReceive()" [disabled]="!workingStore()"><i class="bi bi-box-arrow-in-down"></i>Receive stock</button>
   </div>
 </div>
 
 <div class="card mb-3">
   <div class="card-body py-3">
-    <form [formGroup]="storeForm" novalidate>
+    <form novalidate>
       <div class="row g-2 align-items-center">
-        <div class="col-md-4">
-          <label class="form-label small hmis-muted mb-1" for="ss-store">Store</label>
-          <select id="ss-store" name="storeUid" class="form-select" formControlName="storeUid">
-            <option value="" disabled>— Select store —</option>
-            @for (s of stores(); track s.uid) {
-              <option [value]="s.uid">{{ s.name }} ({{ s.code }})</option>
-            }
-          </select>
-        </div>
         <div class="col-md-4">
           <label class="form-label small hmis-muted mb-1" for="ss-q">Search medicine</label>
           <div class="input-group">

@@ -3,7 +3,7 @@
     <h1 class="hmis-page-title">Requisitions</h1>
     <p class="hmis-muted mb-0 small">Pharmacy requests for stock from a store (Request Orders).</p>
   </div>
-  <a class="btn btn-primary d-flex align-items-center gap-2" routerLink="/transfers/ro/new">
+  <a class="btn btn-primary d-flex align-items-center gap-2" routerLink="new">
     <i class="bi bi-plus-lg"></i>New requisition
   </a>
 </div>
@@ -48,7 +48,7 @@
         } @else {
           @for (o of requisitions(); track o.uid) {
             <tr (click)="view(o)" style="cursor:pointer;">
-              <td><a class="hmis-code" [routerLink]="['/transfers/ro', o.uid]" (click)="$event.stopPropagation()">{{ o.roNo }}</a></td>
+              <td><a class="hmis-code" [routerLink]="[o.uid]" (click)="$event.stopPropagation()">{{ o.roNo }}</a></td>
               <td><div class="fw-semibold">{{ o.pharmacyName || '—' }}</div></td>
               <td class="hmis-muted">{{ o.storeName || '—' }}</td>
               <td><span [class]="statusBadgeClass(o.status)">{{ statusLabel(o.status) }}</span></td>

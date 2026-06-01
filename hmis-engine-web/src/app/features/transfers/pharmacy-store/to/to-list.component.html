@@ -48,7 +48,7 @@
         } @else {
           @for (o of orders(); track o.uid) {
             <tr (click)="view(o)" style="cursor:pointer;">
-              <td><a class="hmis-code" [routerLink]="['/transfers/to', o.uid]" (click)="$event.stopPropagation()">{{ o.toNo }}</a></td>
+              <td><a class="hmis-code" [routerLink]="[o.uid]" (click)="$event.stopPropagation()">{{ o.toNo }}</a></td>
               <td class="hmis-muted">{{ o.roNo || '—' }}</td>
               <td><div class="fw-semibold">{{ o.pharmacyName || '—' }}</div></td>
               <td class="hmis-muted">{{ o.storeName || '—' }}</td>

@@ -1,13 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize, forkJoin } from 'rxjs';
 
+import { WorkingLocationService } from '../../../../core/working-location/working-location.service';
 import { MedicineService } from '../../../masterdata/medicines/medicine.service';
 import { Medicine, MedicineUnit } from '../../../masterdata/medicines/medicine.types';
-import { PharmacyService } from '../../../masterdata/pharmacies/pharmacy.service';
-import { Pharmacy } from '../../../masterdata/pharmacies/pharmacy.types';
 import { StoreService } from '../../../masterdata/stores/store.service';
 import { Store } from '../../../masterdata/stores/store.types';
 import { RoService } from './ro.service';
@@ -22,12 +21,14 @@ import { CreateROLineRequest, RODto } from './ro.types';
 export class RoCreateComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly roService = inject(RoService);
-  private readonly pharmacyService = inject(PharmacyService);
   private readonly storeService = inject(StoreService);
   private readonly medicineService = inject(MedicineService);
+  private readonly workingLocation = inject(WorkingLocationService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
-  readonly pharmacies = signal<Pharmacy[]>([]);
+  /** The requesting pharmacy = the operator's own working pharmacy (read-only, legacy). */
+  readonly workingPharmacy = this.workingLocation.workingPharmacy;
   readonly stores = signal<Store[]>([]);
   readonly medicines = signal<Medicine[]>([]);
   /** Units loaded per medicineUid, used to populate the unit picker once a medicine is chosen. */
@@ -37,7 +38,7 @@ export class RoCreateComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
 
   readonly form = this.fb.nonNullable.group({
-    pharmacyUid: ['', [Validators.required]],
+    // Counterparty: the store this pharmacy requests FROM (kept as a dropdown).
     storeUid: ['', [Validators.required]],
     validUntil: [''],
     note: ['', [Validators.maxLength(500)]],
@@ -49,13 +50,17 @@ export class RoCreateComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // The requesting pharmacy is the working pharmacy only (no own-pharmacy picker);
+    // gate behind the Select page when the workspace is not set.
+    if (!this.workingPharmacy()) {
+      void this.router.navigate(['/pharmacy/select']);
+      return;
+    }
     forkJoin({
-      pharmacies: this.pharmacyService.search({ active: true, size: 200, sort: 'name,asc' }),
       stores: this.storeService.search({ active: true, size: 200, sort: 'name,asc' }),
       medicines: this.medicineService.search({ active: true, size: 300, sort: 'name,asc' })
     }).pipe(finalize(() => this.loadingLookups.set(false))).subscribe({
-      next: ({ pharmacies, stores, medicines }) => {
-        this.pharmacies.set(pharmacies.content);
+      next: ({ stores, medicines }) => {
         this.stores.set(stores.content);
         this.medicines.set(medicines.content);
         this.addLine();
@@ -94,6 +99,8 @@ export class RoCreateComponent implements OnInit {
 
   submit(): void {
     if (this.submitting()) return;
+    const working = this.workingPharmacy();
+    if (!working) { void this.router.navigate(['/pharmacy/select']); return; }
     if (this.form.invalid || this.lines.length === 0) { this.form.markAllAsTouched(); return; }
     this.submitting.set(true);
     this.errorMessage.set(null);
@@ -108,16 +115,16 @@ export class RoCreateComponent implements OnInit {
       };
     });
     this.roService.create({
-      pharmacyUid: raw.pharmacyUid,
+      pharmacyUid: working.uid,
       storeUid: raw.storeUid,
       validUntil: raw.validUntil || null,
       note: raw.note?.trim() || null,
       lines
     }).pipe(finalize(() => this.submitting.set(false))).subscribe({
-      next: (ro: RODto) => void this.router.navigate(['/transfers/ro', ro.uid]),
+      next: (ro: RODto) => void this.router.navigate(['..', ro.uid], { relativeTo: this.route }),
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not create requisition.')
     });
   }
 
-  cancel(): void { void this.router.navigate(['/transfers/ro']); }
+  cancel(): void { void this.router.navigate(['..'], { relativeTo: this.route }); }
 }

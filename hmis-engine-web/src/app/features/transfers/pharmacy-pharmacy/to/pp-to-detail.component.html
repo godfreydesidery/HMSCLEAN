@@ -41,7 +41,7 @@
         <div class="col-md-3">
           <div class="hmis-muted small">Requisition</div>
           @if (o.roUid) {
-            <a class="fw-semibold hmis-code" [routerLink]="['/transfers/pp/ro', o.roUid]">{{ o.roNo || '—' }}</a>
+            <a class="fw-semibold hmis-code" [routerLink]="['..','..','ro', o.roUid]">{{ o.roNo || '—' }}</a>
           } @else { <div class="fw-semibold">{{ o.roNo || '—' }}</div> }
         </div>
         <div class="col-md-3"><div class="hmis-muted small">Requesting pharmacy</div><div class="fw-semibold">{{ o.requestingPharmacyName || '—' }}</div></div>

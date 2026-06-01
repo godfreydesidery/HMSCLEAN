@@ -30,13 +30,15 @@
 
   <form [formGroup]="form" novalidate>
     <div class="mb-3">
-      <label class="form-label" for="dp-pharm">Filling pharmacy <span class="text-danger">*</span></label>
-      <select id="dp-pharm" name="pharmacyUid" class="form-select" formControlName="pharmacyUid">
-        <option value="" disabled>{{ loadingPharmacies() ? 'Loading…' : '— Select pharmacy —' }}</option>
-        @for (p of pharmacies(); track p.uid) {
-          <option [value]="p.uid">{{ p.name }} ({{ p.code }})</option>
-        }
-      </select>
+      <span class="form-label d-block">Filling pharmacy</span>
+      @if (workingPharmacy(); as wp) {
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge text-bg-primary-subtle text-primary-emphasis border border-primary-subtle d-inline-flex align-items-center gap-1"><i class="bi bi-shop"></i>Working in: {{ wp.name }}</span>
+          <button type="button" class="btn btn-link link-secondary text-decoration-none small p-0" (click)="changePharmacy()"><i class="bi bi-arrow-left-right me-1"></i>Change</button>
+        </div>
+      } @else {
+        <div class="text-danger small"><i class="bi bi-exclamation-circle me-1"></i>No working pharmacy selected.</div>
+      }
       <div class="form-text">Where the script is being filled. Recorded as <code>issuePharmacy</code> on the prescription.</div>
     </div>
 
@@ -45,7 +47,9 @@
       <select id="dp-sales" name="salesPharmacyUid" class="form-select" formControlName="salesPharmacyUid">
         <option value="">Same as filling pharmacy (default)</option>
         @for (p of pharmacies(); track p.uid) {
-          <option [value]="p.uid">{{ p.name }} ({{ p.code }})</option>
+          @if (p.uid !== workingPharmacy()?.uid) {
+            <option [value]="p.uid">{{ p.name }} ({{ p.code }})</option>
+          }
         }
       </select>
       <div class="form-text">When set to a different pharmacy, stock is pulled from there instead — no formal transfer required.</div>
@@ -55,7 +59,7 @@
 
 <div class="modal-footer">
   <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
-  <button type="button" class="btn btn-success d-flex align-items-center gap-2" (click)="dispense()" [disabled]="submitting() || form.invalid || !prescription.quantity || prescription.quantity <= 0">
+  <button type="button" class="btn btn-success d-flex align-items-center gap-2" (click)="dispense()" [disabled]="submitting() || !workingPharmacy() || !prescription.quantity || prescription.quantity <= 0">
     @if (submitting()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }
     <i class="bi bi-box-arrow-up"></i>Dispense
   </button>

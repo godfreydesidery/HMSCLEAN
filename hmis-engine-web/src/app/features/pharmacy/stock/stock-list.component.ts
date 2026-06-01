@@ -1,12 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { debounceTime, distinctUntilChanged, finalize } from 'rxjs';
 
-import { PharmacyService } from '../../masterdata/pharmacies/pharmacy.service';
-import { Pharmacy } from '../../masterdata/pharmacies/pharmacy.types';
+import { WorkingLocationService } from '../../../core/working-location/working-location.service';
 import { StockEditComponent } from './stock-edit.component';
 import { StockService } from './stock.service';
 import {
@@ -18,19 +18,22 @@ const LOW_STOCK_THRESHOLD = 10;
 @Component({
   selector: 'app-stock-list',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './stock-list.component.html'
 })
 export class StockListComponent {
   private readonly stockService = inject(StockService);
-  private readonly pharmacyService = inject(PharmacyService);
+  private readonly workingLocation = inject(WorkingLocationService);
+  private readonly router = inject(Router);
   private readonly modal = inject(NgbModal);
-  private readonly fb = inject(FormBuilder);
+
+  /** The pharmacy this workspace is scoped to (legacy "select pharmacy first") — the
+   *  single source of truth for the operator's own pharmacy; shown read-only. */
+  readonly workingPharmacy = this.workingLocation.workingPharmacy;
 
   readonly movementKinds = STOCK_MOVEMENT_KINDS;
   readonly lowStockThreshold = LOW_STOCK_THRESHOLD;
 
-  readonly pharmacies = signal<Pharmacy[]>([]);
   readonly selectedPharmacyUid = signal<string | null>(null);
   readonly balances = signal<StockBalance[]>([]);
   readonly movements = signal<StockMovement[]>([]);
@@ -47,13 +50,6 @@ export class StockListComponent {
   readonly errorMessage = signal<string | null>(null);
   readonly actionMessage = signal<string | null>(null);
 
-  readonly pharmacyForm = this.fb.nonNullable.group({
-    pharmacyUid: ['', [Validators.required]]
-  });
-
-  readonly selectedPharmacy = computed(() =>
-    this.pharmacies().find((p) => p.uid === this.selectedPharmacyUid()) ?? null);
-
   readonly pageWindow = computed(() => {
     const t = this.totalPages(); const c = this.page();
     if (t <= 7) return Array.from({ length: t }, (_, i) => i);
@@ -63,32 +59,21 @@ export class StockListComponent {
   });
 
   constructor() {
-    this.pharmacyService.search({ active: true, size: 200, sort: 'name,asc' })
-      .pipe(finalize(() => this.loading.set(false)))
-      .subscribe({
-        next: (page) => {
-          this.pharmacies.set(page.content);
-          if (page.content.length > 0) {
-            this.pharmacyForm.controls.pharmacyUid.setValue(page.content[0].uid);
-            this.selectPharmacy(page.content[0].uid);
-          }
-        },
-        error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load pharmacies.')
-      });
+    // Enforce the "select pharmacy first" workspace: the operator's own pharmacy comes
+    // ONLY from the working location (legacy had one Select page, no per-screen picker).
+    // With none set, send the user to the Select page rather than operating anywhere.
+    const working = this.workingPharmacy();
+    if (!working) {
+      void this.router.navigate(['/pharmacy/select']);
+      return;
+    }
 
-    this.pharmacyForm.controls.pharmacyUid.valueChanges.subscribe((uid) => {
-      if (uid) this.selectPharmacy(uid);
-    });
+    this.selectedPharmacyUid.set(working.uid);
+    this.loadBalances();
+    this.loadMovements();
 
     this.query.valueChanges.pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed())
       .subscribe(() => { this.page.set(0); this.loadBalances(); });
-  }
-
-  private selectPharmacy(uid: string): void {
-    this.selectedPharmacyUid.set(uid);
-    this.page.set(0);
-    this.loadBalances();
-    this.loadMovements();
   }
 
   private loadBalances(): void {
@@ -140,7 +125,7 @@ export class StockListComponent {
   }
 
   openReceive(): void {
-    const pharm = this.selectedPharmacy(); if (!pharm) return;
+    const pharm = this.workingPharmacy(); if (!pharm) return;
     const ref = this.modal.open(StockEditComponent, { backdrop: 'static' });
     const inst = ref.componentInstance as StockEditComponent;
     inst.pharmacyUid = pharm.uid;
@@ -152,7 +137,7 @@ export class StockListComponent {
   }
 
   openAdjustBatch(batch: StockBatch): void {
-    const pharm = this.selectedPharmacy(); if (!pharm) return;
+    const pharm = this.workingPharmacy(); if (!pharm) return;
     const ref = this.modal.open(StockEditComponent, { backdrop: 'static' });
     const inst = ref.componentInstance as StockEditComponent;
     inst.pharmacyUid = pharm.uid;
@@ -167,7 +152,7 @@ export class StockListComponent {
   }
 
   openWriteOffBatch(batch: StockBatch): void {
-    const pharm = this.selectedPharmacy(); if (!pharm) return;
+    const pharm = this.workingPharmacy(); if (!pharm) return;
     const ref = this.modal.open(StockEditComponent, { backdrop: 'static' });
     const inst = ref.componentInstance as StockEditComponent;
     inst.pharmacyUid = pharm.uid;

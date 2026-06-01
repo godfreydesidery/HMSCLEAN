@@ -6,6 +6,7 @@ import com.otapp.hmis.engine.iam.application.StaffDirectoryService;
 import com.otapp.hmis.engine.iam.application.dto.StaffOption;
 import com.otapp.hmis.engine.iam.domain.User;
 import com.otapp.hmis.engine.iam.domain.UserRepository;
+import com.otapp.hmis.engine.masterdata.store.application.StoreDtos.StoreDto;
 import com.otapp.hmis.engine.masterdata.store.application.StoreStaffDtos.StoreStaffDto;
 import com.otapp.hmis.engine.masterdata.store.domain.Store;
 import com.otapp.hmis.engine.masterdata.store.domain.StoreRepository;
@@ -13,6 +14,8 @@ import com.otapp.hmis.engine.masterdata.store.domain.StoreStaff;
 import com.otapp.hmis.engine.masterdata.store.domain.StoreStaffRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -77,6 +80,27 @@ public class StoreStaffService {
         return repository.findByUserUidAndActiveTrueOrderByStoreUid(userUid).stream()
                 .map(this::toDto)
                 .toList();
+    }
+
+    /**
+     * The active stores the currently-authenticated user is affiliated with —
+     * backs the storekeeper "my stores" picker (legacy
+     * {@code load_stores_by_store_person}). Returned in the same shape as the
+     * store list endpoint. An unaffiliated user (e.g. ROOT) yields an empty list.
+     */
+    @Transactional(readOnly = true)
+    public List<StoreDto> listMyStores() {
+        return repository.findActiveStoresForUsername(currentUsername()).stream()
+                .map(StoreService::toDto)
+                .toList();
+    }
+
+    private static String currentUsername() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null) {
+            throw new BusinessRuleException("Authenticated user required");
+        }
+        return auth.getName();
     }
 
     /** Issue / transfer gate: is this keeper currently affiliated with the source store? */

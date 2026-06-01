@@ -18,6 +18,7 @@
           <button ngbDropdownItem [disabled]="!canApprove()" (click)="approve()"><i class="bi bi-patch-check me-2 text-primary"></i>Approve</button>
           <button ngbDropdownItem [disabled]="!canOrder()" (click)="markOrdered()"><i class="bi bi-send me-2 text-primary"></i>Submit to supplier</button>
           <button ngbDropdownItem [disabled]="!canReceive()" (click)="openReceive()"><i class="bi bi-box-arrow-in-down me-2 text-success"></i>Receive goods</button>
+          <button ngbDropdownItem [disabled]="!canCreateInvoice()" (click)="openCreateInvoice()"><i class="bi bi-file-earmark-text me-2 text-primary"></i>Create supplier invoice</button>
           <div class="dropdown-divider"></div>
           <button ngbDropdownItem [disabled]="!canReject()" class="text-danger" (click)="reject()"><i class="bi bi-slash-circle me-2"></i>Reject</button>
           <button ngbDropdownItem [disabled]="!canCancel()" class="text-danger" (click)="cancel()"><i class="bi bi-x-octagon me-2"></i>Cancel PO</button>

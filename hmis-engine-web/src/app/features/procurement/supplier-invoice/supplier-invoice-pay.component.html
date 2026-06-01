@@ -1,0 +1,40 @@
+<div class="modal-header">
+  <h5 class="modal-title d-flex align-items-center gap-2"><i class="bi bi-cash-coin"></i>Mark invoice paid</h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss()"></button>
+</div>
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-body">
+    <div class="alert alert-light border d-flex align-items-center gap-2 py-2 px-3">
+      <i class="bi bi-file-earmark-text"></i>
+      <div class="small">
+        <span class="hmis-code">{{ invoice.supplierInvoiceNo }}</span> · Total
+        <strong>{{ invoice.totalAmount | number:'1.2-2' }} {{ invoice.currency }}</strong>
+      </div>
+    </div>
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3" role="alert"><i class="bi bi-exclamation-circle"></i><span class="small">{{ errorMessage() }}</span></div>
+    }
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label" for="sp-method">Method <span class="text-danger">*</span></label>
+        <select id="sp-method" class="form-select" formControlName="method">
+          @for (m of methods; track m.value) { <option [value]="m.value">{{ m.label }}</option> }
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="sp-ref">Reference</label>
+        <input id="sp-ref" type="text" class="form-control" formControlName="reference" placeholder="Cheque / txn no…">
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+    <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting()">
+      @if (submitting()) {
+        <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output>Saving…
+      } @else {
+        <i class="bi bi-check2"></i>Mark paid
+      }
+    </button>
+  </div>
+</form>

@@ -6,6 +6,7 @@ import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.ConsultationSummary;
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.StartConsultationRequest;
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.TransferConsultationRequest;
+import com.otapp.hmis.engine.encounter.consultation.application.ConsultationTransferDtos.ConsultationTransferDto;
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationService;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationStatus;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -74,10 +75,14 @@ public class ConsultationController {
         return ResponseEntity.ok(consultationService.cancel(consultationUid, request));
     }
 
-    /** Hand the patient off to another clinic / clinician. Returns the new (receiving) consultation. */
+    /**
+     * Raise a PENDING transfer to another clinic (OPC-1). Returns the created
+     * transfer request — reception books the receiving consultation later via the
+     * transfer queue.
+     */
     @PostMapping("/uid/{consultationUid}/transfer")
-    public ResponseEntity<ConsultationDto> transfer(@PathVariable String consultationUid,
-                                                    @Valid @RequestBody TransferConsultationRequest request) {
+    public ResponseEntity<ConsultationTransferDto> transfer(@PathVariable String consultationUid,
+                                                            @Valid @RequestBody TransferConsultationRequest request) {
         return ResponseEntity.ok(consultationService.transfer(consultationUid, request));
     }
 

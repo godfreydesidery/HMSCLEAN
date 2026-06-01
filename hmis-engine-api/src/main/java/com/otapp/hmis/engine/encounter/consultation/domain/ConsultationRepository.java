@@ -66,4 +66,23 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Long
             ORDER BY c.bookedAt ASC
             """)
     Page<Consultation> findReceptionQueueFor(@Param("clinician") String clinicianUsername, Pageable pageable);
+
+    /**
+     * The OUTPATIENT nurse-triage worklist (OPC-3): fee-settled consultations
+     * still BOOKED or IN_PROGRESS — the patients who may need vitals captured.
+     * Payment-gated on the denormalised {@code feeSettled} flag (legacy gated on
+     * the consultation bill being PAID/COVERED/VERIFIED/NONE); the encounter
+     * module never reads billing. Oldest first — first-come, first-served.
+     * Status literals are pinned (no nullable enum param) to avoid the
+     * Hibernate-6 {@code :p IS NULL} enum-binding trap.
+     */
+    @Query("""
+            SELECT c FROM Consultation c
+            WHERE c.feeSettled = true
+              AND c.status IN (
+                    com.otapp.hmis.engine.encounter.consultation.domain.ConsultationStatus.BOOKED,
+                    com.otapp.hmis.engine.encounter.consultation.domain.ConsultationStatus.IN_PROGRESS)
+            ORDER BY c.bookedAt ASC
+            """)
+    Page<Consultation> findOutpatientNurseWorklist(Pageable pageable);
 }

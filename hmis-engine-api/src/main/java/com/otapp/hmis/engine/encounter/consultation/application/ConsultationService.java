@@ -12,9 +12,15 @@ import com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus;
 import com.otapp.hmis.engine.encounter.consultation.application.event.ConsultationBookedEvent;
 import com.otapp.hmis.engine.encounter.consultation.application.event.ConsultationCancelledEvent;
 import com.otapp.hmis.engine.encounter.consultation.application.event.ConsultationSignedOutEvent;
+import com.otapp.hmis.engine.encounter.consultation.application.ConsultationTransferDtos.AcceptTransferRequest;
+import com.otapp.hmis.engine.encounter.consultation.application.ConsultationTransferDtos.CancelTransferRequest;
+import com.otapp.hmis.engine.encounter.consultation.application.ConsultationTransferDtos.ConsultationTransferDto;
 import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationStatus;
+import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationTransfer;
+import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationTransferRepository;
+import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationTransferStatus;
 import com.otapp.hmis.engine.encounter.consultation.infrastructure.ConsultationNumberGenerator;
 import com.otapp.hmis.engine.iam.application.StaffDirectoryService;
 import com.otapp.hmis.engine.iam.domain.User;
@@ -43,6 +49,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ConsultationService {
 
     private final ConsultationRepository consultationRepository;
+    private final ConsultationTransferRepository consultationTransferRepository;
     private final PatientRepository patientRepository;
     private final PatientService patientService;
     private final ClinicRepository clinicRepository;
@@ -123,31 +130,95 @@ public class ConsultationService {
     }
 
     /**
-     * Hand the patient off to another clinic / clinician. The original
-     * consultation closes as TRANSFERRED; a new BOOKED consultation is
-     * created at the target. Both reference each other for audit.
+     * Phase 1 — the treating doctor raises a PENDING transfer to another clinic
+     * (OPC-1, legacy two-phase hand-off). No receiving clinician is chosen here;
+     * reception picks the patient up later and books the receiving consultation.
+     * The source consultation closes as TRANSFERRED (no receiver yet). Gates:
+     * source must be IN_PROGRESS, the patient may not already have a pending
+     * transfer, and the target clinic must exist, be active and differ from the
+     * source clinic.
      */
     @Transactional
-    public ConsultationDto transfer(String uid,
-                                    com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.TransferConsultationRequest request) {
+    public ConsultationTransferDto transfer(
+            String uid,
+            com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos.TransferConsultationRequest request) {
         Consultation source = loadOrThrow(uid);
+        if (source.getStatus() != ConsultationStatus.IN_PROGRESS) {
+            throw new BusinessRuleException("Not an active consultation (current: " + source.getStatus() + ")");
+        }
+        if (consultationTransferRepository.existsByPatientUidAndStatus(
+                source.getPatientUid(), ConsultationTransferStatus.PENDING)) {
+            throw new BusinessRuleException("The patient already has a pending transfer");
+        }
         Clinic targetClinic = clinicRepository.findByUid(request.targetClinicUid())
                 .orElseThrow(() -> new NotFoundException("Target clinic not found: " + request.targetClinicUid()));
         if (!targetClinic.isActive()) {
             throw new BusinessRuleException("Target clinic is not active: " + targetClinic.getName());
         }
-        User targetClinician = userRepository.findByUsername(request.targetClinicianUsername())
-                .orElseThrow(() -> new NotFoundException("Target clinician not found: " + request.targetClinicianUsername()));
-        if (!targetClinician.isEnabled()) {
-            throw new BusinessRuleException("Target clinician account is disabled");
+        if (targetClinic.getUid().equals(source.getClinicUid())) {
+            throw new BusinessRuleException("Cannot transfer to the same clinic");
         }
-        requireClinicianOfClinic(targetClinician, targetClinic);
+        // TODO OPC-1: legacy also blocks on un-acted PENDING orders / prescriptions
+        // on the source consultation — skipped for now to avoid coupling to the
+        // orders / prescription internals.
+
+        ConsultationTransfer transferReq = new ConsultationTransfer(
+                source.getUid(),
+                source.getPatientUid(),
+                targetClinic.getUid(),
+                emptyToNull(request.reason()));
+        consultationTransferRepository.save(transferReq);
+
+        source.markTransferredPending(emptyToNull(request.reason()));
+        return toTransferDto(transferReq);
+    }
+
+    /**
+     * The receiving queue (OPC-1) — pending transfers for reception to pick up,
+     * newest first. Defaults to PENDING.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<ConsultationTransferDto> transferQueue(ConsultationTransferStatus status, Pageable pageable) {
+        ConsultationTransferStatus effective = status == null ? ConsultationTransferStatus.PENDING : status;
+        return PageResponse.from(
+                consultationTransferRepository.findByStatusOrderByCreatedAtDesc(effective, pageable)
+                        .map(this::toTransferDto));
+    }
+
+    /**
+     * Phase 2 — reception accepts a pending transfer and books the receiving
+     * consultation (OPC-1). The chosen clinician must hold the CLINICIAN role and
+     * be affiliated with the transfer's target clinic. A FRESH consultation is
+     * created at the target clinic + chosen clinician, inheriting payment type /
+     * insurance plan / reason and the fee-settled state from the source (a
+     * transfer does not re-charge the patient). No ConsultationBookedEvent is
+     * published — re-seeding a fee invoice would double-charge.
+     */
+    @Transactional
+    public ConsultationDto acceptTransfer(String transferUid, AcceptTransferRequest request) {
+        ConsultationTransfer transferReq = loadTransferOrThrow(transferUid);
+        if (transferReq.getStatus() != ConsultationTransferStatus.PENDING) {
+            throw new BusinessRuleException(
+                    "Only a PENDING transfer can be accepted (current: " + transferReq.getStatus() + ")");
+        }
+        Consultation source = loadOrThrow(transferReq.getSourceConsultationUid());
+        Clinic targetClinic = clinicRepository.findByUid(transferReq.getTargetClinicUid())
+                .orElseThrow(() -> new NotFoundException("Target clinic not found: " + transferReq.getTargetClinicUid()));
+        if (!targetClinic.isActive()) {
+            throw new BusinessRuleException("Target clinic is not active: " + targetClinic.getName());
+        }
+        User clinician = userRepository.findByUsername(request.clinicianUsername())
+                .orElseThrow(() -> new NotFoundException("Clinician not found: " + request.clinicianUsername()));
+        if (!clinician.isEnabled()) {
+            throw new BusinessRuleException("Clinician account is disabled");
+        }
+        requireClinicianOfClinic(clinician, targetClinic);
 
         Consultation receiver = new Consultation(
                 numberGenerator.next(),
                 source.getPatientUid(),
                 targetClinic.getUid(),
-                targetClinician.getUsername(),
+                clinician.getUsername(),
                 source.getPaymentType(),
                 source.getInsurancePlanUid(),
                 source.getReason());
@@ -159,8 +230,33 @@ public class ConsultationService {
         }
         consultationRepository.save(receiver);
 
-        source.markTransferredTo(receiver.getUid(), emptyToNull(request.reason()));
+        // Fill in the audit link on the (already TRANSFERRED) source and complete
+        // the transfer.
+        source.linkTransferTarget(receiver.getUid());
+        transferReq.complete(receiver.getUid());
         return toDto(receiver);
+    }
+
+    /**
+     * Revert a pending transfer (OPC-1) — the initiating doctor cancelled before
+     * pickup. The transfer is CANCELLED and the source consultation returns to
+     * IN_PROGRESS. Gates: transfer must be PENDING and source TRANSFERRED.
+     */
+    @Transactional
+    public ConsultationDto cancelTransfer(String transferUid, CancelTransferRequest request) {
+        ConsultationTransfer transferReq = loadTransferOrThrow(transferUid);
+        if (transferReq.getStatus() != ConsultationTransferStatus.PENDING) {
+            throw new BusinessRuleException(
+                    "Only a PENDING transfer can be cancelled (current: " + transferReq.getStatus() + ")");
+        }
+        Consultation source = loadOrThrow(transferReq.getSourceConsultationUid());
+        if (source.getStatus() != ConsultationStatus.TRANSFERRED) {
+            throw new BusinessRuleException(
+                    "Source consultation is not in a transferred state (current: " + source.getStatus() + ")");
+        }
+        transferReq.cancel(emptyToNull(request == null ? null : request.reason()));
+        source.revertTransfer();
+        return toDto(source);
     }
 
     @Transactional
@@ -283,6 +379,11 @@ public class ConsultationService {
                 .orElseThrow(() -> new NotFoundException("Consultation not found: " + uid));
     }
 
+    private ConsultationTransfer loadTransferOrThrow(String uid) {
+        return consultationTransferRepository.findByUid(uid)
+                .orElseThrow(() -> new NotFoundException("Consultation transfer not found: " + uid));
+    }
+
     /**
      * Load the patient and enforce every booking pre-condition (legacy
      * {@code do_consultation} gates): not deceased, active, OUTPATIENT routing,
@@ -379,6 +480,30 @@ public class ConsultationService {
                 c.getTransferredAt(),
                 c.getCreatedAt(),
                 c.getUpdatedAt());
+    }
+
+    private ConsultationTransferDto toTransferDto(ConsultationTransfer t) {
+        Patient patient = patientRepository.findByUid(t.getPatientUid()).orElse(null);
+        Clinic targetClinic = clinicRepository.findByUid(t.getTargetClinicUid()).orElse(null);
+        Consultation source = consultationRepository.findByUid(t.getSourceConsultationUid()).orElse(null);
+        return new ConsultationTransferDto(
+                t.getId(),
+                t.getUid(),
+                t.getSourceConsultationUid(),
+                source == null ? null : source.getConsultationNo(),
+                t.getPatientUid(),
+                patient == null ? null : patient.getPatientNo(),
+                patient == null ? null : patient.fullName(),
+                t.getTargetClinicUid(),
+                targetClinic == null ? null : targetClinic.getName(),
+                t.getStatus(),
+                t.getReason(),
+                t.getCreatedConsultationUid(),
+                t.getCancelReason(),
+                t.getCompletedAt(),
+                t.getCancelledAt(),
+                t.getCreatedAt(),
+                t.getUpdatedAt());
     }
 
     private ConsultationSummary toSummary(Consultation c) {

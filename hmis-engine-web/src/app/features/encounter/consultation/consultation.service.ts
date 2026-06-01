@@ -5,8 +5,9 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { PageResponse } from '../../../core/http/page.types';
 import {
-  Consultation, ConsultationSearchParams, ConsultationSummary, StartConsultationRequest,
-  TransferConsultationRequest
+  AcceptTransferRequest, CancelTransferRequest, Consultation, ConsultationSearchParams,
+  ConsultationSummary, ConsultationTransfer, ConsultationTransferStatus, RaiseTransferRequest,
+  StartConsultationRequest
 } from './consultation.types';
 
 @Injectable({ providedIn: 'root' })
@@ -40,9 +41,35 @@ export class ConsultationService {
   start(uid: string): Observable<Consultation> { return this.http.post<Consultation>(`${this.base}/uid/${uid}/start`, {}); }
   complete(uid: string): Observable<Consultation> { return this.http.post<Consultation>(`${this.base}/uid/${uid}/complete`, {}); }
   cancel(uid: string, reason: string | null): Observable<Consultation> { return this.http.post<Consultation>(`${this.base}/uid/${uid}/cancel`, { reason }); }
-  /** Hand the patient off to another clinic / clinician. Returns the new receiving consultation. */
-  transfer(uid: string, req: TransferConsultationRequest): Observable<Consultation> {
-    return this.http.post<Consultation>(`${this.base}/uid/${uid}/transfer`, req);
+
+  // ----- Two-phase transfer (raise → accept / cancel) --------------------
+
+  /**
+   * Raise a transfer to a target CLINIC (no clinician). The source consultation
+   * flips to TRANSFERRED; a PENDING transfer awaits reception to accept it.
+   */
+  raiseTransfer(consultationUid: string, req: RaiseTransferRequest): Observable<ConsultationTransfer> {
+    return this.http.post<ConsultationTransfer>(`${this.base}/uid/${consultationUid}/transfer`, req);
+  }
+
+  /** Reception's incoming-transfer queue. */
+  transferQueue(params: { status?: ConsultationTransferStatus; page?: number; size?: number } = {}):
+    Observable<PageResponse<ConsultationTransfer>> {
+    let p = new HttpParams();
+    if (params.status) p = p.set('status', params.status);
+    if (params.page !== undefined) p = p.set('page', String(params.page));
+    if (params.size !== undefined) p = p.set('size', String(params.size));
+    return this.http.get<PageResponse<ConsultationTransfer>>(`${this.base}/transfers`, { params: p });
+  }
+
+  /** Reception accepts a PENDING transfer, booking the receiving consultation. */
+  acceptTransfer(transferUid: string, req: AcceptTransferRequest): Observable<Consultation> {
+    return this.http.post<Consultation>(`${this.base}/transfers/uid/${transferUid}/accept`, req);
+  }
+
+  /** The initiating doctor cancels / reverts a still-PENDING transfer. Returns the source consultation. */
+  cancelTransfer(transferUid: string, req: CancelTransferRequest): Observable<Consultation> {
+    return this.http.post<Consultation>(`${this.base}/transfers/uid/${transferUid}/cancel`, req);
   }
   recentForPatient(patientUid: string): Observable<ConsultationSummary[]> {
     return this.http.get<ConsultationSummary[]>(`${this.base}/by-patient/uid/${patientUid}/recent`);

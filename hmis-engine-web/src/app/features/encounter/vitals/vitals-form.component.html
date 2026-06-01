@@ -1,12 +1,29 @@
 <div class="modal-header">
-  <h5 class="modal-title d-flex align-items-center gap-2"><i class="bi bi-activity"></i>Record vitals</h5>
+  <h5 class="modal-title d-flex align-items-center gap-2"><i class="bi bi-clipboard2-heart"></i>Vitals / triage</h5>
   <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss()"></button>
 </div>
-<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+<form [formGroup]="form" (ngSubmit)="save()" novalidate>
   <div class="modal-body">
     @if (errorMessage()) {
       <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3" role="alert">
         <i class="bi bi-exclamation-circle"></i><span class="small">{{ errorMessage() }}</span>
+      </div>
+    }
+
+    <!-- Lifecycle status banner -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <span class="hmis-muted small">Status</span>
+      @switch (status()) {
+        @case ('EMPTY') { <span class="badge text-bg-secondary"><i class="bi bi-dash-circle me-1"></i>Needs vitals</span> }
+        @case ('PENDING') { <span class="badge text-bg-warning"><i class="bi bi-pencil me-1"></i>In progress</span> }
+        @case ('SUBMITTED') { <span class="badge text-bg-info"><i class="bi bi-lock me-1"></i>Submitted — ready for doctor</span> }
+        @case ('ARCHIVED') { <span class="badge text-bg-success"><i class="bi bi-check2-circle me-1"></i>Taken into exam</span> }
+      }
+    </div>
+
+    @if (locked()) {
+      <div class="alert alert-info d-flex align-items-center gap-2 py-2 px-3" role="alert">
+        <i class="bi bi-lock"></i><span class="small">These readings are submitted and locked. They can no longer be edited.</span>
       </div>
     }
 
@@ -53,13 +70,21 @@
     </div>
   </div>
   <div class="modal-footer">
-    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
-    <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting()">
-      @if (submitting()) {
-        <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output>Saving…
-      } @else {
-        <i class="bi bi-check2"></i>Save vitals
-      }
+    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">
+      {{ locked() ? 'Close' : 'Cancel' }}
     </button>
+    @if (!locked()) {
+      <button type="submit" class="btn btn-light border d-flex align-items-center gap-2" [disabled]="submitting() || loading()">
+        @if (submitting()) {
+          <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output>Saving…
+        } @else {
+          <i class="bi bi-save"></i>Save
+        }
+      </button>
+      <button type="button" class="btn btn-primary d-flex align-items-center gap-2"
+              (click)="submit()" [disabled]="submitting() || loading() || !canSubmit()">
+        <i class="bi bi-send-check"></i>Submit
+      </button>
+    }
   </div>
 </form>

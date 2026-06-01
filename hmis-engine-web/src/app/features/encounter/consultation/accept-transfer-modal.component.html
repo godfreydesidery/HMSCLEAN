@@ -1,0 +1,50 @@
+<div class="modal-header">
+  <h5 class="modal-title">Accept transfer</h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss('x')"></button>
+</div>
+
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-body">
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+    }
+
+    <dl class="row small mb-3">
+      <dt class="col-sm-4 hmis-muted">Patient</dt>
+      <dd class="col-sm-8">{{ transfer.patientName || '—' }} @if (transfer.patientNo) { <span class="hmis-muted hmis-code">({{ transfer.patientNo }})</span> }</dd>
+      <dt class="col-sm-4 hmis-muted">From consultation</dt>
+      <dd class="col-sm-8 hmis-code">{{ transfer.sourceConsultationNo || '—' }}</dd>
+      <dt class="col-sm-4 hmis-muted">Target clinic</dt>
+      <dd class="col-sm-8">{{ transfer.targetClinicName || transfer.targetClinicUid }}</dd>
+      @if (transfer.reason) {
+        <dt class="col-sm-4 hmis-muted">Reason</dt>
+        <dd class="col-sm-8">{{ transfer.reason }}</dd>
+      }
+    </dl>
+
+    <div class="mb-3">
+      <label for="clinicianUsername" class="form-label">Receiving clinician <span class="text-danger">*</span></label>
+      <select id="clinicianUsername" name="clinicianUsername" class="form-select" formControlName="clinicianUsername"
+              [class.is-invalid]="form.controls.clinicianUsername.invalid && form.controls.clinicianUsername.touched">
+        <option value="" disabled>{{ loadingClinicians() ? 'Loading…' : '— pick a clinician —' }}</option>
+        @for (cl of clinicians(); track cl.username) {
+          <option [value]="cl.username">{{ cl.fullName }}{{ cl.specialty ? ' — ' + cl.specialty : '' }} ({{ cl.username }})</option>
+        }
+      </select>
+      @if (!loadingClinicians() && clinicians().length === 0) {
+        <div class="form-text text-warning">No clinicians are assigned to the target clinic.</div>
+      }
+      @if (form.controls.clinicianUsername.invalid && form.controls.clinicianUsername.touched) {
+        <div class="invalid-feedback">Pick a receiving clinician.</div>
+      }
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss('cancel')">Cancel</button>
+    <button type="submit" class="btn btn-primary" [disabled]="submitting()">
+      @if (submitting()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+      <i class="bi bi-check2 me-1"></i> Accept &amp; book
+    </button>
+  </div>
+</form>

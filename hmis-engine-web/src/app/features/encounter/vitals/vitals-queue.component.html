@@ -1,0 +1,52 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">Vitals / triage</h1>
+    <p class="hmis-muted mb-0 small">Fee-settled consultations awaiting nurse triage. Open one to capture, save and submit vitals for the doctor.</p>
+  </div>
+  <span class="hmis-muted small align-self-center">{{ totalElements() }} waiting</span>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 hmis-table">
+      <thead><tr><th>Consultation</th><th>Patient</th><th>Visit status</th><th>Vitals</th><th class="text-end"></th></tr></thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div></td></tr>
+        } @else if (rows().length === 0) {
+          <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-clipboard2-heart"></i><div class="fw-semibold mb-1">Nothing to triage</div><div class="small">No fee-settled consultations are waiting for vitals right now.</div></div></td></tr>
+        } @else {
+          @for (r of rows(); track r.consultationId) {
+            <tr>
+              <td class="hmis-code">{{ r.consultationNo || '—' }}</td>
+              <td>
+                <div class="fw-semibold">{{ r.patientName || '—' }}</div>
+                @if (r.patientNo) { <div class="hmis-muted small hmis-code">{{ r.patientNo }}</div> }
+              </td>
+              <td><span class="hmis-muted small">{{ r.consultationStatus }}</span></td>
+              <td><span [class]="vitalsBadgeClass(r.vitalsStatus)">{{ vitalsLabel(r.vitalsStatus) }}</span></td>
+              <td class="text-end">
+                <button type="button" class="btn btn-sm btn-primary d-flex align-items-center gap-1 ms-auto" (click)="open(r)">
+                  <i class="bi bi-clipboard2-heart"></i>{{ r.vitalsStatus === 'SUBMITTED' || r.vitalsStatus === 'ARCHIVED' ? 'View vitals' : 'Capture vitals' }}
+                </button>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (totalPages() > 1) {
+    <div class="card-footer bg-white d-flex align-items-center justify-content-between">
+      <span class="hmis-muted small">Page {{ page() + 1 }} of {{ totalPages() }}</span>
+      <div class="btn-group btn-group-sm">
+        <button type="button" class="btn btn-light border" (click)="prev()" [disabled]="page() === 0"><i class="bi bi-chevron-left"></i> Prev</button>
+        <button type="button" class="btn btn-light border" (click)="next()" [disabled]="page() >= totalPages() - 1">Next <i class="bi bi-chevron-right"></i></button>
+      </div>
+    </div>
+  }
+</div>

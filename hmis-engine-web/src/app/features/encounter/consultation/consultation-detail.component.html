@@ -68,6 +68,19 @@
       </div>
     </div>
 
+    @if (c.status === 'TRANSFERRED' && pendingTransfer(); as pt) {
+      <div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2 small">
+        <span>
+          <i class="bi bi-arrow-left-right me-1"></i>Transfer pending to
+          <strong>{{ pt.targetClinicName || pt.targetClinicUid }}</strong>
+          @if (pt.reason) { · <span class="hmis-muted">{{ pt.reason }}</span> }
+        </span>
+        <button type="button" class="btn btn-sm btn-light border d-flex align-items-center gap-1" (click)="revertTransfer()">
+          <i class="bi bi-arrow-counterclockwise"></i>Revert
+        </button>
+      </div>
+    }
+
     @if (c.followUpOfConsultationUid || c.transferredFromConsultationUid || c.transferredToConsultationUid) {
       <div class="alert alert-light border d-flex flex-wrap align-items-center gap-3 small">
         @if (c.followUpOfConsultationUid) {
@@ -229,16 +242,17 @@
           <table class="table table-hover align-middle mb-0 hmis-table">
             <thead>
               <tr>
-                <th>Taken</th><th>Temp °C</th><th>Pulse</th><th>Resp</th><th>BP</th><th>SpO₂</th><th>Weight</th><th>Height</th><th>Notes</th><th class="text-end"></th>
+                <th>Taken</th><th>Status</th><th>Temp °C</th><th>Pulse</th><th>Resp</th><th>BP</th><th>SpO₂</th><th>Weight</th><th>Height</th><th>Notes</th><th class="text-end"></th>
               </tr>
             </thead>
             <tbody>
               @if (vitals().length === 0) {
-                <tr><td colspan="10"><div class="hmis-empty"><i class="bi bi-activity"></i><div class="fw-semibold mb-1">No vitals recorded</div><div class="small">Click "Record vitals" to add a reading.</div></div></td></tr>
+                <tr><td colspan="11"><div class="hmis-empty"><i class="bi bi-activity"></i><div class="fw-semibold mb-1">No vitals recorded</div><div class="small">The nurse triage worklist captures vitals before the exam.</div></div></td></tr>
               } @else {
                 @for (v of vitals(); track v.uid) {
                   <tr>
                     <td class="hmis-muted small">{{ v.takenAt | date:'medium' }}</td>
+                    <td><span [class]="vitalsBadgeClass(v.status)">{{ vitalsLabel(v.status) }}</span></td>
                     <td>{{ v.temperatureC ?? '—' }}</td>
                     <td>{{ v.pulseBpm ?? '—' }}</td>
                     <td>{{ v.respirationBpm ?? '—' }}</td>
@@ -248,9 +262,21 @@
                     <td>{{ v.heightCm ? (v.heightCm + ' cm') : '—' }}</td>
                     <td class="hmis-muted small text-truncate" style="max-width:200px;">{{ v.notes || '—' }}</td>
                     <td class="text-end">
-                      <button type="button" class="btn btn-sm btn-light border text-danger" (click)="deleteVitals(v)" aria-label="Delete">
-                        <i class="bi bi-trash"></i>
-                      </button>
+                      @if (v.status === 'SUBMITTED' && isEditable()) {
+                        <button type="button" class="btn btn-sm btn-primary d-flex align-items-center gap-1 ms-auto"
+                                (click)="consumeVitals(v)" [disabled]="vitalsBusy() === v.uid">
+                          @if (vitalsBusy() === v.uid) {
+                            <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Working</span></output>
+                          } @else { <i class="bi bi-check2-circle"></i> }
+                          Take into exam
+                        </button>
+                      } @else if (v.status === 'ARCHIVED') {
+                        <span class="hmis-muted small d-flex align-items-center gap-1 justify-content-end"><i class="bi bi-check2-circle text-success"></i>Recorded</span>
+                      } @else {
+                        <button type="button" class="btn btn-sm btn-light border text-danger" (click)="deleteVitals(v)" aria-label="Delete">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      }
                     </td>
                   </tr>
                 }

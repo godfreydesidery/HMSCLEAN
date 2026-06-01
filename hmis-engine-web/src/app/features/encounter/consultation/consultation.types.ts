@@ -81,10 +81,44 @@ export interface StartConsultationRequest {
   followUpOfConsultationUid?: string | null;
 }
 
-export interface TransferConsultationRequest {
+/**
+ * Phase 44 (reworked): a transfer is now a two-phase PENDING handoff. The
+ * treating doctor raises it to a target CLINIC only (no clinician); reception
+ * later accepts it, choosing the receiving clinician.
+ */
+export interface RaiseTransferRequest {
   targetClinicUid: string;
-  targetClinicianUsername: string;
   reason?: string | null;
+}
+
+export interface AcceptTransferRequest {
+  clinicianUsername: string;
+}
+
+export interface CancelTransferRequest {
+  reason?: string | null;
+}
+
+export type ConsultationTransferStatus = 'PENDING' | 'COMPLETED' | 'CANCELLED';
+
+export interface ConsultationTransfer {
+  id: number;
+  uid: string;
+  sourceConsultationUid: string;
+  sourceConsultationNo: string | null;
+  patientUid: string;
+  patientNo: string | null;
+  patientName: string | null;
+  targetClinicUid: string;
+  targetClinicName: string | null;
+  status: ConsultationTransferStatus;
+  reason: string | null;
+  createdConsultationUid: string | null;
+  cancelReason: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ConsultationSearchParams {

@@ -77,9 +77,12 @@ public final class ConsultationDtos {
 
     public record CancelConsultationRequest(@Size(max = 255) String reason) {}
 
-    /** Hand the patient off to another clinic / clinician. Both fields required for the new consultation. */
+    /**
+     * Raise a pending transfer to another <em>clinic</em> (OPC-1). The receiving
+     * clinician is chosen later at pickup — legacy-faithful — so this carries the
+     * target clinic only.
+     */
     public record TransferConsultationRequest(
             @NotBlank @Size(min = 26, max = 26) String targetClinicUid,
-            @NotBlank @Size(max = 64) String targetClinicianUsername,
             @Size(max = 500) String reason) {}
 }

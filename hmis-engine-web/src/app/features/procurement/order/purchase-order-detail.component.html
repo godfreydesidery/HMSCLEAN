@@ -14,9 +14,12 @@
           <i class="bi bi-three-dots-vertical"></i>Actions
         </button>
         <div ngbDropdownMenu>
+          <button ngbDropdownItem [disabled]="!canVerify()" (click)="verify()"><i class="bi bi-check2-square me-2 text-info"></i>Verify</button>
+          <button ngbDropdownItem [disabled]="!canApprove()" (click)="approve()"><i class="bi bi-patch-check me-2 text-primary"></i>Approve</button>
           <button ngbDropdownItem [disabled]="!canOrder()" (click)="markOrdered()"><i class="bi bi-send me-2 text-primary"></i>Submit to supplier</button>
           <button ngbDropdownItem [disabled]="!canReceive()" (click)="openReceive()"><i class="bi bi-box-arrow-in-down me-2 text-success"></i>Receive goods</button>
           <div class="dropdown-divider"></div>
+          <button ngbDropdownItem [disabled]="!canReject()" class="text-danger" (click)="reject()"><i class="bi bi-slash-circle me-2"></i>Reject</button>
           <button ngbDropdownItem [disabled]="!canCancel()" class="text-danger" (click)="cancel()"><i class="bi bi-x-octagon me-2"></i>Cancel PO</button>
         </div>
       </div>
@@ -103,9 +106,22 @@
           <li class="list-group-item">
             <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
               <span class="hmis-code">{{ r.receiptNo }}</span>
+              <span [class]="grnStatusBadgeClass(r.status)">{{ grnStatusLabel(r.status) }}</span>
               <span class="hmis-muted small">{{ r.receivedAt | date:'medium' }}@if (r.receivedByUsername) { <span> · {{ r.receivedByUsername }}</span> }</span>
               @if (r.deliveryNote) { <span class="badge text-bg-light border">DN: {{ r.deliveryNote }}</span> }
+              <div class="btn-group btn-group-sm ms-auto">
+                @if (r.status === 'PENDING') {
+                  <button type="button" class="btn btn-outline-info" [disabled]="busy() || !canVerifyGrn()" (click)="verifyReceipt(r)"><i class="bi bi-check2-square me-1"></i>Verify</button>
+                }
+                @if (r.status === 'VERIFIED') {
+                  <button type="button" class="btn btn-outline-success" [disabled]="busy() || !canApproveGrn()" (click)="approveReceipt(r)"><i class="bi bi-patch-check me-1"></i>Approve &amp; post stock</button>
+                }
+                @if (r.status === 'PENDING' || r.status === 'VERIFIED') {
+                  <button type="button" class="btn btn-outline-danger" [disabled]="busy()" (click)="rejectReceipt(r)" title="Reject receipt"><i class="bi bi-x-lg"></i></button>
+                }
+              </div>
             </div>
+            @if (r.status === 'REJECTED' && r.rejectReason) { <div class="text-danger small mb-2"><i class="bi bi-x-circle me-1"></i>{{ r.rejectReason }}</div> }
             @if (r.notes) { <div class="hmis-muted small mb-2">{{ r.notes }}</div> }
             <table class="table table-sm mb-0">
               <thead><tr><th>Medicine</th><th class="text-end">Quantity</th></tr></thead>

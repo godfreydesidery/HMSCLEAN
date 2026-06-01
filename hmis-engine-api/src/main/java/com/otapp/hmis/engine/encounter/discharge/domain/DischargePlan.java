@@ -139,12 +139,20 @@ public class DischargePlan extends AuditableEntity {
         return status == DischargePlanStatus.APPROVED;
     }
 
-    public void approve(String approverUsername) {
+    /**
+     * Approves a PENDING plan.
+     *
+     * @param allowSelfApproval when {@code false} (the default control) the
+     *        author may not also approve — a separate approver is required.
+     *        Solo-clinician sites pass {@code true} (config-gated) so a single
+     *        doctor can close their own plan.
+     */
+    public void approve(String approverUsername, boolean allowSelfApproval) {
         if (status != DischargePlanStatus.PENDING) {
             throw new BusinessRuleException(
                     "Only PENDING plans can be approved (current: " + status + ")");
         }
-        if (authoredByUsername.equals(approverUsername)) {
+        if (!allowSelfApproval && authoredByUsername.equals(approverUsername)) {
             throw new BusinessRuleException(
                     "A plan cannot be approved by its author — a separate approver is required");
         }

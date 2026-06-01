@@ -47,3 +47,7 @@ hmis:
   bootstrap:
     root-username: root
     root-password: ${HMIS_BOOTSTRAP_ROOT_PASSWORD:ChangeMe!123}
+  closure:
+    # When true, the author of a closure plan (discharge/death/referral) may also
+    # approve it (solo-clinician sites). Default false enforces a separate approver.
+    allow-self-approval: ${HMIS_CLOSURE_ALLOW_SELF_APPROVAL:false}

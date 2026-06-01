@@ -1,0 +1,66 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">Closure worklist</h1>
+    <p class="hmis-muted mb-0 small">Pending discharges, referrals and death records awaiting a second approver. Open one to review and approve or cancel.</p>
+  </div>
+  <span class="hmis-muted small align-self-center">{{ totalElements() }} pending</span>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<div class="btn-group btn-group-sm mb-3" role="group" aria-label="Closure type filter">
+  @for (f of filters; track f.value) {
+    <button type="button" class="btn" [class.btn-primary]="subjectType() === f.value" [class.btn-light]="subjectType() !== f.value" [class.border]="subjectType() !== f.value" (click)="changeFilter(f.value)">{{ f.label }}</button>
+  }
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 hmis-table">
+      <thead><tr><th>Type</th><th>Patient</th><th>Encounter</th><th>Detail</th><th>Authored by</th><th class="hmis-muted small">Authored</th><th class="text-end"></th></tr></thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="7"><div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div></td></tr>
+        } @else if (rows().length === 0) {
+          <tr><td colspan="7"><div class="hmis-empty"><i class="bi bi-clipboard2-check"></i><div class="fw-semibold mb-1">No pending closures</div><div class="small">Nothing is waiting for approval right now.</div></div></td></tr>
+        } @else {
+          @for (r of rows(); track r.uid) {
+            <tr>
+              <td>
+                <span class="badge" [ngClass]="kindBadge(r.kind)">{{ kindLabel(r.kind) }}</span>
+                <div class="hmis-muted small">{{ r.subjectType === 'ADMISSION' ? 'Inpatient' : 'Outpatient' }}</div>
+              </td>
+              <td>
+                <div class="fw-semibold">{{ r.patientName || '—' }}</div>
+                @if (r.patientNo) { <div class="hmis-muted small hmis-code">{{ r.patientNo }}</div> }
+              </td>
+              <td class="hmis-code">{{ r.admissionNo || r.consultationNo || '—' }}</td>
+              <td>
+                @if (r.kind === 'REFERRAL') { <span><i class="bi bi-box-arrow-up-right me-1"></i>{{ r.referralFacility || '—' }}</span> }
+                @else { <span class="hmis-muted small">—</span> }
+              </td>
+              <td>{{ r.authoredByUsername || '—' }}</td>
+              <td class="hmis-muted small">{{ r.authoredAt | date:'short' }}</td>
+              <td class="text-end">
+                <button type="button" class="btn btn-sm btn-primary d-flex align-items-center gap-1 ms-auto" (click)="open(r)">
+                  <i class="bi bi-clipboard2-check"></i>Review
+                </button>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (totalPages() > 1) {
+    <div class="card-footer bg-white d-flex align-items-center justify-content-between">
+      <span class="hmis-muted small">Page {{ page() + 1 }} of {{ totalPages() }}</span>
+      <div class="btn-group btn-group-sm">
+        <button type="button" class="btn btn-light border" (click)="prev()" [disabled]="page() === 0"><i class="bi bi-chevron-left"></i> Prev</button>
+        <button type="button" class="btn btn-light border" (click)="next()" [disabled]="page() >= totalPages() - 1">Next <i class="bi bi-chevron-right"></i></button>
+      </div>
+    </div>
+  }
+</div>

@@ -13,6 +13,11 @@ export const ENCOUNTER_ROUTES: Routes = [
       import('./nurse-queue/nurse-queue.component').then((m) => m.NurseQueueComponent)
   },
   {
+    path: 'closure-worklist',
+    loadComponent: () =>
+      import('./closure-worklist/closure-worklist.component').then((m) => m.ClosureWorklistComponent)
+  },
+  {
     path: 'consultations',
     loadComponent: () =>
       import('./consultation/consultation-list.component').then((m) => m.ConsultationListComponent)

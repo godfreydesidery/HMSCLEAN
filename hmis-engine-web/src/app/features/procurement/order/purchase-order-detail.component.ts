@@ -4,10 +4,12 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { finalize, forkJoin } from 'rxjs';
 
+import { AuthService } from '../../../core/auth/auth.service';
 import { AddLineComponent } from './add-line.component';
 import { PurchaseOrderService } from './purchase-order.service';
 import {
-  GoodsReceipt, PURCHASE_ORDER_STATUSES, PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus
+  GOODS_RECEIPT_STATUSES, GoodsReceipt, GoodsReceiptStatus,
+  PURCHASE_ORDER_STATUSES, PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus
 } from './purchase-order.types';
 import { ReceiveGoodsComponent } from './receive-goods.component';
 
@@ -22,8 +24,10 @@ export class PurchaseOrderDetailComponent {
   private readonly router = inject(Router);
   private readonly purchaseOrderService = inject(PurchaseOrderService);
   private readonly modal = inject(NgbModal);
+  private readonly auth = inject(AuthService);
 
   readonly statuses = PURCHASE_ORDER_STATUSES;
+  readonly grnStatuses = GOODS_RECEIPT_STATUSES;
   readonly order = signal<PurchaseOrder | null>(null);
   readonly receipts = signal<GoodsReceipt[]>([]);
   readonly loading = signal(true);
@@ -32,9 +36,18 @@ export class PurchaseOrderDetailComponent {
   readonly actionMessage = signal<string | null>(null);
 
   readonly canEdit = computed(() => this.order()?.status === 'DRAFT');
-  readonly canOrder = computed(() => {
+  // Approval chain (mirrors the backend guards + segregation-of-duties authorities):
+  // DRAFT --verify--> VERIFIED --approve--> APPROVED --submit(order)--> ORDERED.
+  readonly canVerify = computed(() => {
     const o = this.order();
-    return o?.status === 'DRAFT' && o.lines.length > 0;
+    return o?.status === 'DRAFT' && o.lines.length > 0 && this.auth.hasPrivilege('PROCUREMENT_VERIFY');
+  });
+  readonly canApprove = computed(() =>
+    this.order()?.status === 'VERIFIED' && this.auth.hasPrivilege('PROCUREMENT_APPROVE'));
+  readonly canOrder = computed(() => this.order()?.status === 'APPROVED');
+  readonly canReject = computed(() => {
+    const s = this.order()?.status;
+    return s === 'DRAFT' || s === 'VERIFIED' || s === 'APPROVED';
   });
   readonly canReceive = computed(() => {
     const s = this.order()?.status;
@@ -42,8 +55,10 @@ export class PurchaseOrderDetailComponent {
   });
   readonly canCancel = computed(() => {
     const s = this.order()?.status;
-    return s != null && s !== 'RECEIVED' && s !== 'CANCELLED';
+    return s != null && s !== 'RECEIVED' && s !== 'CANCELLED' && s !== 'REJECTED';
   });
+  readonly canVerifyGrn = computed(() => this.auth.hasPrivilege('PROCUREMENT_VERIFY'));
+  readonly canApproveGrn = computed(() => this.auth.hasPrivilege('PROCUREMENT_APPROVE'));
 
   constructor() {
     const uid = this.route.snapshot.paramMap.get('uid');
@@ -99,13 +114,37 @@ export class PurchaseOrderDetailComponent {
     });
   }
 
+  verify(): void {
+    const o = this.order(); if (!o) return;
+    if (!globalThis.confirm('Verify this PO? Lines will be locked from further editing.')) return;
+    this.runPoAction(this.purchaseOrderService.verify(o.uid), 'Purchase order verified.');
+  }
+
+  approve(): void {
+    const o = this.order(); if (!o) return;
+    if (!globalThis.confirm('Approve this PO for sending to the supplier?')) return;
+    this.runPoAction(this.purchaseOrderService.approve(o.uid), 'Purchase order approved.');
+  }
+
+  reject(): void {
+    const o = this.order(); if (!o) return;
+    const reason = globalThis.prompt('Reason for rejecting this PO?')?.trim() ?? null;
+    if (reason === null) return;
+    this.runPoAction(this.purchaseOrderService.reject(o.uid, reason || null), 'Purchase order rejected.');
+  }
+
   markOrdered(): void {
     const o = this.order(); if (!o) return;
-    if (!globalThis.confirm('Submit this PO to the supplier? Lines will be locked.')) return;
+    if (!globalThis.confirm('Submit this PO to the supplier?')) return;
+    this.runPoAction(this.purchaseOrderService.markOrdered(o.uid), 'Purchase order sent to supplier.');
+  }
+
+  private runPoAction(req$: ReturnType<PurchaseOrderService['verify']>, successMsg: string): void {
     this.busy.set(true);
-    this.purchaseOrderService.markOrdered(o.uid).pipe(finalize(() => this.busy.set(false))).subscribe({
-      next: (po) => { this.order.set(po); this.actionMessage.set('Purchase order sent.'); },
-      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not submit PO.')
+    this.errorMessage.set(null);
+    req$.pipe(finalize(() => this.busy.set(false))).subscribe({
+      next: (po) => { this.order.set(po); this.actionMessage.set(successMsg); },
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'The action failed.')
     });
   }
 
@@ -133,10 +172,44 @@ export class PurchaseOrderDetailComponent {
     });
   }
 
+  // ----- goods receipt actions (the GRN approve is what posts stock + rolls the PO) -----
+  verifyReceipt(r: GoodsReceipt): void {
+    if (!globalThis.confirm(`Verify receipt ${r.receiptNo}?`)) return;
+    this.runGrnAction(this.purchaseOrderService.verifyReceipt(r.uid), `Receipt ${r.receiptNo} verified.`);
+  }
+
+  approveReceipt(r: GoodsReceipt): void {
+    if (!globalThis.confirm(`Approve receipt ${r.receiptNo}? This posts the goods to store stock and updates the PO.`)) return;
+    this.runGrnAction(this.purchaseOrderService.approveReceipt(r.uid), `Receipt ${r.receiptNo} approved — stock posted.`);
+  }
+
+  rejectReceipt(r: GoodsReceipt): void {
+    const reason = globalThis.prompt(`Reason for rejecting receipt ${r.receiptNo}?`)?.trim() ?? null;
+    if (reason === null) return;
+    this.runGrnAction(this.purchaseOrderService.rejectReceipt(r.uid, reason || null), `Receipt ${r.receiptNo} rejected.`);
+  }
+
+  private runGrnAction(req$: ReturnType<PurchaseOrderService['verifyReceipt']>, successMsg: string): void {
+    const o = this.order(); if (!o) return;
+    this.busy.set(true);
+    this.errorMessage.set(null);
+    req$.pipe(finalize(() => this.busy.set(false))).subscribe({
+      // Reload the whole PO: approving a GRN advances the PO status + line received qty.
+      next: () => { this.actionMessage.set(successMsg); this.load(o.uid); },
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'The receipt action failed.')
+    });
+  }
+
   statusBadgeClass(s: PurchaseOrderStatus): string {
     return 'badge ' + (this.statuses.find((x) => x.value === s)?.badgeClass ?? '');
   }
   statusLabel(s: PurchaseOrderStatus): string {
     return this.statuses.find((x) => x.value === s)?.label ?? s;
+  }
+  grnStatusBadgeClass(s: GoodsReceiptStatus): string {
+    return 'badge ' + (this.grnStatuses.find((x) => x.value === s)?.badgeClass ?? '');
+  }
+  grnStatusLabel(s: GoodsReceiptStatus): string {
+    return this.grnStatuses.find((x) => x.value === s)?.label ?? s;
   }
 }

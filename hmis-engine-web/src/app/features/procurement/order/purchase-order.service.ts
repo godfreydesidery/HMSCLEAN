@@ -13,6 +13,7 @@ import {
 export class PurchaseOrderService {
   private readonly http = inject(HttpClient);
   private readonly base = `${environment.apiUrl}/procurement/purchase-orders`;
+  private readonly grnBase = `${environment.apiUrl}/procurement/goods-receipts`;
 
   search(params: PurchaseOrderSearchParams = {}): Observable<PageResponse<PurchaseOrderSummary>> {
     let p = new HttpParams();
@@ -39,6 +40,16 @@ export class PurchaseOrderService {
     return this.http.delete<PurchaseOrder>(`${this.base}/uid/${uid}/lines/uid/${lineUid}`);
   }
 
+  // ----- PO approval chain: DRAFT -> VERIFIED -> APPROVED -> ORDERED -------------
+  verify(uid: string): Observable<PurchaseOrder> {
+    return this.http.post<PurchaseOrder>(`${this.base}/uid/${uid}/verify`, {});
+  }
+  approve(uid: string): Observable<PurchaseOrder> {
+    return this.http.post<PurchaseOrder>(`${this.base}/uid/${uid}/approve`, {});
+  }
+  reject(uid: string, reason: string | null): Observable<PurchaseOrder> {
+    return this.http.post<PurchaseOrder>(`${this.base}/uid/${uid}/reject`, { reason });
+  }
   markOrdered(uid: string): Observable<PurchaseOrder> {
     return this.http.post<PurchaseOrder>(`${this.base}/uid/${uid}/order`, {});
   }
@@ -46,10 +57,23 @@ export class PurchaseOrderService {
     return this.http.post<PurchaseOrder>(`${this.base}/uid/${uid}/cancel`, { reason });
   }
 
+  // ----- goods receipts: record (PENDING) -> verify -> approve (posts stock) -----
   recordReceipt(uid: string, req: RecordReceiptRequest): Observable<GoodsReceipt> {
     return this.http.post<GoodsReceipt>(`${this.base}/uid/${uid}/receipts`, req);
   }
   listReceipts(uid: string): Observable<GoodsReceipt[]> {
     return this.http.get<GoodsReceipt[]>(`${this.base}/uid/${uid}/receipts`);
+  }
+  findReceiptByUid(receiptUid: string): Observable<GoodsReceipt> {
+    return this.http.get<GoodsReceipt>(`${this.grnBase}/uid/${receiptUid}`);
+  }
+  verifyReceipt(receiptUid: string): Observable<GoodsReceipt> {
+    return this.http.post<GoodsReceipt>(`${this.grnBase}/uid/${receiptUid}/verify`, {});
+  }
+  approveReceipt(receiptUid: string): Observable<GoodsReceipt> {
+    return this.http.post<GoodsReceipt>(`${this.grnBase}/uid/${receiptUid}/approve`, {});
+  }
+  rejectReceipt(receiptUid: string, reason: string | null): Observable<GoodsReceipt> {
+    return this.http.post<GoodsReceipt>(`${this.grnBase}/uid/${receiptUid}/reject`, { reason });
   }
 }

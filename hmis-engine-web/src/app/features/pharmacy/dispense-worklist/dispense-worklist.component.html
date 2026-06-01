@@ -14,9 +14,17 @@
         <button type="button" class="btn btn-outline-secondary" [class.active]="classFilter() === c.value" (click)="setClass(c.value)">{{ classLabel(c.value) }}</button>
       }
     </fieldset>
-    <span class="hmis-muted small ms-auto">{{ patients().length }} patient(s) · {{ rows().length }} script(s)</span>
+    <div class="form-check form-switch ms-auto mb-0">
+      <input class="form-check-input" type="checkbox" role="switch" id="dispense-show-unpaid"
+             [checked]="showUnpaid()" [attr.aria-checked]="showUnpaid()" (change)="toggleUnpaid()">
+      <label class="form-check-label small" for="dispense-show-unpaid">Show unpaid</label>
+    </div>
+    <span class="hmis-muted small">{{ patients().length }} patient(s) · {{ rows().length }} script(s)</span>
   </div>
 </div>
+@if (!showUnpaid()) {
+  <p class="hmis-muted small mb-3"><i class="bi bi-info-circle me-1"></i>Unpaid outpatient / walk-in scripts are hidden until their bill is settled. Inpatient scripts stay visible (they clear at discharge). Toggle <em>Show unpaid</em> to see all.</p>
+}
 
 @if (errorMessage()) {
   <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
@@ -39,7 +47,12 @@
               <td class="fw-semibold">{{ g.patientName || g.patientUid }}</td>
               <td><span class="hmis-code">{{ g.patientNo || '—' }}</span></td>
               <td><span [class]="classBadge(g.patientClass)">{{ classLabel(g.patientClass) }}</span></td>
-              <td class="text-end"><span class="badge text-bg-primary-subtle text-primary border border-primary-subtle">{{ g.pendingCount }}</span></td>
+              <td class="text-end">
+                <span class="badge text-bg-primary-subtle text-primary border border-primary-subtle">{{ g.pendingCount }}</span>
+                @if (g.unpaidCount > 0) {
+                  <span class="badge text-bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-1" title="Scripts whose bill is not yet settled">{{ g.unpaidCount }} unpaid</span>
+                }
+              </td>
               <td class="hmis-muted small">{{ g.earliestRequestedAt | date:'short' }}</td>
               <td class="text-end">
                 <button type="button" class="btn btn-sm btn-primary" (click)="attend(g); $event.stopPropagation()"><i class="bi bi-capsule-pill me-1"></i>Attend</button>

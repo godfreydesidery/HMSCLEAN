@@ -17,6 +17,7 @@ interface PatientGroup {
   patientName: string | null;
   patientClass: Klass;
   pendingCount: number;
+  unpaidCount: number;
   earliestRequestedAt: string;
 }
 
@@ -44,6 +45,8 @@ export class DispenseWorklistComponent implements OnInit {
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly classFilter = signal<PatientClassScope | ''>('');
+  /** Pay-before-service gate: off (default) hides unpaid ambulatory scripts. */
+  readonly showUnpaid = signal(false);
 
   // The queue is bounded (only pending scripts) so we pull it in one page and group
   // by patient client-side; counts are correct because there is no server paging.
@@ -55,11 +58,13 @@ export class DispenseWorklistComponent implements OnInit {
       const g = byPatient.get(r.patientUid);
       if (g) {
         g.pendingCount++;
+        if (!r.settled) g.unpaidCount++;
         if (r.requestedAt < g.earliestRequestedAt) g.earliestRequestedAt = r.requestedAt;
       } else {
         byPatient.set(r.patientUid, {
           patientUid: r.patientUid, patientNo: r.patientNo, patientName: r.patientName,
-          patientClass: r.patientClass, pendingCount: 1, earliestRequestedAt: r.requestedAt
+          patientClass: r.patientClass, pendingCount: 1, unpaidCount: r.settled ? 0 : 1,
+          earliestRequestedAt: r.requestedAt
         });
       }
     }
@@ -71,14 +76,18 @@ export class DispenseWorklistComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
-    this.service.worklist({ patientClass: this.classFilter() || undefined, page: 0, size: this.size })
-      .pipe(finalize(() => this.loading.set(false))).subscribe({
+    this.service.worklist({
+      patientClass: this.classFilter() || undefined,
+      hideUnpaid: !this.showUnpaid(),
+      page: 0, size: this.size
+    }).pipe(finalize(() => this.loading.set(false))).subscribe({
         next: (res) => this.rows.set(res.content),
         error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load the dispensing queue.')
       });
   }
 
   setClass(c: PatientClassScope | ''): void { this.classFilter.set(c); this.load(); }
+  toggleUnpaid(): void { this.showUnpaid.update((v) => !v); this.load(); }
 
   attend(g: PatientGroup): void {
     void this.router.navigate(['/pharmacy/dispense-queue/patient', g.patientUid], {

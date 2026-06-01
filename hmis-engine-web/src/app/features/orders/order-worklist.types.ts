@@ -24,7 +24,9 @@ export interface OrderWorklistParams {
   kind?: ClinicalOrderKind;
   status?: ClinicalOrderStatus;
   patientClass?: PatientClassScope;
-  settledOnly?: boolean;
+  /** Pay-before-service gate. Defaults to true server-side: hides unpaid
+   *  ambulatory orders (inpatient stays visible). Pass false to show all. */
+  hideUnpaid?: boolean;
   page?: number;
   size?: number;
   sort?: string;

@@ -80,7 +80,9 @@ export interface PrescriptionWorklistRow {
 export interface DispenseWorklistParams {
   status?: PrescriptionStatus;
   patientClass?: 'OUTPATIENT' | 'INPATIENT' | 'OUTSIDER';
-  settledOnly?: boolean;
+  /** Pay-before-service gate. Defaults to true server-side: hides unpaid
+   *  ambulatory scripts (inpatient stays visible). Pass false to show all. */
+  hideUnpaid?: boolean;
   page?: number;
   size?: number;
 }

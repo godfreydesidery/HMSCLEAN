@@ -52,9 +52,9 @@ public class PrescriptionController {
     public ResponseEntity<PageResponse<PrescriptionWorklistRow>> dispenseWorklist(
             @RequestParam(required = false) PrescriptionStatus status,
             @RequestParam(required = false) PatientClassScope patientClass,
-            @RequestParam(defaultValue = "false") boolean settledOnly,
+            @RequestParam(defaultValue = "true") boolean hideUnpaid,
             Pageable pageable) {
-        return ResponseEntity.ok(prescriptionService.searchDispenseWorklist(status, patientClass, settledOnly, pageable));
+        return ResponseEntity.ok(prescriptionService.searchDispenseWorklist(status, patientClass, hideUnpaid, pageable));
     }
 
     @PostMapping("/encounters/consultations/uid/{consultationUid}/prescriptions")

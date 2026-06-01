@@ -32,6 +32,10 @@ export const MASTERDATA_ROUTES: Routes = [
         loadComponent: () => import('./diagnoses/diagnosis-list.component').then((m) => m.DiagnosisListComponent)
       },
       {
+        path: 'external-providers',
+        loadComponent: () => import('./external-providers/external-provider-list.component').then((m) => m.ExternalProviderListComponent)
+      },
+      {
         path: 'lab-tests',
         loadComponent: () => import('./lab-tests/lab-test-list.component').then((m) => m.LabTestListComponent)
       },

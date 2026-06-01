@@ -66,8 +66,8 @@ REG-3 (payment-type change shares REG-2 blind spot, no auto-sign-out), REG-4 (no
 ---
 
 ## Execution plan (one branch + PR each, off main, tests green)
-1. **Nursing charts** — fluid-balance (ADMIT-1) + care-activity (ADMIT-2) entities/endpoints/tabs.
-2. **Closure foundation** — `ExternalMedicalProvider` masterdata (DISCH-5) + outpatient death/referral (DISCH-3) + flag deceased patient (DISCH-4).
+1. **Nursing charts** — fluid-balance (ADMIT-1) + care-activity (ADMIT-2) entities/endpoints/tabs. **✅ DONE (PR #36).**
+2. **Closure foundation** — `ExternalMedicalProvider` masterdata (DISCH-5) + outpatient death/referral (DISCH-3) + flag deceased patient (DISCH-4). **✅ DONE (branch `closure-foundation`):** unified `DischargePlan` keyed off admission OR consultation (`ClosureSubject`), `ConsultationStatus.DECEASED/REFERRED` + `/encounters/consultations/uid/{uid}/closure`, `md_external_medical_provider` masterdata + referral FK-by-uid, `Patient.deceased` flag set on any DECEASED approval + book/admit guards. Migration V73; FE external-providers page + consultation closure modal + deceased badge.
 3. **Closure worklist** (DISCH-1) + config-gated self-approval (DISCH-7).
 4. **Print plumbing** — reusable receipt/document service → POS receipt (BILL-1) + closure documents (DISCH-2) + printable invoice (BILL-4).
 5. **Reports** — collections/cash-up (BILL-2) + revenue-by-payment-mode + pharmacy-sales (BILL-5).

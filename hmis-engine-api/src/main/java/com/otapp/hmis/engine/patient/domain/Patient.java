@@ -93,6 +93,14 @@ public class Patient extends AuditableEntity {
 
     @Setter @Column(nullable = false) private boolean active = true;
 
+    /**
+     * TRUE once the patient is recorded as deceased — set when a DECEASED closure
+     * plan (inpatient or outpatient) is approved (legacy patient type DECEASED).
+     * A deceased patient can no longer be booked for a consultation or admitted.
+     */
+    @Column(nullable = false) private boolean deceased = false;
+    @Column(name = "deceased_at") private java.time.Instant deceasedAt;
+
     public Patient(String patientNo, String firstName, String middleName, String lastName,
                    LocalDate dateOfBirth, Gender gender, PatientType type, PaymentType paymentType) {
         this.patientNo = patientNo;
@@ -114,4 +122,17 @@ public class Patient extends AuditableEntity {
 
     public void activate()   { this.active = true; }
     public void deactivate() { this.active = false; }
+
+    /**
+     * Flag the patient as deceased. Idempotent — a no-op once already deceased so
+     * a re-fired closure approval is safe. Also deactivates the patient so every
+     * existing {@code active} guard blocks re-entry in addition to the explicit
+     * deceased check on book / admit.
+     */
+    public void markDeceased(java.time.Instant at) {
+        if (deceased) return;
+        this.deceased = true;
+        this.deceasedAt = at != null ? at : java.time.Instant.now();
+        this.active = false;
+    }
 }

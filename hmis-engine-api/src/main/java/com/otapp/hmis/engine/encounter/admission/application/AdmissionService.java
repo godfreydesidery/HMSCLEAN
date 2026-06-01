@@ -62,6 +62,9 @@ public class AdmissionService {
     public AdmissionDto admit(AdmitPatientRequest request) {
         Patient patient = patientRepository.findByUid(request.patientUid())
                 .orElseThrow(() -> new NotFoundException("Patient not found: " + request.patientUid()));
+        if (patient.isDeceased()) {
+            throw new BusinessRuleException("Patient is recorded as deceased and cannot be admitted");
+        }
         if (!patient.isActive()) {
             throw new BusinessRuleException("Cannot admit an inactive patient");
         }

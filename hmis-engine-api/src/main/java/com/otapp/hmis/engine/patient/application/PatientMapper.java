@@ -58,6 +58,8 @@ final class PatientMapper {
                 p.getKin3PhoneNo(),
                 p.getLastVisitAt(),
                 p.isActive(),
+                p.isDeceased(),
+                p.getDeceasedAt(),
                 p.getCreatedAt(),
                 p.getUpdatedAt());
     }

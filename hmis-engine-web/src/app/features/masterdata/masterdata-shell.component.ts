@@ -74,6 +74,7 @@ export class MasterdataShellComponent {
     { label: 'Pharmacies',       path: 'pharmacies',       icon: 'bi-capsule-pill' },
     { label: 'Stores',           path: 'stores',           icon: 'bi-box-seam' },
     { label: 'Diagnoses',        path: 'diagnoses',        icon: 'bi-clipboard2-check' },
+    { label: 'External providers', path: 'external-providers', icon: 'bi-building' },
     { label: 'Lab tests',        path: 'lab-tests',        icon: 'bi-droplet-half' },
     { label: 'Procedures',       path: 'procedures',       icon: 'bi-scissors' },
     { label: 'Radiology',        path: 'radiology',        icon: 'bi-radioactive' },

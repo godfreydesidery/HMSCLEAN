@@ -11,7 +11,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -19,23 +18,27 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Structured closing document for an inpatient admission (PROCESS.md
- * §3.3). One per admission. Authored by the discharging clinician with
- * structured clinical fields (history, investigation, management, op
- * note, ICU note, recommendations) and then approved by a ward
- * administrator — the APPROVED transition is what closes the underlying
- * admission.
+ * Structured closing document — the unified "closure plan". A plan closes
+ * EITHER an inpatient admission OR an outpatient consultation (exactly one of
+ * {@code admissionUid} / {@code consultationUid} is set, recorded by
+ * {@link #subjectType}). Authored by the clinician with structured clinical
+ * fields (history, investigation, management, op note, ICU note,
+ * recommendations) and then approved by a second user — the APPROVED transition
+ * is what closes the underlying admission / consultation.
  *
- * <p>The legacy Zana-HMIS uses three sibling documents (discharge note,
- * deceased note, referral plan) that share most fields and differ only
- * by closure-path semantics. This entity collapses them into one
- * aggregate discriminated by {@link DischargePlanKind} — kind-specific
- * fields are nullable and validated by the service.
+ * <p>The legacy Zana-HMIS uses sibling documents (discharge note, deceased
+ * note, referral plan), each of which itself keyed off either an admission or a
+ * consultation FK. This entity collapses them into one aggregate discriminated
+ * by {@link DischargePlanKind} (and {@link ClosureSubject}) — kind/subject-
+ * specific fields are nullable and validated by the service. A consultation
+ * subject only allows DECEASED / REFERRAL kinds.
+ *
+ * <p>The per-subject 1:1 uniqueness is enforced by partial unique indexes in
+ * the Flyway migration (one plan per admission, one per consultation), not by a
+ * table-level constraint, because each subject uid is nullable.
  */
 @Entity
 @Table(name = "discharge_plan",
-       uniqueConstraints = @UniqueConstraint(name = "uk_discharge_plan_admission",
-                                             columnNames = "admission_uid"),
        indexes = {
                @Index(name = "idx_discharge_plan_status",   columnList = "status"),
                @Index(name = "idx_discharge_plan_kind",     columnList = "kind"),
@@ -49,7 +52,15 @@ public class DischargePlan extends AuditableEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "admission_uid", nullable = false, length = 26) private String admissionUid;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "subject_type", nullable = false, length = 16)
+    private ClosureSubject subjectType;
+
+    /** Set when {@code subjectType == ADMISSION}; null otherwise. */
+    @Column(name = "admission_uid", length = 26) private String admissionUid;
+
+    /** Set when {@code subjectType == CONSULTATION}; null otherwise. */
+    @Column(name = "consultation_uid", length = 26) private String consultationUid;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
@@ -70,8 +81,10 @@ public class DischargePlan extends AuditableEntity {
 
     // ----- kind-specific fields --------------------------------------------
 
-    /** REFERRAL only — receiving facility name. */
+    /** REFERRAL only — receiving facility name (denormalised from the master, or free text). */
     @Setter @Column(name = "referral_facility", length = 200) private String referralFacility;
+    /** REFERRAL only — optional FK (by uid) to the ExternalMedicalProvider master. */
+    @Setter @Column(name = "external_provider_uid", length = 26) private String externalProviderUid;
     /** REFERRAL only — why the patient is being moved. */
     @Setter @Column(name = "referral_reason",   length = 1000) private String referralReason;
 
@@ -94,11 +107,28 @@ public class DischargePlan extends AuditableEntity {
     @Setter @Column(name = "cancelled_at")                       private Instant cancelledAt;
     @Setter @Column(name = "cancel_reason", length = 255)        private String cancelReason;
 
-    public DischargePlan(String admissionUid, DischargePlanKind kind, String authoredByUsername) {
+    private DischargePlan(ClosureSubject subjectType, String admissionUid, String consultationUid,
+                          DischargePlanKind kind, String authoredByUsername) {
+        this.subjectType = subjectType;
         this.admissionUid = admissionUid;
+        this.consultationUid = consultationUid;
         this.kind = kind;
         this.authoredByUsername = authoredByUsername;
         this.authoredAt = Instant.now();
+    }
+
+    /** A closure plan for an inpatient admission — all three kinds allowed. */
+    public static DischargePlan forAdmission(String admissionUid, DischargePlanKind kind, String authoredByUsername) {
+        return new DischargePlan(ClosureSubject.ADMISSION, admissionUid, null, kind, authoredByUsername);
+    }
+
+    /** A closure plan for an outpatient consultation — DECEASED / REFERRAL only. */
+    public static DischargePlan forConsultation(String consultationUid, DischargePlanKind kind, String authoredByUsername) {
+        if (kind != DischargePlanKind.DECEASED && kind != DischargePlanKind.REFERRAL) {
+            throw new BusinessRuleException(
+                    "An outpatient consultation can only be closed as DECEASED or REFERRAL (was: " + kind + ")");
+        }
+        return new DischargePlan(ClosureSubject.CONSULTATION, null, consultationUid, kind, authoredByUsername);
     }
 
     public boolean isEditable() {

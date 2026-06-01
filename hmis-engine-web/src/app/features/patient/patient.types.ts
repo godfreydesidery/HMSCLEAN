@@ -61,6 +61,9 @@ export interface Patient {
 
   lastVisitAt: string | null;
 
+  deceased: boolean;
+  deceasedAt: string | null;
+
   active: boolean;
   createdAt: string;
   updatedAt: string;

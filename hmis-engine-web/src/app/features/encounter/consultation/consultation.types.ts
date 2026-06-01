@@ -1,13 +1,16 @@
 import { PaymentType } from '../../patient/patient.types';
 
-export type ConsultationStatus = 'BOOKED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'TRANSFERRED';
+export type ConsultationStatus =
+  'BOOKED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'TRANSFERRED' | 'DECEASED' | 'REFERRED';
 
 export const CONSULTATION_STATUSES: { value: ConsultationStatus; label: string; badgeClass: string }[] = [
   { value: 'BOOKED',      label: 'Booked',      badgeClass: 'text-bg-info-subtle text-info-emphasis border border-info-subtle' },
   { value: 'IN_PROGRESS', label: 'In progress', badgeClass: 'text-bg-primary-subtle text-primary border border-primary-subtle' },
   { value: 'COMPLETED',   label: 'Completed',   badgeClass: 'text-bg-success-subtle text-success-emphasis border border-success-subtle' },
   { value: 'CANCELLED',   label: 'Cancelled',   badgeClass: 'text-bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle' },
-  { value: 'TRANSFERRED', label: 'Transferred', badgeClass: 'text-bg-warning-subtle text-warning-emphasis border border-warning-subtle' }
+  { value: 'TRANSFERRED', label: 'Transferred', badgeClass: 'text-bg-warning-subtle text-warning-emphasis border border-warning-subtle' },
+  { value: 'DECEASED',    label: 'Deceased',    badgeClass: 'text-bg-danger-subtle text-danger-emphasis border border-danger-subtle' },
+  { value: 'REFERRED',    label: 'Referred',    badgeClass: 'text-bg-warning-subtle text-warning-emphasis border border-warning-subtle' }
 ];
 
 export interface Consultation {

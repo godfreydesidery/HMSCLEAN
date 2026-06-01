@@ -336,6 +336,8 @@ export class AdmissionDetailComponent {
     const inst = ref.componentInstance as DischargePlanModalComponent;
     inst.admissionUid = a.uid;
     inst.billingSummary = this.billingSummary();
+    inst.patientName = a.patientName;
+    inst.patientNo = a.patientNo;
     ref.closed.subscribe((plan: DischargePlan | undefined) => {
       if (!plan) return;
       // Approval closed the admission — refresh the view.

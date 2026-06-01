@@ -16,7 +16,8 @@
   <div class="alert alert-success d-flex align-items-center gap-2 py-2 px-3" role="alert">
     <i class="bi bi-check-circle-fill"></i>
     <span class="small">Collected <strong>{{ r.currency }} {{ r.totalCollected | number:'1.2-2' }}</strong> across {{ r.lineCount }} bill(s).</span>
-    <button type="button" class="btn-close ms-auto" aria-label="Dismiss" (click)="receipt.set(null)"></button>
+    <button type="button" class="btn btn-sm btn-light border ms-auto d-flex align-items-center gap-1" (click)="printReceipt()"><i class="bi bi-printer"></i>Print receipt</button>
+    <button type="button" class="btn-close" aria-label="Dismiss" (click)="receipt.set(null)"></button>
   </div>
 }
 

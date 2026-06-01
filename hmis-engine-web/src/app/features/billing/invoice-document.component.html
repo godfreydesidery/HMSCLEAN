@@ -1,0 +1,59 @@
+<app-print-layout
+  title="Invoice"
+  [subtitle]="invoice.scope + ' invoice'"
+  [documentNo]="invoice.invoiceNo"
+  [meta]="meta"
+  footerNote="Computer-generated invoice."
+  (closed)="activeModal.dismiss()">
+
+  <table class="table table-sm">
+    <thead>
+      <tr>
+        <th>Description</th>
+        <th class="text-end">Qty</th>
+        <th class="text-end">Unit price</th>
+        <th class="text-end">Amount</th>
+        <th class="text-end">Paid</th>
+        <th class="text-end">Outstanding</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (l of invoice.lines; track l.uid) {
+        <tr>
+          <td>{{ l.description }}</td>
+          <td class="text-end">{{ l.quantity }}</td>
+          <td class="text-end">{{ l.unitPrice | number:'1.2-2' }}</td>
+          <td class="text-end">{{ l.amount | number:'1.2-2' }}</td>
+          <td class="text-end">{{ l.paidAmount | number:'1.2-2' }}</td>
+          <td class="text-end">{{ l.outstanding | number:'1.2-2' }}</td>
+        </tr>
+      } @empty {
+        <tr><td colspan="6" class="text-center text-muted">No lines on this invoice.</td></tr>
+      }
+    </tbody>
+    <tfoot>
+      <tr class="border-top"><th colspan="5" class="text-end">Subtotal ({{ invoice.currency }})</th><th class="text-end">{{ invoice.subtotal | number:'1.2-2' }}</th></tr>
+      <tr><th colspan="5" class="text-end">Total paid</th><th class="text-end">{{ invoice.totalPaid | number:'1.2-2' }}</th></tr>
+      <tr><th colspan="5" class="text-end">Balance</th><th class="text-end">{{ invoice.balance | number:'1.2-2' }}</th></tr>
+    </tfoot>
+  </table>
+
+  @if (invoice.payments.length) {
+    <div class="mt-3">
+      <div class="text-uppercase text-muted mb-1" style="font-size: .68rem; letter-spacing: .06em;">Payments</div>
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Receipt</th><th>Method</th><th class="hmis-muted">Received</th><th class="text-end">Amount</th></tr></thead>
+        <tbody>
+          @for (p of invoice.payments; track p.uid) {
+            <tr>
+              <td class="hmis-code">{{ p.paymentNo }}</td>
+              <td>{{ p.method }}</td>
+              <td>{{ p.receivedAt | date:'short' }}</td>
+              <td class="text-end">{{ p.amount | number:'1.2-2' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</app-print-layout>

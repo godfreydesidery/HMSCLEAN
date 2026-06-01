@@ -529,3 +529,56 @@ h1, h2, h3, h4, h5, h6, .hmis-page-title {
 
   .hmis-empty i { color: #3a414d; }
 }
+
+// =========================================================================
+//  Print isolation
+//  A clickable "Print" anywhere opens a document component (in an NgbModal)
+//  whose root carries .hmis-print-root. In print, we hide the entire app and
+//  reveal only that element, so a single global rule serves every printable
+//  document (receipts, closure documents, invoices) regardless of where it is
+//  mounted in the shell. .no-print hides on-screen-only chrome (toolbars).
+// =========================================================================
+@media print {
+  // Hide everything, then reveal only the print document and its descendants.
+  body * { visibility: hidden !important; }
+  .hmis-print-root, .hmis-print-root * { visibility: visible !important; }
+
+  // Lift the document to the page origin and let it flow full-width. Only
+  // top/left are pinned (NOT `inset: 0`, whose bottom:0 would cap the height
+  // and clip a multi-page document to the first page).
+  .hmis-print-root {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    background: #fff !important;
+    color: #000 !important;
+    box-shadow: none !important;
+  }
+
+  // On-screen-only chrome never prints (modal toolbar, buttons, backdrop).
+  .no-print { display: none !important; }
+  // Neutralise the modal chrome so an absolutely-positioned document neither
+  // inherits a containing block nor gets clipped by the scrollable body.
+  .modal, .modal-dialog, .modal-content { position: static !important; }
+  .modal-dialog { max-width: none !important; margin: 0 !important; }
+  // Documents open with `scrollable: true`; undo the height/overflow caps that
+  // would otherwise clip a multi-page print to the first page.
+  .modal-dialog-scrollable { height: auto !important; }
+  .modal-content { max-height: none !important; overflow: visible !important; }
+  .modal-body { overflow: visible !important; max-height: none !important; }
+  .modal-backdrop { display: none !important; }
+
+  @page { size: A4; margin: 14mm; }
+}
+
+// On-screen preview styling for a print document (inside the modal).
+.hmis-print-root {
+  background: #fff;
+  color: #14171f;
+  font-size: 13px;
+}

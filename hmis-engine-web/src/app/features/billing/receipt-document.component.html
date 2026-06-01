@@ -1,0 +1,28 @@
+<app-print-layout
+  title="Payment Receipt"
+  [documentNo]="documentNo"
+  [meta]="meta"
+  footerNote="Thank you. Retain this receipt as proof of payment."
+  (closed)="activeModal.dismiss()">
+
+  <table class="table table-sm">
+    <thead>
+      <tr><th>Service</th><th>Item</th><th class="text-end">Amount</th></tr>
+    </thead>
+    <tbody>
+      @for (l of data.lines; track $index) {
+        <tr>
+          <td class="text-capitalize">{{ l.kind.toLowerCase() }}</td>
+          <td>{{ l.description }}</td>
+          <td class="text-end">{{ l.amount | number:'1.2-2' }}</td>
+        </tr>
+      }
+    </tbody>
+    <tfoot>
+      <tr class="border-top">
+        <th colspan="2" class="text-end">Total collected ({{ data.currency }})</th>
+        <th class="text-end">{{ data.totalCollected | number:'1.2-2' }}</th>
+      </tr>
+    </tfoot>
+  </table>
+</app-print-layout>

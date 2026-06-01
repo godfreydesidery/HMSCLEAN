@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { NgbActiveModal, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { finalize } from 'rxjs';
 
 import { AdmissionBillingSummary } from '../../billing/invoice.types';
+import { ClosureDocumentComponent, ClosureDocumentData } from '../closure-document.component';
 import { DischargePlanService } from './discharge-plan.service';
 import {
   DISCHARGE_PLAN_KINDS, DischargePlan, DischargePlanKind, DischargePlanRequest
@@ -25,9 +26,13 @@ export class DischargePlanModalComponent implements OnInit {
   @Input({ required: true }) admissionUid!: string;
   /** Bill-clearance snapshot (V66 gate): when not cleared, closure is blocked. */
   @Input() billingSummary: AdmissionBillingSummary | null = null;
+  /** Patient display fields for the printable closure document (DISCH-2). */
+  @Input() patientName: string | null = null;
+  @Input() patientNo: string | null = null;
 
   private readonly fb = inject(FormBuilder);
   private readonly service = inject(DischargePlanService);
+  private readonly modal = inject(NgbModal);
   protected readonly activeModal = inject(NgbActiveModal);
 
   readonly kinds = DISCHARGE_PLAN_KINDS;
@@ -110,5 +115,37 @@ export class DischargePlanModalComponent implements OnInit {
       next: (p) => this.activeModal.close(p),
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not approve the plan.')
     });
+  }
+
+  /** Open the printable closure document (DISCH-2) for the saved plan. */
+  printDocument(): void {
+    const p = this.plan();
+    if (!p) return;
+    const data: ClosureDocumentData = {
+      kind: p.kind,
+      status: p.status,
+      patientName: this.patientName,
+      patientNo: this.patientNo,
+      encounterLabel: 'Admission',
+      encounterNo: p.admissionNo,
+      history: p.history,
+      investigation: p.investigation,
+      management: p.management,
+      operationNote: p.operationNote,
+      icuNote: p.icuNote,
+      recommendations: p.recommendations,
+      referralFacility: p.referralFacility,
+      // Admission plans denormalise the provider name into referralFacility.
+      externalProviderName: null,
+      referralReason: p.referralReason,
+      timeOfDeath: p.timeOfDeath,
+      causeOfDeath: p.causeOfDeath,
+      authoredByUsername: p.authoredByUsername,
+      authoredAt: p.authoredAt,
+      approvedByUsername: p.approvedByUsername,
+      approvedAt: p.approvedAt
+    };
+    const ref = this.modal.open(ClosureDocumentComponent, { size: 'lg', scrollable: true });
+    (ref.componentInstance as ClosureDocumentComponent).data = data;
   }
 }

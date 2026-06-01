@@ -96,6 +96,11 @@
 
 <div class="modal-footer">
   <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="busy()">Close</button>
+  @if (plan()) {
+    <button type="button" class="btn btn-light border d-flex align-items-center gap-2 me-auto" (click)="printDocument()">
+      <i class="bi bi-printer"></i>Print
+    </button>
+  }
   @if (isNew || isPending) {
     <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="save()" [disabled]="busy()">
       @if (busy()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }

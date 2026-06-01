@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { NgbActiveModal, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap } from 'rxjs';
 
+import { ClosureDocumentComponent, ClosureDocumentData } from '../closure-document.component';
 import { ExternalProviderService } from '../../masterdata/external-providers/external-provider.service';
 import { ExternalMedicalProvider } from '../../masterdata/external-providers/external-provider.types';
 import { ConsultationClosureService } from './consultation-closure.service';
@@ -26,10 +27,14 @@ export class ConsultationClosureModalComponent implements OnInit {
   @Input({ required: true }) consultationUid!: string;
   /** Mode the modal opens in when there is no existing plan yet. */
   @Input() initialKind: 'DECEASED' | 'REFERRAL' = 'DECEASED';
+  /** Patient display fields for the printable closure document (DISCH-2). */
+  @Input() patientName: string | null = null;
+  @Input() patientNo: string | null = null;
 
   private readonly fb = inject(FormBuilder);
   private readonly service = inject(ConsultationClosureService);
   private readonly providerService = inject(ExternalProviderService);
+  private readonly modal = inject(NgbModal);
   protected readonly activeModal = inject(NgbActiveModal);
 
   readonly plan = signal<ClosurePlan | null>(null);
@@ -138,5 +143,36 @@ export class ConsultationClosureModalComponent implements OnInit {
       next: (p) => this.activeModal.close(p),
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not approve the closure plan.')
     });
+  }
+
+  /** Open the printable closure document (DISCH-2) for the saved plan. */
+  printDocument(): void {
+    const p = this.plan();
+    if (!p) return;
+    const data: ClosureDocumentData = {
+      kind: p.kind,
+      status: p.status,
+      patientName: this.patientName,
+      patientNo: this.patientNo,
+      encounterLabel: 'Consultation',
+      encounterNo: p.consultationNo,
+      history: p.history,
+      investigation: p.investigation,
+      management: p.management,
+      operationNote: p.operationNote,
+      icuNote: p.icuNote,
+      recommendations: p.recommendations,
+      referralFacility: p.referralFacility,
+      externalProviderName: p.externalProviderName,
+      referralReason: p.referralReason,
+      timeOfDeath: p.timeOfDeath,
+      causeOfDeath: p.causeOfDeath,
+      authoredByUsername: p.authoredByUsername,
+      authoredAt: p.authoredAt,
+      approvedByUsername: p.approvedByUsername,
+      approvedAt: p.approvedAt
+    };
+    const ref = this.modal.open(ClosureDocumentComponent, { size: 'lg', scrollable: true });
+    (ref.componentInstance as ClosureDocumentComponent).data = data;
   }
 }

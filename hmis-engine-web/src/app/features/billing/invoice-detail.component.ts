@@ -5,6 +5,7 @@ import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { forkJoin } from 'rxjs';
 
 import { EditLinePriceComponent } from './edit-line-price.component';
+import { InvoiceDocumentComponent } from './invoice-document.component';
 import { InvoiceService } from './invoice.service';
 import {
   CREDIT_NOTE_REASONS, CreditNote, INVOICE_STATUSES, Invoice, InvoiceLine, InvoiceStatus,
@@ -76,6 +77,13 @@ export class InvoiceDetailComponent {
   }
 
   back(): void { void this.router.navigate(['/billing']); }
+
+  /** Open the printable patient invoice (BILL-4). */
+  printInvoice(): void {
+    const i = this.invoice(); if (!i) return;
+    const ref = this.modal.open(InvoiceDocumentComponent, { size: 'lg', scrollable: true });
+    (ref.componentInstance as InvoiceDocumentComponent).invoice = i;
+  }
 
   issue(): void {
     const i = this.invoice(); if (!i) return;

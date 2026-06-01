@@ -3,6 +3,7 @@ package com.otapp.hmis.engine.reporting.application;
 import com.otapp.hmis.engine.billing.creditnote.domain.CreditNoteRepository;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLineKind;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLineRepository;
+import com.otapp.hmis.engine.billing.payment.domain.PaymentMethod;
 import com.otapp.hmis.engine.billing.payment.domain.PaymentRepository;
 import com.otapp.hmis.engine.billing.refund.domain.RefundRepository;
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
@@ -26,10 +27,18 @@ import com.otapp.hmis.engine.pharmacy.stock.domain.StockBalance;
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockBalanceRepository;
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockBatch;
 import com.otapp.hmis.engine.pharmacy.stock.domain.StockBatchRepository;
+import com.otapp.hmis.engine.iam.domain.User;
+import com.otapp.hmis.engine.iam.domain.UserRepository;
 import com.otapp.hmis.engine.reporting.application.ReportingDtos.BedOccupancyEntry;
+import com.otapp.hmis.engine.reporting.application.ReportingDtos.CashierCollectionEntry;
+import com.otapp.hmis.engine.reporting.application.ReportingDtos.CollectionsReportDto;
 import com.otapp.hmis.engine.reporting.application.ReportingDtos.ExpiringBatchEntry;
 import com.otapp.hmis.engine.reporting.application.ReportingDtos.IpdRegisterEntry;
+import com.otapp.hmis.engine.reporting.application.ReportingDtos.MethodAmountEntry;
+import com.otapp.hmis.engine.reporting.application.ReportingDtos.PharmacySalesDto;
+import com.otapp.hmis.engine.reporting.application.ReportingDtos.PharmacySalesEntry;
 import com.otapp.hmis.engine.reporting.application.ReportingDtos.RevenueByKindEntry;
+import com.otapp.hmis.engine.reporting.application.ReportingDtos.RevenueByModeDto;
 import com.otapp.hmis.engine.reporting.application.ReportingDtos.RevenueSummaryDto;
 import com.otapp.hmis.engine.reporting.application.ReportingDtos.StockOutEntry;
 import com.otapp.hmis.engine.store.stock.domain.StoreStockBalance;
@@ -43,6 +52,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -63,6 +73,7 @@ public class ReportingService {
     private final PaymentRepository paymentRepository;
     private final CreditNoteRepository creditNoteRepository;
     private final RefundRepository refundRepository;
+    private final UserRepository userRepository;
 
     private final AdmissionRepository admissionRepository;
     private final WardRepository wardRepository;
@@ -105,6 +116,125 @@ public class ReportingService {
         return new RevenueSummaryDto(from, to,
                 totalBilled, totalCollected, totalCredited, totalRefunded, netRevenue,
                 breakdown);
+    }
+
+    /**
+     * Revenue split by payment mode (BILL-5) — how the collected cash came in
+     * (CASH / MOBILE_MONEY / CARD / BANK_TRANSFER / INSURANCE_CLAIM / OTHER) over
+     * the range. Counts received payments, complementing the by-service-kind
+     * breakdown on {@link #revenueSummary}.
+     */
+    @Transactional(readOnly = true)
+    public RevenueByModeDto revenueByMode(LocalDate from, LocalDate to) {
+        requireRange(from, to);
+        Instant fromInstant = from.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant toInstant   = to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+
+        List<MethodAmountEntry> byMethod = new ArrayList<>();
+        BigDecimal total = BigDecimal.ZERO;
+        for (Object[] row : paymentRepository.sumByMethodInRange(fromInstant, toInstant)) {
+            BigDecimal amount = nz((BigDecimal) row[1]);
+            byMethod.add(new MethodAmountEntry((PaymentMethod) row[0], amount, (Long) row[2]));
+            total = total.add(amount);
+        }
+        return new RevenueByModeDto(from, to, total, byMethod);
+    }
+
+    // ==================================================================
+    // Collections / cash-up (per cashier)
+    // ==================================================================
+
+    /**
+     * Per-cashier collections / cash-up (BILL-2): every cashier's takings over
+     * the range, with a per-method breakdown and the cash subtotal (the figure
+     * a till should reconcile to). Driven by {@code Payment.createdBy}.
+     */
+    @Transactional(readOnly = true)
+    public CollectionsReportDto collections(LocalDate from, LocalDate to) {
+        requireRange(from, to);
+        Instant fromInstant = from.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant toInstant   = to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+
+        // Accumulate per cashier, preserving the query's createdBy ordering.
+        Map<String, CashierAccumulator> byCashier = new LinkedHashMap<>();
+        for (Object[] row : paymentRepository.collectionsByUserAndMethodInRange(fromInstant, toInstant)) {
+            String username = (String) row[0];
+            PaymentMethod method = (PaymentMethod) row[1];
+            BigDecimal amount = nz((BigDecimal) row[2]);
+            long count = (Long) row[3];
+            byCashier.computeIfAbsent(username, CashierAccumulator::new).add(method, amount, count);
+        }
+
+        List<CashierCollectionEntry> cashiers = new ArrayList<>(byCashier.size());
+        BigDecimal grandTotal = BigDecimal.ZERO;
+        BigDecimal grandCash = BigDecimal.ZERO;
+        long grandCount = 0;
+        for (CashierAccumulator acc : byCashier.values()) {
+            String name = acc.username == null ? null
+                    : userRepository.findByUsername(acc.username).map(User::fullName).orElse(null);
+            cashiers.add(new CashierCollectionEntry(
+                    acc.username, name, acc.count, acc.total, acc.cash, acc.methods()));
+            grandTotal = grandTotal.add(acc.total);
+            grandCash = grandCash.add(acc.cash);
+            grandCount += acc.count;
+        }
+        return new CollectionsReportDto(from, to, grandTotal, grandCash, grandCount, cashiers);
+    }
+
+    /** Mutable per-cashier tally used while folding the grouped query rows. */
+    private static final class CashierAccumulator {
+        private final String username;
+        private final List<MethodAmountEntry> byMethod = new ArrayList<>();
+        private BigDecimal total = BigDecimal.ZERO;
+        private BigDecimal cash = BigDecimal.ZERO;
+        private long count = 0;
+
+        private CashierAccumulator(String username) { this.username = username; }
+
+        private void add(PaymentMethod method, BigDecimal amount, long c) {
+            byMethod.add(new MethodAmountEntry(method, amount, c));
+            total = total.add(amount);
+            if (method == PaymentMethod.CASH) { cash = cash.add(amount); }
+            count += c;
+        }
+
+        private List<MethodAmountEntry> methods() { return byMethod; }
+    }
+
+    // ==================================================================
+    // Pharmacy sales
+    // ==================================================================
+
+    /**
+     * Pharmacy sales (BILL-5): medicines sold (MEDICINE invoice lines on issued
+     * invoices) over the range, grouped by medicine with quantity + revenue,
+     * highest-revenue first.
+     */
+    @Transactional(readOnly = true)
+    public PharmacySalesDto pharmacySales(LocalDate from, LocalDate to) {
+        requireRange(from, to);
+        Instant fromInstant = from.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant toInstant   = to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+
+        List<PharmacySalesEntry> items = new ArrayList<>();
+        BigDecimal totalQty = BigDecimal.ZERO;
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        for (Object[] row : invoiceLineRepository.pharmacySalesInRange(fromInstant, toInstant)) {
+            String medicineUid = (String) row[0];
+            BigDecimal qty = nz((BigDecimal) row[1]);
+            BigDecimal amount = nz((BigDecimal) row[2]);
+            Medicine m = medicineUid == null ? null
+                    : medicineRepository.findByUid(medicineUid).orElse(null);
+            items.add(new PharmacySalesEntry(
+                    medicineUid,
+                    m == null ? null : m.getCode(),
+                    m == null ? null : m.getName(),
+                    qty, amount, (Long) row[3]));
+            totalQty = totalQty.add(qty);
+            totalAmount = totalAmount.add(amount);
+        }
+        items.sort((a, b) -> b.amount().compareTo(a.amount()));
+        return new PharmacySalesDto(from, to, totalQty, totalAmount, items);
     }
 
     // ==================================================================

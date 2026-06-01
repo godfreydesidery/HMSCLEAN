@@ -1,0 +1,97 @@
+<div class="hmis-page-header">
+  <div>
+    <a class="hmis-muted small text-decoration-none d-inline-flex align-items-center gap-1 mb-1" routerLink="/reporting">
+      <i class="bi bi-arrow-left"></i> Reports
+    </a>
+    <h1 class="hmis-page-title">Collections / cash-up</h1>
+    <p class="hmis-muted mb-0 small">Per-cashier takings over a date range. The cash column is what a till should reconcile to.</p>
+  </div>
+</div>
+
+<form [formGroup]="form" (ngSubmit)="run()" novalidate>
+  <div class="card mb-3">
+    <div class="card-body py-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label for="from" class="form-label small mb-1">From <span class="text-danger">*</span></label>
+          <input id="from" name="from" type="date" class="form-control" formControlName="from">
+        </div>
+        <div class="col-md-3">
+          <label for="to" class="form-label small mb-1">To <span class="text-danger">*</span></label>
+          <input id="to" name="to" type="date" class="form-control" formControlName="to">
+        </div>
+        <div class="col-md-auto">
+          <button type="submit" class="btn btn-primary" [disabled]="loading()">
+            @if (loading()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+            <i class="bi bi-search me-1"></i> Run
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+@if (result(); as r) {
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-xl-3">
+      <div class="card h-100"><div class="card-body">
+        <div class="hmis-muted small text-uppercase">Total collected</div>
+        <div class="fs-4 fw-semibold text-success">{{ r.totalCollected | number:'1.2-2' }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="card h-100"><div class="card-body">
+        <div class="hmis-muted small text-uppercase">Of which cash</div>
+        <div class="fs-4 fw-semibold">{{ r.totalCash | number:'1.2-2' }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="card h-100"><div class="card-body">
+        <div class="hmis-muted small text-uppercase">Payments</div>
+        <div class="fs-4 fw-semibold">{{ r.paymentCount | number }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="card h-100"><div class="card-body">
+        <div class="hmis-muted small text-uppercase">Cashiers</div>
+        <div class="fs-4 fw-semibold">{{ r.cashiers.length | number }}</div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-white fw-semibold d-flex align-items-center">
+      <span>By cashier</span>
+      <span class="ms-auto hmis-muted small">{{ r.from | date:'mediumDate' }} &ndash; {{ r.to | date:'mediumDate' }}</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 hmis-table">
+        <thead><tr><th>Cashier</th><th class="text-end">Payments</th><th class="text-end">Cash</th><th class="text-end">Total</th><th>Breakdown</th></tr></thead>
+        <tbody>
+          @if (r.cashiers.length === 0) {
+            <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-cash-stack"></i><div class="fw-semibold mb-1">No collections</div><div class="small">No payments fall in this date range.</div></div></td></tr>
+          } @else {
+            @for (c of r.cashiers; track c.cashierUsername) {
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ c.cashierName || c.cashierUsername || '—' }}</div>
+                  @if (c.cashierName) { <div class="hmis-muted small">{{ c.cashierUsername }}</div> }
+                </td>
+                <td class="text-end hmis-muted">{{ c.paymentCount | number }}</td>
+                <td class="text-end">{{ c.cashCollected | number:'1.2-2' }}</td>
+                <td class="text-end fw-semibold">{{ c.totalCollected | number:'1.2-2' }}</td>
+                <td class="hmis-muted small">{{ methodSummary(c.byMethod) }}</td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+} @else if (loading()) {
+  <div class="card"><div class="card-body text-center py-5"><span class="spinner-border"></span></div></div>
+}

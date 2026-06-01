@@ -72,6 +72,27 @@ export class ReportingHubComponent {
       iconClass: 'text-bg-success-subtle text-success-emphasis'
     },
     {
+      path: 'revenue-by-mode',
+      title: 'Revenue by payment mode',
+      description: 'How collected payments split across cash, mobile money, card, bank and insurance.',
+      icon: 'bi-wallet2',
+      iconClass: 'text-bg-success-subtle text-success-emphasis'
+    },
+    {
+      path: 'collections',
+      title: 'Collections / cash-up',
+      description: 'Per-cashier takings over a date range — the till reconciliation figure.',
+      icon: 'bi-cash-stack',
+      iconClass: 'text-bg-success-subtle text-success-emphasis'
+    },
+    {
+      path: 'pharmacy-sales',
+      title: 'Pharmacy sales',
+      description: 'Medicines billed over a date range, by medicine, highest revenue first.',
+      icon: 'bi-capsule',
+      iconClass: 'text-bg-info-subtle text-info-emphasis'
+    },
+    {
       path: 'ipd-register',
       title: 'IPD register',
       description: 'Inpatient admissions over a period, filtered by ward and status.',

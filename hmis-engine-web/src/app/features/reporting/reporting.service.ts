@@ -5,9 +5,12 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   BedOccupancyEntry,
+  CollectionsReportDto,
   ExpiringBatchEntry,
   IpdRegisterEntry,
   IpdRegisterParams,
+  PharmacySalesDto,
+  RevenueByModeDto,
   RevenueReportParams,
   RevenueSummaryDto,
   StockOutEntry
@@ -21,6 +24,21 @@ export class ReportingService {
   revenue(params: RevenueReportParams): Observable<RevenueSummaryDto> {
     const p = new HttpParams().set('from', params.from).set('to', params.to);
     return this.http.get<RevenueSummaryDto>(`${this.base}/revenue`, { params: p });
+  }
+
+  revenueByMode(params: RevenueReportParams): Observable<RevenueByModeDto> {
+    const p = new HttpParams().set('from', params.from).set('to', params.to);
+    return this.http.get<RevenueByModeDto>(`${this.base}/revenue-by-mode`, { params: p });
+  }
+
+  collections(params: RevenueReportParams): Observable<CollectionsReportDto> {
+    const p = new HttpParams().set('from', params.from).set('to', params.to);
+    return this.http.get<CollectionsReportDto>(`${this.base}/collections`, { params: p });
+  }
+
+  pharmacySales(params: RevenueReportParams): Observable<PharmacySalesDto> {
+    const p = new HttpParams().set('from', params.from).set('to', params.to);
+    return this.http.get<PharmacySalesDto>(`${this.base}/pharmacy-sales`, { params: p });
   }
 
   ipdRegister(params: IpdRegisterParams): Observable<IpdRegisterEntry[]> {

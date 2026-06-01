@@ -14,6 +14,24 @@ export const REPORTING_ROUTES: Routes = [
     data: { title: 'Revenue summary' }
   },
   {
+    path: 'revenue-by-mode',
+    loadComponent: () =>
+      import('./revenue-by-mode-report.component').then((m) => m.RevenueByModeReportComponent),
+    data: { title: 'Revenue by payment mode' }
+  },
+  {
+    path: 'collections',
+    loadComponent: () =>
+      import('./collections-report.component').then((m) => m.CollectionsReportComponent),
+    data: { title: 'Collections / cash-up' }
+  },
+  {
+    path: 'pharmacy-sales',
+    loadComponent: () =>
+      import('./pharmacy-sales-report.component').then((m) => m.PharmacySalesReportComponent),
+    data: { title: 'Pharmacy sales' }
+  },
+  {
     path: 'ipd-register',
     loadComponent: () =>
       import('./ipd-register-report.component').then((m) => m.IpdRegisterReportComponent),

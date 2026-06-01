@@ -1,6 +1,7 @@
 package com.otapp.hmis.engine.reporting.application;
 
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLineKind;
+import com.otapp.hmis.engine.billing.payment.domain.PaymentMethod;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -72,4 +73,51 @@ public final class ReportingDtos {
             String batchNo,
             LocalDate expiresAt,
             int quantity) {}
+
+    // ----- Collections / cash-up (BILL-2) ---------------------------------
+
+    /** A method's slice of a cashier's (or the day's) takings. */
+    public record MethodAmountEntry(PaymentMethod method, BigDecimal amount, long count) {}
+
+    /** One cashier's takings over the range, with a per-method breakdown. */
+    public record CashierCollectionEntry(
+            String cashierUsername,
+            String cashierName,
+            long paymentCount,
+            BigDecimal totalCollected,
+            BigDecimal cashCollected,
+            List<MethodAmountEntry> byMethod) {}
+
+    public record CollectionsReportDto(
+            LocalDate from,
+            LocalDate to,
+            BigDecimal totalCollected,
+            BigDecimal totalCash,
+            long paymentCount,
+            List<CashierCollectionEntry> cashiers) {}
+
+    // ----- Revenue by payment mode (BILL-5) -------------------------------
+
+    public record RevenueByModeDto(
+            LocalDate from,
+            LocalDate to,
+            BigDecimal totalCollected,
+            List<MethodAmountEntry> byMethod) {}
+
+    // ----- Pharmacy sales (BILL-5) ----------------------------------------
+
+    public record PharmacySalesEntry(
+            String medicineUid,
+            String medicineCode,
+            String medicineName,
+            BigDecimal quantity,
+            BigDecimal amount,
+            long lineCount) {}
+
+    public record PharmacySalesDto(
+            LocalDate from,
+            LocalDate to,
+            BigDecimal totalQuantity,
+            BigDecimal totalAmount,
+            List<PharmacySalesEntry> items) {}
 }

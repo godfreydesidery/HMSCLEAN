@@ -1,5 +1,5 @@
 import { AdmissionStatus } from '../encounter/admission/admission.types';
-import { InvoiceLineKind } from '../billing/invoice.types';
+import { InvoiceLineKind, PaymentMethod } from '../billing/invoice.types';
 
 /** Mirrors ReportingDtos.RevenueByKindEntry. */
 export interface RevenueByKindEntry {
@@ -82,4 +82,64 @@ export interface IpdRegisterParams {
   to: string;
   wardUid?: string;
   status?: AdmissionStatus;
+}
+
+// ----- Collections / cash-up (BILL-2) --------------------------------------
+
+/** Mirrors ReportingDtos.MethodAmountEntry. */
+export interface MethodAmountEntry {
+  method: PaymentMethod;
+  amount: number;
+  count: number;
+}
+
+/** Mirrors ReportingDtos.CashierCollectionEntry. */
+export interface CashierCollectionEntry {
+  cashierUsername: string;
+  cashierName: string | null;
+  paymentCount: number;
+  totalCollected: number;
+  cashCollected: number;
+  byMethod: MethodAmountEntry[];
+}
+
+/** Mirrors ReportingDtos.CollectionsReportDto. */
+export interface CollectionsReportDto {
+  from: string;
+  to: string;
+  totalCollected: number;
+  totalCash: number;
+  paymentCount: number;
+  cashiers: CashierCollectionEntry[];
+}
+
+// ----- Revenue by payment mode (BILL-5) ------------------------------------
+
+/** Mirrors ReportingDtos.RevenueByModeDto. */
+export interface RevenueByModeDto {
+  from: string;
+  to: string;
+  totalCollected: number;
+  byMethod: MethodAmountEntry[];
+}
+
+// ----- Pharmacy sales (BILL-5) ---------------------------------------------
+
+/** Mirrors ReportingDtos.PharmacySalesEntry. */
+export interface PharmacySalesEntry {
+  medicineUid: string;
+  medicineCode: string | null;
+  medicineName: string | null;
+  quantity: number;
+  amount: number;
+  lineCount: number;
+}
+
+/** Mirrors ReportingDtos.PharmacySalesDto. */
+export interface PharmacySalesDto {
+  from: string;
+  to: string;
+  totalQuantity: number;
+  totalAmount: number;
+  items: PharmacySalesEntry[];
 }

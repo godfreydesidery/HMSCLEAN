@@ -2,8 +2,11 @@ package com.otapp.hmis.engine.reporting.api;
 
 import com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus;
 import com.otapp.hmis.engine.reporting.application.ReportingDtos.BedOccupancyEntry;
+import com.otapp.hmis.engine.reporting.application.ReportingDtos.CollectionsReportDto;
 import com.otapp.hmis.engine.reporting.application.ReportingDtos.ExpiringBatchEntry;
 import com.otapp.hmis.engine.reporting.application.ReportingDtos.IpdRegisterEntry;
+import com.otapp.hmis.engine.reporting.application.ReportingDtos.PharmacySalesDto;
+import com.otapp.hmis.engine.reporting.application.ReportingDtos.RevenueByModeDto;
 import com.otapp.hmis.engine.reporting.application.ReportingDtos.RevenueSummaryDto;
 import com.otapp.hmis.engine.reporting.application.ReportingDtos.StockOutEntry;
 import com.otapp.hmis.engine.reporting.application.ReportingService;
@@ -30,6 +33,27 @@ public class ReportingController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return ResponseEntity.ok(service.revenueSummary(from, to));
+    }
+
+    @GetMapping("/revenue-by-mode")
+    public ResponseEntity<RevenueByModeDto> revenueByMode(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(service.revenueByMode(from, to));
+    }
+
+    @GetMapping("/collections")
+    public ResponseEntity<CollectionsReportDto> collections(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(service.collections(from, to));
+    }
+
+    @GetMapping("/pharmacy-sales")
+    public ResponseEntity<PharmacySalesDto> pharmacySales(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(service.pharmacySales(from, to));
     }
 
     @GetMapping("/ipd-register")

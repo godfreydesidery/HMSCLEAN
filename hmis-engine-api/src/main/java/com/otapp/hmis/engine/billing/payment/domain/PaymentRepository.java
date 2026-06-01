@@ -33,4 +33,32 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     BigDecimal sumCashByUserInRange(@Param("username") String username,
                                     @Param("from") Instant from,
                                     @Param("to") Instant to);
+
+    /**
+     * Revenue grouped by payment method over [{@code from}, {@code to}) — backs
+     * the revenue-by-payment-mode report (BILL-5). Rows are
+     * {@code [PaymentMethod method, BigDecimal amount, Long count]}.
+     */
+    @Query("""
+            SELECT p.method, COALESCE(SUM(p.amount), 0), COUNT(p)
+            FROM Payment p
+            WHERE p.receivedAt >= :from AND p.receivedAt < :to
+            GROUP BY p.method
+            ORDER BY p.method
+            """)
+    List<Object[]> sumByMethodInRange(@Param("from") Instant from, @Param("to") Instant to);
+
+    /**
+     * Collections grouped by cashier and method over [{@code from}, {@code to}) —
+     * backs the per-cashier cash-up / collections report (BILL-2). Rows are
+     * {@code [String createdBy, PaymentMethod method, BigDecimal amount, Long count]}.
+     */
+    @Query("""
+            SELECT p.createdBy, p.method, COALESCE(SUM(p.amount), 0), COUNT(p)
+            FROM Payment p
+            WHERE p.receivedAt >= :from AND p.receivedAt < :to
+            GROUP BY p.createdBy, p.method
+            ORDER BY p.createdBy
+            """)
+    List<Object[]> collectionsByUserAndMethodInRange(@Param("from") Instant from, @Param("to") Instant to);
 }

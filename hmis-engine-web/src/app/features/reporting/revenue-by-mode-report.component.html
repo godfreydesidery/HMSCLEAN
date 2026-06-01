@@ -1,0 +1,72 @@
+<div class="hmis-page-header">
+  <div>
+    <a class="hmis-muted small text-decoration-none d-inline-flex align-items-center gap-1 mb-1" routerLink="/reporting">
+      <i class="bi bi-arrow-left"></i> Reports
+    </a>
+    <h1 class="hmis-page-title">Revenue by payment mode</h1>
+    <p class="hmis-muted mb-0 small">How collected payments split across cash, mobile money, card, bank and insurance.</p>
+  </div>
+</div>
+
+<form [formGroup]="form" (ngSubmit)="run()" novalidate>
+  <div class="card mb-3">
+    <div class="card-body py-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label for="from" class="form-label small mb-1">From <span class="text-danger">*</span></label>
+          <input id="from" name="from" type="date" class="form-control" formControlName="from">
+        </div>
+        <div class="col-md-3">
+          <label for="to" class="form-label small mb-1">To <span class="text-danger">*</span></label>
+          <input id="to" name="to" type="date" class="form-control" formControlName="to">
+        </div>
+        <div class="col-md-auto">
+          <button type="submit" class="btn btn-primary" [disabled]="loading()">
+            @if (loading()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+            <i class="bi bi-search me-1"></i> Run
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+@if (result(); as r) {
+  <div class="card mb-3">
+    <div class="card-body d-flex flex-wrap align-items-center gap-2">
+      <div>
+        <div class="hmis-muted small text-uppercase">Total collected</div>
+        <div class="fs-3 fw-semibold text-success">{{ r.totalCollected | number:'1.2-2' }}</div>
+      </div>
+      <div class="ms-auto hmis-muted small">{{ r.from | date:'mediumDate' }} &ndash; {{ r.to | date:'mediumDate' }}</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-white fw-semibold">Breakdown by payment mode</div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 hmis-table">
+        <thead><tr><th>Mode</th><th class="text-end">Payments</th><th class="text-end">Amount</th></tr></thead>
+        <tbody>
+          @if (r.byMethod.length === 0) {
+            <tr><td colspan="3"><div class="hmis-empty"><i class="bi bi-cash-stack"></i><div class="fw-semibold mb-1">No payments</div><div class="small">No payments fall in this date range.</div></div></td></tr>
+          } @else {
+            @for (m of r.byMethod; track m.method) {
+              <tr>
+                <td><span class="badge text-bg-light border">{{ methodLabel(m.method) }}</span></td>
+                <td class="text-end hmis-muted">{{ m.count | number }}</td>
+                <td class="text-end fw-semibold">{{ m.amount | number:'1.2-2' }}</td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+} @else if (loading()) {
+  <div class="card"><div class="card-body text-center py-5"><span class="spinner-border"></span></div></div>
+}

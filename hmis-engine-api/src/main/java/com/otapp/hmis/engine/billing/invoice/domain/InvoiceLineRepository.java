@@ -107,4 +107,23 @@ public interface InvoiceLineRepository extends JpaRepository<InvoiceLine, Long> 
             """)
     java.math.BigDecimal sumTotalBilledInIssuedRange(@Param("from") Instant from,
                                                      @Param("to") Instant to);
+
+    /**
+     * Pharmacy sales (BILL-5): MEDICINE lines on invoices issued in range
+     * (excludes DRAFT / CANCELLED), grouped by medicine. A MEDICINE line stores
+     * the medicine uid in {@code serviceUid}. Rows are
+     * {@code [String medicineUid, BigDecimal quantity, BigDecimal amount, Long lineCount]}.
+     */
+    @Query("""
+            SELECT l.serviceUid, COALESCE(SUM(l.quantity), 0), COALESCE(SUM(l.amount), 0), COUNT(l)
+            FROM Invoice i, InvoiceLine l
+            WHERE l.invoiceUid = i.uid
+              AND l.kind = 'MEDICINE'
+              AND i.issuedAt IS NOT NULL
+              AND i.issuedAt >= :from
+              AND i.issuedAt <  :to
+              AND i.status NOT IN ('DRAFT', 'CANCELLED')
+            GROUP BY l.serviceUid
+            """)
+    List<Object[]> pharmacySalesInRange(@Param("from") Instant from, @Param("to") Instant to);
 }

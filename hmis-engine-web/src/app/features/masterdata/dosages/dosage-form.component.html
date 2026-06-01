@@ -1,0 +1,39 @@
+<div class="modal-header">
+  <h5 class="modal-title d-flex align-items-center gap-2">
+    <i class="bi" [class.bi-pencil-square]="isEdit" [class.bi-plus-circle]="!isEdit"></i>{{ title }}
+  </h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss()"></button>
+</div>
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-body">
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3" role="alert">
+        <i class="bi bi-exclamation-circle"></i><span class="small">{{ errorMessage() }}</span>
+      </div>
+    }
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label" for="dx-code">Code <span class="text-danger">*</span></label>
+        <input id="dx-code" name="code" type="text" class="form-control text-uppercase" formControlName="code" autocomplete="off" placeholder="e.g. A09">
+      </div>
+      <div class="col-md-8">
+        <label class="form-label" for="dx-name">Name <span class="text-danger">*</span></label>
+        <input id="dx-name" name="name" type="text" class="form-control" formControlName="name" autocomplete="off">
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="dx-description">Description</label>
+        <textarea id="dx-description" name="description" rows="3" class="form-control" formControlName="description"></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+    <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting()">
+      @if (submitting()) {
+        <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output>Saving…
+      } @else {
+        <i class="bi bi-check2"></i>{{ isEdit ? 'Save changes' : 'Create dosage' }}
+      }
+    </button>
+  </div>
+</form>

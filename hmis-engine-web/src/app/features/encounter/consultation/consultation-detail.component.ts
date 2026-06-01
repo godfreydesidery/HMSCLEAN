@@ -33,6 +33,9 @@ import {
 import { VitalsFormComponent } from '../vitals/vitals-form.component';
 import { VitalsService } from '../vitals/vitals.service';
 import { PatientVitals } from '../vitals/vitals.types';
+import { ConsultationClosureService } from './consultation-closure.service';
+import { ConsultationClosureModalComponent } from './consultation-closure-modal.component';
+import { CONSULTATION_CLOSURE_KINDS, ClosurePlan } from './consultation-closure.types';
 import { ConsultationService } from './consultation.service';
 import { CONSULTATION_STATUSES, Consultation, ConsultationStatus } from './consultation.types';
 
@@ -55,10 +58,14 @@ export class ConsultationDetailComponent {
   private readonly orderService = inject(ClinicalOrderService);
   private readonly prescriptionService = inject(PrescriptionService);
   private readonly invoiceService = inject(InvoiceService);
+  private readonly closureService = inject(ConsultationClosureService);
   private readonly modal = inject(NgbModal);
   private readonly fb = inject(FormBuilder);
 
   readonly statuses = CONSULTATION_STATUSES;
+  readonly closureKinds = CONSULTATION_CLOSURE_KINDS;
+  readonly closurePlan = signal<ClosurePlan | null>(null);
+  readonly closureBusy = signal(false);
   readonly diagnosisKinds = DIAGNOSIS_KINDS;
   readonly orderKinds = CLINICAL_ORDER_KINDS;
   readonly orderStatuses = CLINICAL_ORDER_STATUSES;
@@ -113,6 +120,9 @@ export class ConsultationDetailComponent {
   });
   /** Once a visit is complete the next visit is a follow-up; before then it's just the current one. */
   readonly canFollowUp = computed(() => this.consultation()?.status === 'COMPLETED');
+  /** Outpatient closure (death / external referral) — only while live and not already begun. */
+  readonly canClose = computed(() =>
+    this.consultation()?.status === 'IN_PROGRESS' && this.closurePlan() === null);
   /** Legacy "Send To Ward" — admit straight from the live consultation. */
   readonly canSendToWard = computed(() => this.consultation()?.status === 'IN_PROGRESS');
   // Clinical authoring (notes/orders/Rx/diagnoses) is IN_PROGRESS-only — mirror the
@@ -138,6 +148,7 @@ export class ConsultationDetailComponent {
       this.errorMessage.set('Missing consultation identifier.');
       return;
     }
+    this.loadClosurePlan(uid);
     forkJoin({
       consultation: this.consultationService.findByUid(uid),
       vitals: this.vitalsService.list(uid),
@@ -196,6 +207,67 @@ export class ConsultationDetailComponent {
       next: (updated) => this.consultation.set(updated),
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not cancel consultation.')
     });
+  }
+
+  // ----- Closure (outpatient death / external referral) ------------------
+
+  private loadClosurePlan(uid: string): void {
+    this.closureService.find(uid).subscribe({
+      next: (p) => this.closurePlan.set(p),
+      error: () => this.closurePlan.set(null) // 404 — no closure plan yet
+    });
+  }
+
+  /** Open the closure modal in DECEASED or REFERRAL mode (only when no plan exists). */
+  openClosure(kind: 'DECEASED' | 'REFERRAL'): void {
+    const c = this.consultation();
+    if (!c) return;
+    const ref = this.modal.open(ConsultationClosureModalComponent, { size: 'lg', backdrop: 'static', scrollable: true });
+    const inst = ref.componentInstance as ConsultationClosureModalComponent;
+    inst.consultationUid = c.uid;
+    inst.initialKind = kind;
+    ref.closed.subscribe((plan: ClosurePlan | undefined) => {
+      // Approval closed the consultation — refresh the detail and the plan panel.
+      if (plan) this.closurePlan.set(plan);
+      this.refreshAfterClosure(c.uid);
+    });
+    ref.dismissed.subscribe(() => this.loadClosurePlan(c.uid));
+  }
+
+  /** Re-open the read-only panel's plan (PENDING) in the modal to approve / edit. */
+  reviewClosure(): void {
+    const c = this.consultation();
+    const plan = this.closurePlan();
+    if (!c || !plan) return;
+    const ref = this.modal.open(ConsultationClosureModalComponent, { size: 'lg', backdrop: 'static', scrollable: true });
+    const inst = ref.componentInstance as ConsultationClosureModalComponent;
+    inst.consultationUid = c.uid;
+    inst.initialKind = plan.kind === 'REFERRAL' ? 'REFERRAL' : 'DECEASED';
+    ref.closed.subscribe((updated: ClosurePlan | undefined) => {
+      if (updated) this.closurePlan.set(updated);
+      this.refreshAfterClosure(c.uid);
+    });
+    ref.dismissed.subscribe(() => this.loadClosurePlan(c.uid));
+  }
+
+  cancelClosure(): void {
+    const c = this.consultation();
+    if (!c || this.closureBusy()) return;
+    const reason = globalThis.prompt('Reason for cancelling this closure plan?')?.trim() ?? null;
+    this.closureBusy.set(true);
+    this.errorMessage.set(null);
+    this.closureService.cancel(c.uid, reason).pipe(finalize(() => this.closureBusy.set(false))).subscribe({
+      next: (plan) => this.closurePlan.set(plan),
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not cancel the closure plan.')
+    });
+  }
+
+  private refreshAfterClosure(uid: string): void {
+    this.consultationService.findByUid(uid).subscribe({
+      next: (updated) => this.consultation.set(updated),
+      error: () => { /* keep previous */ }
+    });
+    this.loadClosurePlan(uid);
   }
 
   recordVitals(): void {

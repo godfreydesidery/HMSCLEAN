@@ -1,0 +1,110 @@
+<div class="modal-header">
+  <div>
+    <h5 class="modal-title d-flex align-items-center gap-2">
+      <i class="bi" [class.bi-heartbreak]="kind === 'DECEASED'" [class.bi-box-arrow-up-right]="kind === 'REFERRAL'"></i>{{ title }}
+    </h5>
+    <div class="hmis-muted small mt-1">
+      Author the closure plan; a different user approves it, which closes the consultation.
+    </div>
+  </div>
+  <button type="button" class="btn-close" (click)="activeModal.dismiss()" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+  }
+  @if (plan(); as p) {
+    <div class="alert" [class.alert-info]="p.status === 'PENDING'" [class.alert-success]="p.status === 'APPROVED'" [class.alert-secondary]="p.status === 'CANCELLED'">
+      <span class="fw-semibold">{{ p.status }}</span>
+      @if (p.authoredByUsername) { · authored by {{ p.authoredByUsername }} }
+      @if (p.approvedByUsername) { · approved by {{ p.approvedByUsername }} }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div>
+  } @else {
+    <form [formGroup]="form" novalidate>
+      <div class="mb-2">
+        <label class="form-label" for="cc-history">History <span class="text-danger">*</span></label>
+        <textarea id="cc-history" rows="2" class="form-control" formControlName="history"></textarea>
+      </div>
+      <div class="mb-2">
+        <label class="form-label" for="cc-investigation">Investigation</label>
+        <textarea id="cc-investigation" rows="2" class="form-control" formControlName="investigation"></textarea>
+      </div>
+      <div class="mb-2">
+        <label class="form-label" for="cc-management">Management <span class="text-danger">*</span></label>
+        <textarea id="cc-management" rows="2" class="form-control" formControlName="management"></textarea>
+      </div>
+      <div class="mb-2">
+        <label class="form-label" for="cc-recommendations">Recommendations <span class="text-danger">*</span></label>
+        <textarea id="cc-recommendations" rows="2" class="form-control" formControlName="recommendations"></textarea>
+      </div>
+
+      <div class="row g-2">
+        <div class="col-md-6 mb-2">
+          <label class="form-label" for="cc-op">Operation note</label>
+          <textarea id="cc-op" rows="2" class="form-control" formControlName="operationNote"></textarea>
+        </div>
+        <div class="col-md-6 mb-2">
+          <label class="form-label" for="cc-icu">ICU note</label>
+          <textarea id="cc-icu" rows="2" class="form-control" formControlName="icuNote"></textarea>
+        </div>
+      </div>
+
+      @if (kind === 'REFERRAL') {
+        <div class="mb-2">
+          <label class="form-label" for="cc-provider">External provider</label>
+          <input id="cc-provider-search" type="search" class="form-control form-control-sm mb-1" placeholder="Search providers…" autocomplete="off"
+                 (input)="onProviderSearch($any($event.target).value)">
+          <select id="cc-provider" class="form-select" formControlName="externalProviderUid">
+            <option value="">— None / use free-text facility —</option>
+            @for (prov of providers(); track prov.uid) {
+              <option [value]="prov.uid">{{ prov.code }} · {{ prov.name }}</option>
+            }
+          </select>
+          <div class="form-text">Pick a registered provider; the receiving facility name is recorded automatically.</div>
+        </div>
+        <div class="row g-2">
+          <div class="col-md-6 mb-2">
+            <label class="form-label" for="cc-facility">Referral facility (free text)</label>
+            <input id="cc-facility" type="text" class="form-control" formControlName="referralFacility" placeholder="If not in the provider list">
+          </div>
+          <div class="col-md-6 mb-2">
+            <label class="form-label" for="cc-rreason">Referral reason <span class="text-danger">*</span></label>
+            <input id="cc-rreason" type="text" class="form-control" formControlName="referralReason">
+          </div>
+        </div>
+      }
+      @if (kind === 'DECEASED') {
+        <div class="row g-2">
+          <div class="col-md-6 mb-2">
+            <label class="form-label" for="cc-tod">Time of death <span class="text-danger">*</span></label>
+            <input id="cc-tod" type="datetime-local" class="form-control" formControlName="timeOfDeath">
+          </div>
+          <div class="col-md-6 mb-2">
+            <label class="form-label" for="cc-cod">Cause of death <span class="text-danger">*</span></label>
+            <input id="cc-cod" type="text" class="form-control" formControlName="causeOfDeath">
+          </div>
+        </div>
+      }
+    </form>
+  }
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="busy()">Close</button>
+  @if (isNew || isPending) {
+    <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="save()" [disabled]="busy()">
+      @if (busy()) { <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output> }
+      <i class="bi bi-save"></i>{{ isNew ? 'Create plan' : 'Save' }}
+    </button>
+  }
+  @if (isPending) {
+    <button type="button" class="btn btn-success d-flex align-items-center gap-2" (click)="approve()" [disabled]="busy()">
+      <i class="bi bi-check2-circle"></i>Approve &amp; close consultation
+    </button>
+  }
+</div>

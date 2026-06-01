@@ -184,4 +184,37 @@ public class Consultation extends AuditableEntity {
         transferReason = reason;
         transferredAt = Instant.now();
     }
+
+    /**
+     * Outpatient closure — patient died during the encounter. Driven by an
+     * approved DECEASED closure plan (legacy DeceasedNote on a consultation).
+     * Only an open (IN_PROGRESS) consultation can be closed this way; terminal
+     * thereafter. Stamps the sign-out moment like a normal close.
+     */
+    public void closeAsDeceased() {
+        requireOpenForClosure();
+        status = ConsultationStatus.DECEASED;
+        completedAt = Instant.now();
+        signedOutAt = Instant.now();
+    }
+
+    /**
+     * Outpatient closure — patient referred out to an external facility. Driven
+     * by an approved REFERRAL closure plan (legacy ReferralPlan on a
+     * consultation). Only an open (IN_PROGRESS) consultation can be closed this
+     * way; terminal thereafter.
+     */
+    public void closeAsReferred() {
+        requireOpenForClosure();
+        status = ConsultationStatus.REFERRED;
+        completedAt = Instant.now();
+        signedOutAt = Instant.now();
+    }
+
+    private void requireOpenForClosure() {
+        if (status != ConsultationStatus.IN_PROGRESS) {
+            throw new BusinessRuleException(
+                    "Only an IN_PROGRESS consultation can be closed as deceased / referred (current: " + status + ")");
+        }
+    }
 }

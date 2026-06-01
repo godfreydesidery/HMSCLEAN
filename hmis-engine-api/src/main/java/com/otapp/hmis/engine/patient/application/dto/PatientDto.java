@@ -46,6 +46,8 @@ public record PatientDto(
         Instant lastVisitAt,
 
         boolean active,
+        boolean deceased,
+        Instant deceasedAt,
         Instant createdAt,
         Instant updatedAt) {
 }

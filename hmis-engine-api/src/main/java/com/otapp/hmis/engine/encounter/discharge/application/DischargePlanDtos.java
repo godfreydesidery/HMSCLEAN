@@ -1,5 +1,6 @@
 package com.otapp.hmis.engine.encounter.discharge.application;
 
+import com.otapp.hmis.engine.encounter.discharge.domain.ClosureSubject;
 import com.otapp.hmis.engine.encounter.discharge.domain.DischargePlanKind;
 import com.otapp.hmis.engine.encounter.discharge.domain.DischargePlanStatus;
 import jakarta.validation.constraints.NotNull;
@@ -27,6 +28,7 @@ public final class DischargePlanDtos {
             @Size(max = 4000) String icuNote,
             @Size(max = 4000) String recommendations,
             @Size(max = 200)  String referralFacility,
+            @Size(max = 26)   String externalProviderUid,
             @Size(max = 1000) String referralReason,
             Instant timeOfDeath,
             @Size(max = 500)  String causeOfDeath) {}
@@ -40,6 +42,7 @@ public final class DischargePlanDtos {
             @Size(max = 4000) String icuNote,
             @Size(max = 4000) String recommendations,
             @Size(max = 200)  String referralFacility,
+            @Size(max = 26)   String externalProviderUid,
             @Size(max = 1000) String referralReason,
             Instant timeOfDeath,
             @Size(max = 500)  String causeOfDeath) {}
@@ -50,8 +53,11 @@ public final class DischargePlanDtos {
 
     public record DischargePlanDto(
             String uid,
+            ClosureSubject subjectType,
             String admissionUid,
             String admissionNo,
+            String consultationUid,
+            String consultationNo,
             DischargePlanKind kind,
             DischargePlanStatus status,
             String history,
@@ -61,6 +67,8 @@ public final class DischargePlanDtos {
             String icuNote,
             String recommendations,
             String referralFacility,
+            String externalProviderUid,
+            String externalProviderName,
             String referralReason,
             Instant timeOfDeath,
             String causeOfDeath,

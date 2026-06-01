@@ -67,27 +67,7 @@ public class ConsultationService {
 
     @Transactional
     public ConsultationDto book(StartConsultationRequest request) {
-        Patient patient = patientRepository.findByUid(request.patientUid())
-                .orElseThrow(() -> new NotFoundException("Patient not found: " + request.patientUid()));
-        if (!patient.isActive()) {
-            throw new BusinessRuleException("Cannot start a consultation for an inactive patient");
-        }
-        if (patient.getType() == com.otapp.hmis.engine.patient.domain.PatientType.OUTSIDER) {
-            throw new BusinessRuleException(
-                    "Patient is registered as OUTSIDER; convert to OUTPATIENT before booking a consultation");
-        }
-        // Legacy do_consultation gate: refuse a new consultation while the patient
-        // has an active admission — incl. deposit-pending (AWAITING_DEPOSIT), which
-        // legacy's PENDING admission also blocked. "the patient has an active admission".
-        if (admissionRepository.existsByPatientUidAndStatusIn(patient.getUid(), AdmissionStatus.ACTIVE)) {
-            throw new BusinessRuleException("The patient has an active admission");
-        }
-        // Legacy do_consultation gate: refuse a new consultation while the patient
-        // already has an ongoing one — "wait for the patient to be released".
-        if (consultationRepository.countByPatientUidAndStatusIn(patient.getUid(), ACTIVE_CONSULTATION_STATES) > 0) {
-            throw new BusinessRuleException(
-                    "The patient already has an active consultation; wait for the patient to be released");
-        }
+        Patient patient = resolveBookablePatient(request.patientUid());
         Clinic clinic = clinicRepository.findByUid(request.clinicUid())
                 .orElseThrow(() -> new NotFoundException("Clinic not found: " + request.clinicUid()));
         if (!clinic.isActive()) {
@@ -217,6 +197,36 @@ public class ConsultationService {
         return toDto(c);
     }
 
+    /**
+     * Close an open consultation as DECEASED — patient died during the encounter.
+     * Encounter-internal; called by the closure-plan approval when a DECEASED plan
+     * keyed to this consultation is approved. Runs the same unpaid-downstream
+     * cancel + sign-out billing cascade as a normal sign-out (legacy free close).
+     */
+    @Transactional
+    public ConsultationDto closeAsDeceased(String uid) {
+        Consultation c = loadOrThrow(uid);
+        c.closeAsDeceased();
+        consultationCloseService.cancelUnsettledDownstream(c.getUid());
+        eventPublisher.publishEvent(new ConsultationSignedOutEvent(c.getUid(), c.getPatientUid()));
+        return toDto(c);
+    }
+
+    /**
+     * Close an open consultation as REFERRED — patient referred out to an external
+     * facility. Encounter-internal; called by the closure-plan approval when a
+     * REFERRAL plan keyed to this consultation is approved. Runs the same
+     * unpaid-downstream cancel + sign-out billing cascade as a normal sign-out.
+     */
+    @Transactional
+    public ConsultationDto closeAsReferred(String uid) {
+        Consultation c = loadOrThrow(uid);
+        c.closeAsReferred();
+        consultationCloseService.cancelUnsettledDownstream(c.getUid());
+        eventPublisher.publishEvent(new ConsultationSignedOutEvent(c.getUid(), c.getPatientUid()));
+        return toDto(c);
+    }
+
     @Transactional
     public ConsultationDto cancel(String uid, CancelConsultationRequest request) {
         Consultation c = loadOrThrow(uid);
@@ -271,6 +281,39 @@ public class ConsultationService {
     private Consultation loadOrThrow(String uid) {
         return consultationRepository.findByUid(uid)
                 .orElseThrow(() -> new NotFoundException("Consultation not found: " + uid));
+    }
+
+    /**
+     * Load the patient and enforce every booking pre-condition (legacy
+     * {@code do_consultation} gates): not deceased, active, OUTPATIENT routing,
+     * no active admission, no ongoing consultation.
+     */
+    private Patient resolveBookablePatient(String patientUid) {
+        Patient patient = patientRepository.findByUid(patientUid)
+                .orElseThrow(() -> new NotFoundException("Patient not found: " + patientUid));
+        if (patient.isDeceased()) {
+            throw new BusinessRuleException("Patient is recorded as deceased and cannot be booked for a consultation");
+        }
+        if (!patient.isActive()) {
+            throw new BusinessRuleException("Cannot start a consultation for an inactive patient");
+        }
+        if (patient.getType() == com.otapp.hmis.engine.patient.domain.PatientType.OUTSIDER) {
+            throw new BusinessRuleException(
+                    "Patient is registered as OUTSIDER; convert to OUTPATIENT before booking a consultation");
+        }
+        // Legacy do_consultation gate: refuse a new consultation while the patient
+        // has an active admission — incl. deposit-pending (AWAITING_DEPOSIT), which
+        // legacy's PENDING admission also blocked. "the patient has an active admission".
+        if (admissionRepository.existsByPatientUidAndStatusIn(patient.getUid(), AdmissionStatus.ACTIVE)) {
+            throw new BusinessRuleException("The patient has an active admission");
+        }
+        // Legacy do_consultation gate: refuse a new consultation while the patient
+        // already has an ongoing one — "wait for the patient to be released".
+        if (consultationRepository.countByPatientUidAndStatusIn(patient.getUid(), ACTIVE_CONSULTATION_STATES) > 0) {
+            throw new BusinessRuleException(
+                    "The patient already has an active consultation; wait for the patient to be released");
+        }
+        return patient;
     }
 
     /**

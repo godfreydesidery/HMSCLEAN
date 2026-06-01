@@ -7,6 +7,9 @@ public interface DischargePlanRepository extends JpaRepository<DischargePlan, Lo
 
     Optional<DischargePlan> findByUid(String uid);
 
-    /** One plan per admission (enforced by unique constraint). */
+    /** One plan per admission (enforced by a partial unique index). */
     Optional<DischargePlan> findByAdmissionUid(String admissionUid);
+
+    /** One plan per consultation (enforced by a partial unique index). */
+    Optional<DischargePlan> findByConsultationUid(String consultationUid);
 }

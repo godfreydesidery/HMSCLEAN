@@ -128,6 +128,19 @@ public class PatientService {
     }
 
     /**
+     * Flag a patient as deceased (legacy patient type DECEASED). Called by the
+     * encounter closure flow when a DECEASED closure plan is approved — inpatient
+     * (admission) or outpatient (consultation). Idempotent. {@code timeOfDeath}
+     * is the recorded moment of death; null falls back to now. Same encounter →
+     * patient direction as {@link #touchLastVisit}.
+     */
+    @Transactional
+    public void markDeceased(String patientUid, java.time.Instant timeOfDeath) {
+        patientRepository.findByUid(patientUid)
+                .ifPresent(p -> p.markDeceased(timeOfDeath));
+    }
+
+    /**
      * Stamps {@code lastVisitAt = now} so the registry can show recency.
      * Called by encounter when a consultation is booked or an admission is
      * created — same direction as the existing encounter → patient module

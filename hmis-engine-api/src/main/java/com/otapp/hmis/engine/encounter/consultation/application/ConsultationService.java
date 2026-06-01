@@ -374,6 +374,18 @@ public class ConsultationService {
                         .map(this::toSummary));
     }
 
+    /**
+     * The signed-in clinician's own open consultations (OPC-4): their active
+     * encounters — BOOKED, IN_PROGRESS or TRANSFERRED — newest first. Scoped to
+     * {@link #currentUsername()} exactly like the reception queue.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<ConsultationSummary> myOpenConsultations(Pageable pageable) {
+        return PageResponse.from(
+                consultationRepository.findMyOpenFor(currentUsername(), pageable)
+                        .map(this::toSummary));
+    }
+
     private Consultation loadOrThrow(String uid) {
         return consultationRepository.findByUid(uid)
                 .orElseThrow(() -> new NotFoundException("Consultation not found: " + uid));

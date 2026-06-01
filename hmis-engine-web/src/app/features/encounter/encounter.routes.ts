@@ -28,6 +28,11 @@ export const ENCOUNTER_ROUTES: Routes = [
       import('./closure-worklist/closure-worklist.component').then((m) => m.ClosureWorklistComponent)
   },
   {
+    path: 'my-consultations',
+    loadComponent: () =>
+      import('./consultation/my-consultations.component').then((m) => m.MyConsultationsComponent)
+  },
+  {
     path: 'consultations',
     loadComponent: () =>
       import('./consultation/consultation-list.component').then((m) => m.ConsultationListComponent)

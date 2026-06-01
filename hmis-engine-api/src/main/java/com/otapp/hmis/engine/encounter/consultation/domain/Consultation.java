@@ -174,17 +174,6 @@ public class Consultation extends AuditableEntity {
         cancelReason = reason;
     }
 
-    /** Hand the patient off to {@code newConsultationUid}; this consultation closes as TRANSFERRED. */
-    public void markTransferredTo(String newConsultationUid, String reason) {
-        if (status != ConsultationStatus.BOOKED && status != ConsultationStatus.IN_PROGRESS) {
-            throw new BusinessRuleException("Only BOOKED or IN_PROGRESS consultations can be transferred (current: " + status + ")");
-        }
-        status = ConsultationStatus.TRANSFERRED;
-        transferredToConsultationUid = newConsultationUid;
-        transferReason = reason;
-        transferredAt = Instant.now();
-    }
-
     /**
      * Raise a <em>pending</em> transfer (OPC-1): the active consultation closes as
      * TRANSFERRED without a receiver yet — reception books the receiving

@@ -9,6 +9,7 @@ import com.otapp.hmis.engine.encounter.consultation.application.ConsultationDtos
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationTransferDtos.ConsultationTransferDto;
 import com.otapp.hmis.engine.encounter.consultation.application.ConsultationService;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationStatus;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -52,6 +53,16 @@ public class ConsultationController {
     @GetMapping("/reception-queue")
     public ResponseEntity<PageResponse<ConsultationSummary>> receptionQueue(Pageable pageable) {
         return ResponseEntity.ok(consultationService.receptionQueue(pageable));
+    }
+
+    /**
+     * The signed-in clinician's own open consultations (OPC-4) — their active
+     * encounters (BOOKED, IN_PROGRESS or TRANSFERRED), newest first.
+     */
+    @Operation(summary = "List my open consultations (BOOKED / IN_PROGRESS / TRANSFERRED)")
+    @GetMapping("/my-open")
+    public ResponseEntity<PageResponse<ConsultationSummary>> myOpenConsultations(Pageable pageable) {
+        return ResponseEntity.ok(consultationService.myOpenConsultations(pageable));
     }
 
     @GetMapping("/uid/{consultationUid}")

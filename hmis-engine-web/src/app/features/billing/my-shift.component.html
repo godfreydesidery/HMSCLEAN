@@ -1,0 +1,103 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title d-flex align-items-center gap-2"><i class="bi bi-cash-stack text-primary"></i>My cashier shift</h1>
+    <p class="hmis-muted mb-0 small">Open your till with a float, then close it at end of day to reconcile cash.</p>
+  </div>
+  <a class="btn btn-light border" routerLink="/billing/cashier-shifts"><i class="bi bi-clock-history me-1"></i>Shift history</a>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+@if (loading()) {
+  <div class="card"><div class="card-body p-4"><span class="hmis-skeleton" style="width:280px;"></span></div></div>
+} @else {
+
+  @if (closedResult(); as c) {
+    <!-- Reconciliation result after closing -->
+    <div class="card mb-3 border-success-subtle">
+      <div class="card-header bg-success-subtle text-success-emphasis fw-semibold py-3"><i class="bi bi-check-circle me-2"></i>Shift closed — reconciliation</div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-3"><div class="hmis-muted small">Opening float</div><div class="fw-semibold">{{ c.currency }} {{ c.openingFloat | number:'1.2-2' }}</div></div>
+          <div class="col-md-3"><div class="hmis-muted small">Expected cash</div><div class="fw-semibold">{{ c.currency }} {{ c.closingExpectedAmount | number:'1.2-2' }}</div></div>
+          <div class="col-md-3"><div class="hmis-muted small">Counted (declared)</div><div class="fw-semibold">{{ c.currency }} {{ c.closingDeclaredAmount | number:'1.2-2' }}</div></div>
+          <div class="col-md-3">
+            <div class="hmis-muted small">Variance</div>
+            <div class="fw-semibold" [class.text-success]="(c.variance ?? 0) >= 0" [class.text-danger]="(c.variance ?? 0) < 0">
+              {{ c.currency }} {{ c.variance | number:'1.2-2' }}
+              <span class="small">({{ (c.variance ?? 0) > 0 ? 'over' : (c.variance ?? 0) < 0 ? 'short' : 'balanced' }})</span>
+            </div>
+          </div>
+          @if (c.closingNote) { <div class="col-12"><div class="hmis-muted small">Note</div><div>{{ c.closingNote }}</div></div> }
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (shift(); as s) {
+    <!-- An OPEN shift: summary + close form -->
+    <div class="card mb-3">
+      <div class="card-header bg-white d-flex align-items-center gap-2 py-3">
+        <span class="fw-semibold"><i class="bi bi-unlock me-2 text-success"></i>Shift open</span>
+        <span class="badge text-bg-success-subtle text-success-emphasis border border-success-subtle ms-1">OPEN</span>
+        <span class="hmis-muted small ms-auto">Opened {{ s.openedAt | date:'medium' }}</span>
+      </div>
+      <div class="card-body">
+        <div class="row g-3 mb-3">
+          <div class="col-md-4"><div class="hmis-muted small">Cashier</div><div class="fw-semibold">{{ s.cashierUsername }}</div></div>
+          <div class="col-md-4"><div class="hmis-muted small">Opening float</div><div class="fw-semibold">{{ s.currency }} {{ s.openingFloat | number:'1.2-2' }}</div></div>
+        </div>
+        <hr>
+        <form [formGroup]="closeForm" (ngSubmit)="closeShift()" novalidate>
+          <h6 class="fw-semibold mb-3">Close shift</h6>
+          <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+              <label class="form-label" for="cs-declared">Counted cash ({{ s.currency }}) <span class="text-danger">*</span></label>
+              <input id="cs-declared" type="number" min="0" step="0.01" class="form-control" formControlName="closingDeclaredAmount">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="cs-note">Note</label>
+              <input id="cs-note" type="text" class="form-control" formControlName="note" maxlength="500" placeholder="optional">
+            </div>
+            <div class="col-md-2">
+              <button type="submit" class="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2" [disabled]="busy() || closeForm.invalid">
+                @if (busy()) { <span class="spinner-border spinner-border-sm"></span> }
+                <i class="bi bi-lock"></i>Close
+              </button>
+            </div>
+          </div>
+          <div class="form-text mt-2"><i class="bi bi-info-circle me-1"></i>Expected cash and variance are computed from your cash takings since the shift opened.</div>
+        </form>
+      </div>
+    </div>
+  } @else if (!closedResult()) {
+    <!-- No open shift: open one -->
+    <div class="card mb-3" style="max-width: 560px;">
+      <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-unlock me-2 text-primary"></i>Open a shift</div>
+      <div class="card-body">
+        <form [formGroup]="openForm" (ngSubmit)="openShift()" novalidate>
+          <div class="row g-3 align-items-end">
+            <div class="col-7">
+              <label class="form-label" for="cs-float">Opening float <span class="text-danger">*</span></label>
+              <input id="cs-float" type="number" min="0" step="0.01" class="form-control" formControlName="openingFloat">
+            </div>
+            <div class="col-5">
+              <label class="form-label" for="cs-currency">Currency</label>
+              <input id="cs-currency" type="text" maxlength="3" class="form-control text-uppercase" formControlName="currency">
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary mt-3 d-flex align-items-center gap-2" [disabled]="busy() || openForm.invalid">
+            @if (busy()) { <span class="spinner-border spinner-border-sm"></span> }
+            <i class="bi bi-unlock"></i>Open shift
+          </button>
+        </form>
+      </div>
+    </div>
+  }
+
+  @if (closedResult()) {
+    <button type="button" class="btn btn-outline-primary" (click)="closedResult.set(null)"><i class="bi bi-plus-lg me-1"></i>Open a new shift</button>
+  }
+}

@@ -21,6 +21,9 @@
         </div>
       </div>
       <div class="d-flex gap-2">
+        <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="printInvoice()">
+          <i class="bi bi-printer"></i>Print
+        </button>
         @if (canIssue()) {
           <button type="button" class="btn btn-primary d-flex align-items-center gap-2" (click)="issue()">
             <i class="bi bi-check2-all"></i>Issue

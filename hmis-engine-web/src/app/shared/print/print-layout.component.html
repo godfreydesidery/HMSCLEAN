@@ -1,0 +1,43 @@
+<div class="d-flex align-items-center justify-content-between p-3 border-bottom no-print">
+  <span class="hmis-muted small"><i class="bi bi-printer me-1"></i>Print preview</span>
+  <div class="btn-group btn-group-sm">
+    <button type="button" class="btn btn-primary d-flex align-items-center gap-1" (click)="doPrint()"><i class="bi bi-printer"></i>Print</button>
+    <button type="button" class="btn btn-light border" (click)="close()">Close</button>
+  </div>
+</div>
+
+<div class="hmis-print-root p-4">
+  <!-- Letterhead -->
+  <div class="d-flex align-items-start justify-content-between border-bottom pb-3 mb-3">
+    <div>
+      <div class="fw-bold fs-5">{{ facilityName }}</div>
+      <div class="text-uppercase small" style="letter-spacing: .08em;">{{ title }}</div>
+      @if (subtitle) { <div class="text-muted small">{{ subtitle }}</div> }
+    </div>
+    <div class="text-end small">
+      @if (documentNo) { <div><span class="text-muted">No.</span> <span class="fw-semibold">{{ documentNo }}</span></div> }
+      <div class="text-muted">{{ printedAt | date:'medium' }}</div>
+    </div>
+  </div>
+
+  <!-- Meta grid -->
+  @if (meta.length) {
+    <div class="row g-2 mb-3">
+      @for (m of meta; track m.label) {
+        <div class="col-6 col-md-4 small">
+          <div class="text-muted text-uppercase" style="font-size: .68rem; letter-spacing: .06em;">{{ m.label }}</div>
+          <div class="fw-semibold">{{ m.value || '—' }}</div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Body -->
+  <div><ng-content></ng-content></div>
+
+  <!-- Footer -->
+  <div class="border-top mt-4 pt-2 d-flex justify-content-between text-muted" style="font-size: .7rem;">
+    <span>{{ footerNote || '' }}</span>
+    <span>Printed {{ printedAt | date:'short' }}</span>
+  </div>
+</div>

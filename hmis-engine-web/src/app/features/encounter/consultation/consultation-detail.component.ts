@@ -226,6 +226,8 @@ export class ConsultationDetailComponent {
     const inst = ref.componentInstance as ConsultationClosureModalComponent;
     inst.consultationUid = c.uid;
     inst.initialKind = kind;
+    inst.patientName = c.patientName;
+    inst.patientNo = c.patientNo;
     ref.closed.subscribe((plan: ClosurePlan | undefined) => {
       // Approval closed the consultation — refresh the detail and the plan panel.
       if (plan) this.closurePlan.set(plan);
@@ -243,6 +245,8 @@ export class ConsultationDetailComponent {
     const inst = ref.componentInstance as ConsultationClosureModalComponent;
     inst.consultationUid = c.uid;
     inst.initialKind = plan.kind === 'REFERRAL' ? 'REFERRAL' : 'DECEASED';
+    inst.patientName = c.patientName;
+    inst.patientNo = c.patientNo;
     ref.closed.subscribe((updated: ClosurePlan | undefined) => {
       if (updated) this.closurePlan.set(updated);
       this.refreshAfterClosure(c.uid);

@@ -1,0 +1,55 @@
+<app-print-layout
+  [title]="title"
+  [subtitle]="data.encounterLabel + ' closure'"
+  [documentNo]="data.encounterNo"
+  [meta]="meta"
+  footerNote="This is a clinical record. Verify the patient identity before acting on it."
+  (closed)="activeModal.dismiss()">
+
+  <!-- Referral header -->
+  @if (data.kind === 'REFERRAL') {
+    <div class="mb-3">
+      <div class="text-uppercase text-muted" style="font-size: .68rem; letter-spacing: .06em;">Referred to</div>
+      <div class="fw-bold">{{ data.referralFacility || data.externalProviderName || '—' }}</div>
+      @if (data.referralReason) { <div class="mt-1"><span class="text-muted">Reason:</span> {{ data.referralReason }}</div> }
+    </div>
+  }
+
+  <!-- Death header -->
+  @if (data.kind === 'DECEASED') {
+    <div class="mb-3">
+      <div class="row g-2">
+        <div class="col-6">
+          <div class="text-uppercase text-muted" style="font-size: .68rem; letter-spacing: .06em;">Time of death</div>
+          <div class="fw-semibold">{{ (data.timeOfDeath | date:'medium') || '—' }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-uppercase text-muted" style="font-size: .68rem; letter-spacing: .06em;">Cause of death</div>
+          <div class="fw-semibold">{{ data.causeOfDeath || '—' }}</div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Clinical narrative -->
+  @if (sections.length) {
+    @for (s of sections; track s.label) {
+      <div class="mb-3">
+        <div class="text-uppercase text-muted" style="font-size: .68rem; letter-spacing: .06em;">{{ s.label }}</div>
+        <div style="white-space: pre-wrap;">{{ s.value }}</div>
+      </div>
+    }
+  } @else {
+    <p class="text-muted fst-italic">No clinical narrative was recorded.</p>
+  }
+
+  <!-- Signatures -->
+  <div class="row g-4 mt-4">
+    <div class="col-6">
+      <div class="border-top pt-1 small"><span class="text-muted">Authored by</span><br><span class="fw-semibold">{{ data.authoredByUsername || '—' }}</span><br><span class="text-muted">{{ data.authoredAt | date:'short' }}</span></div>
+    </div>
+    <div class="col-6">
+      <div class="border-top pt-1 small"><span class="text-muted">Approved by</span><br><span class="fw-semibold">{{ data.approvedByUsername || '—' }}</span><br><span class="text-muted">{{ data.approvedAt | date:'short' }}</span></div>
+    </div>
+  </div>
+</app-print-layout>

@@ -10,6 +10,7 @@ import {
   INVOICE_LINE_KINDS, InvoiceLineKind, LINE_COVERAGE_STATUSES, LineCoverageStatus,
   PayableLine, PayLinesResult
 } from './invoice.types';
+import { ReceiptDocumentComponent, ReceiptDocumentData } from './receipt-document.component';
 
 interface Till { kind: InvoiceLineKind; label: string; icon: string; count: number; }
 
@@ -35,6 +36,8 @@ export class CashierPayComponent {
   readonly loading = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly receipt = signal<PayLinesResult | null>(null);
+  /** Snapshot of the lines settled in the last collection — for the receipt. */
+  readonly paidLines = signal<PayableLine[]>([]);
 
   /** Active service till; 'ALL' shows every outstanding line. */
   readonly activeKind = signal<InvoiceLineKind | 'ALL'>('ALL');
@@ -134,9 +137,38 @@ export class CashierPayComponent {
     inst.lineUids = selected.map((l) => l.lineUid);
     inst.total = this.runningTotal();
     ref.result.then(
-      (result: PayLinesResult) => { this.receipt.set(result); this.checked.set(new Set()); this.reload(); },
+      (result: PayLinesResult) => {
+        this.receipt.set(result);
+        this.paidLines.set(selected);
+        this.checked.set(new Set());
+        this.reload();
+      },
       () => { /* dismissed */ }
     );
+  }
+
+  /** Open the printable POS receipt (BILL-1) for the last collection. */
+  printReceipt(): void {
+    const result = this.receipt();
+    if (!result) return;
+    const p = this.patient();
+    // Payments are returned append-ordered, so the collection just made is last.
+    const latestPaymentNo = (inv: PayLinesResult['invoices'][number]) =>
+      inv.payments?.at(-1) ?? null;
+    const receiptNos = result.invoices.map((inv) => latestPaymentNo(inv)?.paymentNo).filter((n): n is string => !!n);
+    const method = result.invoices.map((inv) => latestPaymentNo(inv)?.method).find((m) => !!m) ?? null;
+    const data: ReceiptDocumentData = {
+      patientName: p ? [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ') : null,
+      patientNo: p?.patientNo ?? null,
+      receiptNos,
+      method,
+      currency: result.currency,
+      totalCollected: result.totalCollected,
+      lines: this.paidLines().map((l) => ({ description: l.description, kind: l.kind, amount: l.outstanding })),
+      paidAt: new Date().toISOString()
+    };
+    const ref = this.modal.open(ReceiptDocumentComponent, { size: 'lg', scrollable: true });
+    (ref.componentInstance as ReceiptDocumentComponent).data = data;
   }
 
   kindMeta(kind: InvoiceLineKind): { label: string; icon: string } {

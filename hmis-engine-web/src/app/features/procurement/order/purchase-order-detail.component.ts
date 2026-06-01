@@ -5,6 +5,8 @@ import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { finalize, forkJoin } from 'rxjs';
 
 import { AuthService } from '../../../core/auth/auth.service';
+import { SupplierInvoiceCreateComponent } from '../supplier-invoice/supplier-invoice-create.component';
+import { SupplierInvoice } from '../supplier-invoice/supplier-invoice.types';
 import { AddLineComponent } from './add-line.component';
 import { PurchaseOrderService } from './purchase-order.service';
 import {
@@ -59,6 +61,11 @@ export class PurchaseOrderDetailComponent {
   });
   readonly canVerifyGrn = computed(() => this.auth.hasPrivilege('PROCUREMENT_VERIFY'));
   readonly canApproveGrn = computed(() => this.auth.hasPrivilege('PROCUREMENT_APPROVE'));
+  // Once goods have been received against the PO, the supplier's bill can be raised.
+  readonly canCreateInvoice = computed(() => {
+    const s = this.order()?.status;
+    return s === 'PARTIALLY_RECEIVED' || s === 'RECEIVED';
+  });
 
   constructor() {
     const uid = this.route.snapshot.paramMap.get('uid');
@@ -169,6 +176,15 @@ export class PurchaseOrderDetailComponent {
         this.actionMessage.set(`Receipt ${receipt.receiptNo} recorded.`);
         this.load(o.uid);
       }
+    });
+  }
+
+  openCreateInvoice(): void {
+    const o = this.order(); if (!o) return;
+    const r = this.modal.open(SupplierInvoiceCreateComponent, { size: 'lg', backdrop: 'static' });
+    (r.componentInstance as SupplierInvoiceCreateComponent).order = o;
+    r.closed.subscribe((inv: SupplierInvoice | undefined) => {
+      if (inv) void this.router.navigate(['/procurement/supplier-invoices', inv.uid]);
     });
   }
 

@@ -1,0 +1,75 @@
+<div class="modal-header">
+  <h5 class="modal-title d-flex align-items-center gap-2"><i class="bi bi-file-earmark-plus"></i>Create supplier invoice</h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss()"></button>
+</div>
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-body">
+    <div class="alert alert-light border d-flex align-items-center gap-2 py-2 px-3">
+      <i class="bi bi-clipboard-check"></i>
+      <div class="small">Against PO <span class="hmis-code">{{ order.orderNo }}</span> · {{ order.supplierName }}</div>
+    </div>
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3" role="alert"><i class="bi bi-exclamation-circle"></i><span class="small">{{ errorMessage() }}</span></div>
+    }
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
+        <label class="form-label" for="si-no">Supplier invoice no <span class="text-danger">*</span></label>
+        <input id="si-no" type="text" class="form-control" formControlName="supplierInvoiceNo" maxlength="64" autocomplete="off">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="si-date">Invoice date <span class="text-danger">*</span></label>
+        <input id="si-date" type="date" class="form-control" formControlName="invoiceDate">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="si-due">Due date</label>
+        <input id="si-due" type="date" class="form-control" formControlName="dueDate">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Currency</label>
+        <div class="form-control-plaintext fw-semibold">{{ order.currency }}</div>
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="si-notes">Notes</label>
+        <input id="si-notes" type="text" class="form-control" formControlName="notes" maxlength="500">
+      </div>
+    </div>
+
+    <div class="table-responsive" formArrayName="lines">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr><th></th><th>Item</th><th class="text-end">Received</th><th class="text-end" style="width:120px;">Qty to bill</th><th class="text-end" style="width:140px;">Unit cost</th><th class="text-end">Amount</th></tr>
+        </thead>
+        <tbody>
+          @if (lines.length === 0) {
+            <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-inbox"></i><div class="small">No received lines on this PO to invoice.</div></div></td></tr>
+          } @else {
+            @for (g of lines.controls; track $index) {
+              <tr [formGroupName]="$index">
+                <td><input type="checkbox" class="form-check-input" formControlName="include"></td>
+                <td>{{ meta[$index].label }}<div class="hmis-muted small">ordered {{ meta[$index].ordered }}</div></td>
+                <td class="text-end">{{ meta[$index].received }}</td>
+                <td><input type="number" min="1" [max]="meta[$index].received" step="1" class="form-control form-control-sm text-end" formControlName="invoicedQuantity"></td>
+                <td><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" formControlName="unitCost"></td>
+                <td class="text-end fw-semibold">{{ lineTotal($index) | number:'1.2-2' }}</td>
+              </tr>
+            }
+          }
+        </tbody>
+        <tfoot>
+          <tr class="border-top"><td colspan="5" class="text-end fw-semibold">Total (selected)</td><td class="text-end fw-bold">{{ order.currency }} {{ grandTotal | number:'1.2-2' }}</td></tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+    <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting() || lines.length === 0">
+      @if (submitting()) {
+        <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output>Saving…
+      } @else {
+        <i class="bi bi-check2"></i>Create draft invoice
+      }
+    </button>
+  </div>
+</form>

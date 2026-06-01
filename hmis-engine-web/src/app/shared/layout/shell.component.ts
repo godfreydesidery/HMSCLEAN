@@ -72,6 +72,7 @@ export class ShellComponent {
         { label: 'Transfers',      path: '/transfers',      icon: 'bi-arrow-left-right', privileges: ['STORE_ACCESS'] },
         { label: 'Consumables',    path: '/consumables/stock', icon: 'bi-bandaid',  privileges: ['ENCOUNTER_ACCESS'] },
         { label: 'Procurement', path: '/procurement/orders',    icon: 'bi-truck',          privileges: ['PROCUREMENT_ACCESS'] },
+        { label: 'Supplier invoices', path: '/procurement/supplier-invoices', icon: 'bi-file-earmark-text', privileges: ['PROCUREMENT_ACCESS'] },
         { label: 'Suppliers',   path: '/procurement/suppliers', icon: 'bi-buildings',      privileges: ['PROCUREMENT_ACCESS'] },
         { label: 'Billing',     path: '/billing',     icon: 'bi-cash-coin',       privileges: ['BILLING_ACCESS'] },
         { label: 'Cashier shift', path: '/billing/cashier-shift', icon: 'bi-cash-stack', privileges: ['BILLING_ACCESS'] },

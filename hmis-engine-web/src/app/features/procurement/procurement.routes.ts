@@ -25,5 +25,17 @@ export const PROCUREMENT_ROUTES: Routes = [
     loadComponent: () =>
       import('./order/purchase-order-detail.component').then((m) => m.PurchaseOrderDetailComponent),
     data: { title: 'Purchase order' }
+  },
+  {
+    path: 'supplier-invoices',
+    loadComponent: () =>
+      import('./supplier-invoice/supplier-invoice-list.component').then((m) => m.SupplierInvoiceListComponent),
+    data: { title: 'Supplier invoices' }
+  },
+  {
+    path: 'supplier-invoices/:uid',
+    loadComponent: () =>
+      import('./supplier-invoice/supplier-invoice-detail.component').then((m) => m.SupplierInvoiceDetailComponent),
+    data: { title: 'Supplier invoice' }
   }
 ];

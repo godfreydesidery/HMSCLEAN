@@ -1,0 +1,88 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title d-flex align-items-center gap-2">
+      <i class="bi bi-file-earmark-text text-primary"></i>
+      @if (invoice(); as inv) { <span class="hmis-code">{{ inv.supplierInvoiceNo }}</span> } @else { <span>Supplier invoice</span> }
+    </h1>
+    <p class="hmis-muted mb-0 small">Accounts payable — three-way match against the purchase order.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-light border" (click)="back()"><i class="bi bi-arrow-left me-1"></i>Back</button>
+    @if (invoice(); as inv) {
+      <div ngbDropdown placement="bottom-end" class="d-inline-block">
+        <button class="btn btn-outline-secondary d-flex align-items-center gap-2" ngbDropdownToggle [disabled]="busy()"><i class="bi bi-three-dots-vertical"></i>Actions</button>
+        <div ngbDropdownMenu>
+          <button ngbDropdownItem [disabled]="!canSubmit()" (click)="submit()"><i class="bi bi-send me-2 text-info"></i>Submit</button>
+          <button ngbDropdownItem [disabled]="!canApprove()" (click)="approve()"><i class="bi bi-patch-check me-2 text-primary"></i>Approve (3-way match)</button>
+          <button ngbDropdownItem [disabled]="!canPay()" (click)="pay()"><i class="bi bi-cash-coin me-2 text-success"></i>Mark paid</button>
+          <div class="dropdown-divider"></div>
+          <button ngbDropdownItem [disabled]="!canReject()" class="text-danger" (click)="reject()"><i class="bi bi-slash-circle me-2"></i>Reject</button>
+          <button ngbDropdownItem [disabled]="!canCancel()" class="text-danger" (click)="cancel()"><i class="bi bi-x-octagon me-2"></i>Cancel</button>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+@if (actionMessage()) {
+  <div class="alert alert-success d-flex align-items-center gap-2" role="alert"><i class="bi bi-check-circle"></i><span>{{ actionMessage() }}</span></div>
+}
+
+@if (loading()) {
+  <div class="card"><div class="card-body p-4"><span class="hmis-skeleton" style="width:280px;"></span></div></div>
+} @else { @if (invoice(); as inv) {
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3"><div class="hmis-muted small">Supplier</div><div class="fw-semibold">{{ inv.supplierName || '—' }}</div></div>
+        <div class="col-md-3"><div class="hmis-muted small">Purchase order</div><div class="fw-semibold">{{ inv.orderNo || '—' }}</div></div>
+        <div class="col-md-2"><div class="hmis-muted small">Status</div><span [class]="statusBadgeClass(inv.status)">{{ statusLabel(inv.status) }}</span></div>
+        <div class="col-md-2"><div class="hmis-muted small">Invoice date</div><div class="fw-semibold">{{ inv.invoiceDate }}</div></div>
+        <div class="col-md-2"><div class="hmis-muted small">Due</div><div class="fw-semibold">{{ inv.dueDate || '—' }}</div></div>
+        <div class="col-md-3"><div class="hmis-muted small">Total</div><div class="fw-bold">{{ inv.currency }} {{ inv.totalAmount | number:'1.2-2' }}</div></div>
+        @if (inv.paidAt) {
+          <div class="col-md-3"><div class="hmis-muted small">Paid</div><div class="fw-semibold">{{ inv.paymentMethod }} @if (inv.paymentReference) { · {{ inv.paymentReference }} }</div></div>
+        }
+        @if (inv.rejectReason) {
+          <div class="col-12"><div class="hmis-muted small">Rejection reason</div><div class="text-danger">{{ inv.rejectReason }}</div></div>
+        }
+        @if (inv.notes) { <div class="col-12"><div class="hmis-muted small">Notes</div><div>{{ inv.notes }}</div></div> }
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-list-check me-2 text-primary"></i>Lines ({{ inv.lines.length }})</div>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th class="text-end">PO ordered</th><th class="text-end">PO received</th><th class="text-end">PO invoiced</th>
+            <th class="text-end">This invoice</th><th class="text-end">Unit cost</th><th class="text-end">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (l of inv.lines; track l.uid) {
+            <tr>
+              <td><span class="hmis-code">{{ l.medicineCode || '—' }}</span> <span class="fw-semibold">{{ l.medicineName || l.medicineUid }}</span></td>
+              <td class="text-end">{{ l.poOrderedQuantity }}</td>
+              <td class="text-end">{{ l.poReceivedQuantity }}</td>
+              <td class="text-end">{{ l.poInvoicedQuantity }}</td>
+              <td class="text-end fw-semibold">{{ l.invoicedQuantity }}</td>
+              <td class="text-end">{{ l.unitCost | number:'1.2-2' }}</td>
+              <td class="text-end fw-semibold">{{ l.lineAmount | number:'1.2-2' }}</td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr class="border-top"><td colspan="6" class="text-end fw-semibold">Total</td><td class="text-end fw-bold">{{ inv.currency }} {{ inv.totalAmount | number:'1.2-2' }}</td></tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="card-footer bg-white hmis-muted small"><i class="bi bi-info-circle me-1"></i>Approval enforces the three-way match: this invoice's quantity must not exceed the received-but-not-yet-invoiced quantity on each PO line.</div>
+  </div>
+} }

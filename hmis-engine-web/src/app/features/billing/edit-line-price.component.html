@@ -1,0 +1,51 @@
+<div class="modal-header">
+  <h5 class="modal-title d-flex align-items-center gap-2"><i class="bi bi-pencil-square"></i>Negotiate line price</h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss()"></button>
+</div>
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="modal-body">
+    <div class="alert alert-light border py-2 px-3">
+      <div class="small fw-semibold">{{ line.description }}</div>
+      <div class="small hmis-muted">
+        Qty {{ qty | number:'1.0-2' }}
+        @if (line.minUnitPrice != null || line.maxUnitPrice != null) {
+          · Band
+          {{ line.minUnitPrice != null ? (line.minUnitPrice | number:'1.2-2') : '—' }}
+          to
+          {{ line.maxUnitPrice != null ? (line.maxUnitPrice | number:'1.2-2') : '—' }}
+          {{ invoice.currency }}
+        } @else {
+          · No price band (unbounded)
+        }
+      </div>
+    </div>
+    @if (errorMessage()) {
+      <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3" role="alert"><i class="bi bi-exclamation-circle"></i><span class="small">{{ errorMessage() }}</span></div>
+    }
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label" for="lp-unit">Unit price <span class="text-danger">*</span></label>
+        <input id="lp-unit" type="number" step="0.01"
+               [min]="line.minUnitPrice ?? 0" [max]="line.maxUnitPrice ?? null"
+               class="form-control" formControlName="unitPrice">
+        @if (form.controls.unitPrice.invalid && form.controls.unitPrice.touched) {
+          <div class="form-text text-danger">Enter a price within the band.</div>
+        }
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">New line amount</label>
+        <div class="form-control-plaintext fw-semibold">{{ newAmount | number:'1.2-2' }} {{ invoice.currency }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-light border" (click)="activeModal.dismiss()" [disabled]="submitting()">Cancel</button>
+    <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting() || form.invalid">
+      @if (submitting()) {
+        <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Saving</span></output>Saving…
+      } @else {
+        <i class="bi bi-check2"></i>Update price
+      }
+    </button>
+  </div>
+</form>

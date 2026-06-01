@@ -45,6 +45,11 @@ export interface InvoiceLine {
   quantity: number;
   unitPrice: number;
   amount: number;
+  /** Negotiable price band (null = unbounded on that side). */
+  minUnitPrice: number | null;
+  maxUnitPrice: number | null;
+  /** True while the unit price may still be renegotiated (DRAFT/ISSUED + nothing settled). */
+  priceOverridable: boolean;
   /** Payer routing: COVERED = insurer pays, VERIFIED = insured-but-owed, UNPAID = cash. */
   coverageStatus: LineCoverageStatus;
   membershipNo: string | null;
@@ -138,4 +143,77 @@ export interface InvoiceSearchParams {
   page?: number;
   size?: number;
   sort?: string;
+}
+
+// ----- Credit notes (write-downs) -------------------------------------------
+
+export type CreditNoteReason =
+  | 'HARDSHIP' | 'GOODWILL' | 'ERROR_CORRECTION' | 'SERVICE_NOT_RENDERED' | 'ROUNDING' | 'OTHER';
+
+export const CREDIT_NOTE_REASONS: { value: CreditNoteReason; label: string }[] = [
+  { value: 'HARDSHIP',             label: 'Hardship' },
+  { value: 'GOODWILL',            label: 'Goodwill' },
+  { value: 'ERROR_CORRECTION',    label: 'Error correction' },
+  { value: 'SERVICE_NOT_RENDERED', label: 'Service not rendered' },
+  { value: 'ROUNDING',            label: 'Rounding' },
+  { value: 'OTHER',               label: 'Other' }
+];
+
+export interface CreditNote {
+  uid: string;
+  noteNo: string;
+  invoiceUid: string;
+  amount: number;
+  currency: string;
+  reason: CreditNoteReason;
+  description: string | null;
+  issuedByUsername: string;
+  issuedAt: string;
+  createdAt: string;
+}
+
+export interface CreateCreditNoteRequest {
+  amount: number;
+  reason: CreditNoteReason;
+  description: string | null;
+}
+
+// ----- Refunds (return cash already paid) -----------------------------------
+
+export type RefundReason =
+  | 'OVERPAYMENT' | 'SERVICE_NOT_RENDERED' | 'DOUBLE_PAYMENT' | 'CANCELLATION' | 'OTHER';
+
+export const REFUND_REASONS: { value: RefundReason; label: string }[] = [
+  { value: 'OVERPAYMENT',          label: 'Overpayment' },
+  { value: 'SERVICE_NOT_RENDERED', label: 'Service not rendered' },
+  { value: 'DOUBLE_PAYMENT',       label: 'Double payment' },
+  { value: 'CANCELLATION',         label: 'Cancellation' },
+  { value: 'OTHER',                label: 'Other' }
+];
+
+export interface Refund {
+  uid: string;
+  refundNo: string;
+  invoiceUid: string;
+  amount: number;
+  currency: string;
+  method: PaymentMethod;
+  reason: RefundReason;
+  description: string | null;
+  reference: string | null;
+  refundedByUsername: string;
+  refundedAt: string;
+  createdAt: string;
+}
+
+export interface CreateRefundRequest {
+  amount: number;
+  method: PaymentMethod;
+  reason: RefundReason;
+  description: string | null;
+  reference: string | null;
+}
+
+export interface OverrideLinePriceRequest {
+  unitPrice: number;
 }

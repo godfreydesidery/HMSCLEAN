@@ -42,7 +42,7 @@ export class PpRnDetailComponent {
       });
   }
 
-  back(): void { void this.router.navigate(['/transfers/pp/rn']); }
+  back(): void { void this.router.navigate(['..'], { relativeTo: this.route }); }
 
   statusBadgeClass(s: ReceiveNoteStatus): string { return receiveNoteBadgeClass(s); }
   statusLabel(s: ReceiveNoteStatus): string { return receiveNoteLabel(s); }

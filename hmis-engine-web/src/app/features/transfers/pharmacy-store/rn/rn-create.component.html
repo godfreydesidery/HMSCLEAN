@@ -6,6 +6,13 @@
   <button type="button" class="btn btn-light border" (click)="cancel()"><i class="bi bi-arrow-left me-1"></i>Back</button>
 </div>
 
+@if (workingPharmacy(); as wp) {
+  <div class="d-flex align-items-center gap-2 mb-3 small">
+    <span class="badge text-bg-primary-subtle text-primary-emphasis border border-primary-subtle d-inline-flex align-items-center gap-1"><i class="bi bi-shop"></i>Receiving into: {{ wp.name }}</span>
+    <a class="link-secondary text-decoration-none" routerLink="/pharmacy/select"><i class="bi bi-arrow-left-right me-1"></i>Change pharmacy</a>
+  </div>
+}
+
 @if (errorMessage()) {
   <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
 }

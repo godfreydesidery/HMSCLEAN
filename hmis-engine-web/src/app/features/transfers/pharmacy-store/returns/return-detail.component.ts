@@ -49,7 +49,7 @@ export class ReturnDetailComponent {
     });
   }
 
-  back(): void { void this.router.navigate(['/transfers/returns']); }
+  back(): void { void this.router.navigate(['..'], { relativeTo: this.route }); }
 
   submit(): void { this.runAction((uid) => this.returnService.submit(uid), 'Return submitted.'); }
   complete(): void { this.runAction((uid) => this.returnService.complete(uid), 'Return completed.'); }

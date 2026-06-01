@@ -23,7 +23,7 @@
         <div class="col-md-3">
           <div class="hmis-muted small">Source transfer order</div>
           @if (n.toNo) {
-            <a class="fw-semibold hmis-code" [routerLink]="['/transfers/pp/to', n.toUid]">{{ n.toNo }}</a>
+            <a class="fw-semibold hmis-code" [routerLink]="['..','..','to', n.toUid]">{{ n.toNo }}</a>
           } @else { <div class="fw-semibold">—</div> }
         </div>
         <div class="col-md-3"><div class="hmis-muted small">Requesting pharmacy</div><div class="fw-semibold">{{ n.requestingPharmacyName || '—' }}</div></div>

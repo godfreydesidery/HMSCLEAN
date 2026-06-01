@@ -3,7 +3,7 @@
     <h1 class="hmis-page-title">New requisition</h1>
     <p class="hmis-muted mb-0 small">Request stock from a store for a pharmacy.</p>
   </div>
-  <a class="btn btn-light border" routerLink="/transfers/ro"><i class="bi bi-arrow-left me-1"></i>Back</a>
+  <a class="btn btn-light border" routerLink=".."><i class="bi bi-arrow-left me-1"></i>Back</a>
 </div>
 
 @if (errorMessage()) {
@@ -18,12 +18,13 @@
       <div class="card-body">
         <div class="row g-3">
           <div class="col-md-4">
-            <label class="form-label" for="ro-pharmacy">Pharmacy</label>
-            <select id="ro-pharmacy" class="form-select" formControlName="pharmacyUid" [class.is-invalid]="form.get('pharmacyUid')!.touched && form.get('pharmacyUid')!.invalid">
-              <option value="" disabled>Select pharmacy…</option>
-              @for (p of pharmacies(); track p.uid) { <option [value]="p.uid">{{ p.name }}</option> }
-            </select>
-            <div class="invalid-feedback">Pharmacy is required.</div>
+            <span class="form-label d-block">Requesting pharmacy</span>
+            @if (workingPharmacy(); as wp) {
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge text-bg-primary-subtle text-primary-emphasis border border-primary-subtle d-inline-flex align-items-center gap-1"><i class="bi bi-shop"></i>Working in: {{ wp.name }}</span>
+                <a class="link-secondary text-decoration-none small" routerLink="/pharmacy/select"><i class="bi bi-arrow-left-right me-1"></i>Change</a>
+              </div>
+            }
           </div>
           <div class="col-md-4">
             <label class="form-label" for="ro-store">Store</label>

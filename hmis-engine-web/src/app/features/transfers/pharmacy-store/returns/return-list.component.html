@@ -3,7 +3,7 @@
     <h1 class="hmis-page-title">Returns</h1>
     <p class="hmis-muted mb-0 small">Pharmacy returns of stock back to a store.</p>
   </div>
-  <a class="btn btn-primary d-flex align-items-center gap-2" routerLink="/transfers/returns/new">
+  <a class="btn btn-primary d-flex align-items-center gap-2" routerLink="new">
     <i class="bi bi-plus-lg"></i>New return
   </a>
 </div>
@@ -48,7 +48,7 @@
         } @else {
           @for (o of returns(); track o.uid) {
             <tr (click)="view(o)" style="cursor:pointer;">
-              <td><a class="hmis-code" [routerLink]="['/transfers/returns', o.uid]" (click)="$event.stopPropagation()">{{ o.returnNo }}</a></td>
+              <td><a class="hmis-code" [routerLink]="[o.uid]" (click)="$event.stopPropagation()">{{ o.returnNo }}</a></td>
               <td><div class="fw-semibold">{{ o.pharmacyName || '—' }}</div></td>
               <td class="hmis-muted">{{ o.storeName || '—' }}</td>
               <td><span [class]="statusBadgeClass(o.status)">{{ statusLabel(o.status) }}</span></td>

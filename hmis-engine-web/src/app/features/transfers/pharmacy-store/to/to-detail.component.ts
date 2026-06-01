@@ -52,7 +52,7 @@ export class ToDetailComponent {
     });
   }
 
-  back(): void { void this.router.navigate(['/transfers/to']); }
+  back(): void { void this.router.navigate(['..'], { relativeTo: this.route }); }
 
   verify(): void {
     const o = this.order(); if (!o) return;

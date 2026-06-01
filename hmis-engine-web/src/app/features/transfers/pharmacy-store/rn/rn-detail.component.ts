@@ -42,7 +42,7 @@ export class RnDetailComponent {
       });
   }
 
-  back(): void { void this.router.navigate(['/transfers/rn']); }
+  back(): void { void this.router.navigate(['..'], { relativeTo: this.route }); }
 
   statusBadgeClass(s: ReceiveNoteStatus): string { return receiveNoteBadgeClass(s); }
   statusLabel(s: ReceiveNoteStatus): string { return receiveNoteLabel(s); }

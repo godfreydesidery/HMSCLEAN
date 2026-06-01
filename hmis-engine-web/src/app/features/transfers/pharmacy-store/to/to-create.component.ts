@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize, forkJoin } from 'rxjs';
 
+import { WorkingLocationService } from '../../../../core/working-location/working-location.service';
 import { TransferDocStatus, transferDocBadgeClass, transferDocLabel } from '../../transfer-common.types';
 import { ToService } from './to.service';
 import { CreateTOLineRequest, RoPickDetail, RoPickSummary } from './to.types';
@@ -14,14 +15,18 @@ const ISSUABLE_RO_STATUSES: TransferDocStatus[] = ['APPROVED', 'SUBMITTED', 'IN_
 @Component({
   selector: 'app-to-create',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './to-create.component.html'
 })
 export class ToCreateComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly toService = inject(ToService);
+  private readonly workingLocation = inject(WorkingLocationService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+
+  /** The issuing location = the operator's own working store (read-only, legacy). */
+  readonly workingStore = this.workingLocation.workingStore;
 
   /** Candidate ROs for the picker (when no roUid query param was supplied). */
   readonly ros = signal<RoPickSummary[]>([]);
@@ -43,6 +48,11 @@ export class ToCreateComponent implements OnInit {
   readonly hasIssuableLines = computed(() => this.ro()?.lines.some((l) => l.outstandingQuantity > 0) ?? false);
 
   ngOnInit(): void {
+    // The issuing store is the operator's own working store; enforce the workspace.
+    if (!this.workingStore()) {
+      void this.router.navigate(['/store/select']);
+      return;
+    }
     const roUid = this.route.snapshot.queryParamMap.get('roUid');
     if (roUid) {
       this.loadRo(roUid);
@@ -141,12 +151,12 @@ export class ToCreateComponent implements OnInit {
     this.toService.create({ roUid: ro.uid, note: note || null, lines })
       .pipe(finalize(() => this.submitting.set(false)))
       .subscribe({
-        next: (to) => void this.router.navigate(['/transfers/to', to.uid]),
+        next: (to) => void this.router.navigate(['..', to.uid], { relativeTo: this.route }),
         error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not create transfer order.')
       });
   }
 
-  cancel(): void { void this.router.navigate(['/transfers/to']); }
+  cancel(): void { void this.router.navigate(['..'], { relativeTo: this.route }); }
 
   statusBadgeClass(s: TransferDocStatus): string { return transferDocBadgeClass(s); }
   statusLabel(s: TransferDocStatus): string { return transferDocLabel(s); }

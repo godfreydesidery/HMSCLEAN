@@ -52,7 +52,7 @@ export class PpRoDetailComponent {
     });
   }
 
-  back(): void { void this.router.navigate(['/transfers/pp/ro']); }
+  back(): void { void this.router.navigate(['..'], { relativeTo: this.route }); }
 
   verify(): void { this.runAction((uid) => this.roService.verify(uid), 'Requisition verified.'); }
   approve(): void { this.runAction((uid) => this.roService.approve(uid), 'Requisition approved.'); }

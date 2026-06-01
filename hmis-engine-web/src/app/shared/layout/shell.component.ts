@@ -69,11 +69,8 @@ export class ShellComponent {
     {
       label: 'Operations',
       items: [
-        { label: 'Dispensing queue', path: '/pharmacy/dispense-queue', icon: 'bi-capsule-pill', privileges: ['PHARMACY_ACCESS'] },
-        { label: 'Pharmacy stock', path: '/pharmacy/stock', icon: 'bi-capsule',     privileges: ['PHARMACY_ACCESS'] },
-        { label: 'Pharmacy sales', path: '/pharmacy/sales', icon: 'bi-cart',        privileges: ['PHARMACY_ACCESS'] },
-        { label: 'Store stock',    path: '/store/stock',    icon: 'bi-box-seam',    privileges: ['STORE_ACCESS'] },
-        { label: 'Transfers',      path: '/transfers',      icon: 'bi-arrow-left-right', privileges: ['STORE_ACCESS'] },
+        { label: 'Pharmacy',       path: '/pharmacy', icon: 'bi-capsule',    privileges: ['PHARMACY_ACCESS'] },
+        { label: 'Store',          path: '/store',   icon: 'bi-box-seam',    privileges: ['STORE_ACCESS'] },
         { label: 'Consumables',    path: '/consumables/stock', icon: 'bi-bandaid',  privileges: ['ENCOUNTER_ACCESS'] },
         { label: 'Procurement', path: '/procurement/orders',    icon: 'bi-truck',          privileges: ['PROCUREMENT_ACCESS'] },
         { label: 'Supplier invoices', path: '/procurement/supplier-invoices', icon: 'bi-file-earmark-text', privileges: ['PROCUREMENT_ACCESS'] },

@@ -48,7 +48,7 @@
         } @else {
           @for (n of notes(); track n.uid) {
             <tr (click)="view(n)" style="cursor:pointer;">
-              <td><a class="hmis-code" [routerLink]="['/transfers/pp/rn', n.uid]" (click)="$event.stopPropagation()">{{ n.rnNo }}</a></td>
+              <td><a class="hmis-code" [routerLink]="[n.uid]" (click)="$event.stopPropagation()">{{ n.rnNo }}</a></td>
               <td class="hmis-muted">{{ n.toNo || '—' }}</td>
               <td><div class="fw-semibold">{{ n.requestingPharmacyName || '—' }}</div></td>
               <td class="hmis-muted">{{ n.deliveringPharmacyName || '—' }}</td>

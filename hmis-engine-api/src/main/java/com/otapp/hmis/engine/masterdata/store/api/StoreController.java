@@ -5,9 +5,12 @@ import com.otapp.hmis.engine.masterdata.store.application.StoreDtos.CreateStoreR
 import com.otapp.hmis.engine.masterdata.store.application.StoreDtos.StoreDto;
 import com.otapp.hmis.engine.masterdata.store.application.StoreDtos.UpdateStoreRequest;
 import com.otapp.hmis.engine.masterdata.store.application.StoreService;
+import com.otapp.hmis.engine.masterdata.store.application.StoreStaffService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +26,22 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class StoreController {
 
     private final StoreService storeService;
+    private final StoreStaffService storeStaffService;
+
+    /**
+     * The active stores the calling storekeeper is affiliated with (legacy
+     * {@code load_stores_by_store_person}). Scoped to {@code StoreStaff} so a
+     * keeper's store picker only offers stores they may operate; an unaffiliated
+     * user (e.g. ROOT) gets an empty list. Gated on {@code STORE_ACCESS} — the
+     * privilege the store-operating endpoints use — overriding the master-data
+     * management gate on this controller.
+     */
+    @Operation(summary = "List the stores the current storekeeper is affiliated with")
+    @GetMapping("/mine")
+    @PreAuthorize("hasAuthority('STORE_ACCESS')")
+    public ResponseEntity<List<StoreDto>> mine() {
+        return ResponseEntity.ok(storeStaffService.listMyStores());
+    }
 
     @PostMapping
     public ResponseEntity<StoreDto> create(@Valid @RequestBody CreateStoreRequest request) {

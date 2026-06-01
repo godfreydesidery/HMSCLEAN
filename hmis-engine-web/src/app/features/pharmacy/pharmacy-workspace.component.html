@@ -1,0 +1,58 @@
+@if (workingPharmacy(); as wp) {
+  <!-- One compact top bar: the action buttons + the working-pharmacy indicator. -->
+  <div class="card mb-3">
+    <div class="card-body d-flex flex-wrap align-items-center gap-2 py-2">
+      <ul class="nav nav-pills gap-2 mb-0" aria-label="Pharmacy operations">
+        <li class="nav-item">
+          <a class="nav-link d-flex align-items-center gap-2" routerLink="dispense-queue"
+             routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }">
+            <i class="bi bi-capsule-pill"></i>Dispensing queue
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link d-flex align-items-center gap-2" routerLink="stock"
+             routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }">
+            <i class="bi bi-capsule"></i>Stock
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link d-flex align-items-center gap-2" routerLink="sales"
+             routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }">
+            <i class="bi bi-cart"></i>Sales
+          </a>
+        </li>
+        @if (auth.hasPrivilege('STORE_ACCESS')) {
+          <li class="nav-item" style="position: relative;">
+            <button type="button" class="nav-link d-flex align-items-center gap-2 dropdown-toggle"
+                    [class.active]="transfersOpen()" (click)="toggleTransfers()"
+                    aria-haspopup="true" [attr.aria-expanded]="transfersOpen()">
+              <i class="bi bi-arrow-left-right"></i>Transfers
+            </button>
+            @if (transfersOpen()) {
+              <div class="dropdown-menu show shadow-sm mt-1" style="position: absolute; top: 100%; left: 0; z-index: 1030;" aria-label="Stock transfers">
+                <h6 class="dropdown-header">With a store</h6>
+                <button type="button" class="dropdown-item" (click)="go('/pharmacy/transfers/ro')"><i class="bi bi-clipboard-plus me-2"></i>Requisitions (RO)</button>
+                <button type="button" class="dropdown-item" (click)="go('/pharmacy/transfers/to')"><i class="bi bi-box-arrow-right me-2"></i>Transfer orders (TO)</button>
+                <button type="button" class="dropdown-item" (click)="go('/pharmacy/transfers/rn')"><i class="bi bi-box-arrow-in-down me-2"></i>Receive notes (RN)</button>
+                <button type="button" class="dropdown-item" (click)="go('/pharmacy/transfers/returns')"><i class="bi bi-arrow-return-left me-2"></i>Returns</button>
+                <div class="dropdown-divider"></div>
+                <h6 class="dropdown-header">With another pharmacy</h6>
+                <button type="button" class="dropdown-item" (click)="go('/pharmacy/transfers/pp/ro')"><i class="bi bi-clipboard-plus me-2"></i>Requisitions (RO)</button>
+                <button type="button" class="dropdown-item" (click)="go('/pharmacy/transfers/pp/to')"><i class="bi bi-box-arrow-right me-2"></i>Transfer orders (TO)</button>
+                <button type="button" class="dropdown-item" (click)="go('/pharmacy/transfers/pp/rn')"><i class="bi bi-box-arrow-in-down me-2"></i>Receive notes (RN)</button>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <span class="badge text-bg-primary-subtle text-primary-emphasis border border-primary-subtle d-inline-flex align-items-center gap-1" title="Working pharmacy">
+          <i class="bi bi-shop"></i>{{ wp.name }}
+        </span>
+        <a routerLink="/pharmacy/select" class="btn btn-sm btn-light border">Change</a>
+      </div>
+    </div>
+  </div>
+}
+
+<router-outlet />

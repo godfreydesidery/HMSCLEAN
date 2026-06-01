@@ -1,12 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { debounceTime, distinctUntilChanged, finalize } from 'rxjs';
 
-import { StoreService } from '../../masterdata/stores/store.service';
-import { Store } from '../../masterdata/stores/store.types';
+import { WorkingLocationService } from '../../../core/working-location/working-location.service';
 import { StoreStockEditComponent } from './store-stock-edit.component';
 import { StoreStockService } from './store-stock.service';
 import {
@@ -19,19 +19,22 @@ const LOW_STOCK_THRESHOLD = 10;
 @Component({
   selector: 'app-store-stock-list',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './store-stock-list.component.html'
 })
 export class StoreStockListComponent {
   private readonly stockService = inject(StoreStockService);
-  private readonly storeService = inject(StoreService);
+  private readonly workingLocation = inject(WorkingLocationService);
+  private readonly router = inject(Router);
   private readonly modal = inject(NgbModal);
-  private readonly fb = inject(FormBuilder);
+
+  /** The store this workspace is scoped to (legacy "select store first") — the single
+   *  source of truth for the operator's own store; shown read-only. */
+  readonly workingStore = this.workingLocation.workingStore;
 
   readonly movementKinds = STORE_STOCK_MOVEMENT_KINDS;
   readonly lowStockThreshold = LOW_STOCK_THRESHOLD;
 
-  readonly stores = signal<Store[]>([]);
   readonly selectedStoreUid = signal<string | null>(null);
   readonly balances = signal<StoreStockBalance[]>([]);
   readonly movements = signal<StoreStockMovement[]>([]);
@@ -48,13 +51,6 @@ export class StoreStockListComponent {
   readonly errorMessage = signal<string | null>(null);
   readonly actionMessage = signal<string | null>(null);
 
-  readonly storeForm = this.fb.nonNullable.group({
-    storeUid: ['', [Validators.required]]
-  });
-
-  readonly selectedStore = computed(() =>
-    this.stores().find((s) => s.uid === this.selectedStoreUid()) ?? null);
-
   readonly pageWindow = computed(() => {
     const t = this.totalPages(); const c = this.page();
     if (t <= 7) return Array.from({ length: t }, (_, i) => i);
@@ -64,32 +60,22 @@ export class StoreStockListComponent {
   });
 
   constructor() {
-    this.storeService.search({ active: true, size: 200, sort: 'name,asc' })
-      .pipe(finalize(() => this.loading.set(false)))
-      .subscribe({
-        next: (page) => {
-          this.stores.set(page.content);
-          if (page.content.length > 0) {
-            this.storeForm.controls.storeUid.setValue(page.content[0].uid);
-            this.selectStore(page.content[0].uid);
-          }
-        },
-        error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load stores.')
-      });
+    // Enforce the "select store first" workspace: the operator's own store comes ONLY
+    // from the working location (legacy had one Select page, no per-screen picker; the
+    // keeper-affiliation scoping via mine() now lives only on /store/select). With none
+    // set, send the keeper to the Select page rather than operating on an arbitrary store.
+    const working = this.workingStore();
+    if (!working) {
+      void this.router.navigate(['/store/select']);
+      return;
+    }
 
-    this.storeForm.controls.storeUid.valueChanges.subscribe((uid) => {
-      if (uid) this.selectStore(uid);
-    });
+    this.selectedStoreUid.set(working.uid);
+    this.loadBalances();
+    this.loadMovements();
 
     this.query.valueChanges.pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed())
       .subscribe(() => { this.page.set(0); this.loadBalances(); });
-  }
-
-  private selectStore(uid: string): void {
-    this.selectedStoreUid.set(uid);
-    this.page.set(0);
-    this.loadBalances();
-    this.loadMovements();
   }
 
   private loadBalances(): void {
@@ -141,7 +127,7 @@ export class StoreStockListComponent {
   }
 
   openReceive(): void {
-    const store = this.selectedStore(); if (!store) return;
+    const store = this.workingStore(); if (!store) return;
     const ref = this.modal.open(StoreStockEditComponent, { backdrop: 'static' });
     const inst = ref.componentInstance as StoreStockEditComponent;
     inst.storeUid = store.uid;
@@ -153,7 +139,7 @@ export class StoreStockListComponent {
   }
 
   openAdjustBatch(batch: StoreStockBatch): void {
-    const store = this.selectedStore(); if (!store) return;
+    const store = this.workingStore(); if (!store) return;
     const ref = this.modal.open(StoreStockEditComponent, { backdrop: 'static' });
     const inst = ref.componentInstance as StoreStockEditComponent;
     inst.storeUid = store.uid;

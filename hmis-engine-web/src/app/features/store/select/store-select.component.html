@@ -1,0 +1,47 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">Select store</h1>
+    <p class="hmis-muted mb-0 small">Choose the store you are working in. Your stock and transfers are scoped to it for this session.</p>
+  </div>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+@if (loading()) {
+  <div class="row g-3">
+    @for (i of [1,2,3,4]; track i) {
+      <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body"><span class="hmis-skeleton" style="width:180px;"></span></div></div></div>
+    }
+  </div>
+} @else if (stores().length === 0) {
+  <div class="hmis-empty">
+    <i class="bi bi-box-seam"></i>
+    <div class="fw-semibold mb-1">No stores assigned</div>
+    <div class="small">You are not assigned to any store — ask an admin to affiliate you.</div>
+  </div>
+} @else {
+  <div class="row g-3">
+    @for (s of stores(); track s.uid) {
+      <div class="col-md-6 col-xl-4">
+        <button type="button" class="card h-100 w-100 text-start border-0 shadow-sm"
+                [class.border]="current()?.uid === s.uid" [class.border-primary]="current()?.uid === s.uid"
+                (click)="select(s)">
+          <div class="card-body d-flex align-items-center gap-3">
+            <span class="rounded-circle bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center" style="width:42px;height:42px;">
+              <i class="bi bi-box-seam fs-5"></i>
+            </span>
+            <div class="flex-grow-1">
+              <div class="fw-semibold">{{ s.name }}</div>
+              <div class="hmis-muted small"><span class="hmis-code">{{ s.code }}</span>@if (s.location) { <span> · {{ s.location }}</span> }</div>
+            </div>
+            @if (current()?.uid === s.uid) {
+              <span class="badge text-bg-primary-subtle text-primary-emphasis border border-primary-subtle"><i class="bi bi-check-lg me-1"></i>Current</span>
+            } @else { <i class="bi bi-chevron-right hmis-muted"></i> }
+          </div>
+        </button>
+      </div>
+    }
+  </div>
+}

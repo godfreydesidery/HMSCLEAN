@@ -11,7 +11,7 @@ import {
   PRESCRIPTION_STATUSES, Prescription, PrescribingAlert, PrescriptionStatus, PrescriptionWorklistRow
 } from '../../encounter/prescription/prescription.types';
 import { patientClassBadgeClass, patientClassLabel } from '../../../shared/patient-class/patient-class';
-import { PharmacyService } from '../../masterdata/pharmacies/pharmacy.service';
+import { WorkingLocationService } from '../../../core/working-location/working-location.service';
 import { DispensePrescriptionComponent } from '../stock/dispense-prescription.component';
 import { StockService } from '../stock/stock.service';
 
@@ -34,7 +34,7 @@ export class PatientDispenseComponent implements OnInit {
   private readonly service = inject(PrescriptionService);
   private readonly diagService = inject(ConsultationDiagnosisService);
   private readonly stockService = inject(StockService);
-  private readonly pharmacyService = inject(PharmacyService);
+  private readonly workingLocation = inject(WorkingLocationService);
   private readonly modal = inject(NgbModal);
 
   readonly classLabel = patientClassLabel;
@@ -60,6 +60,12 @@ export class PatientDispenseComponent implements OnInit {
   readonly dispensableScripts = computed(() => this.scripts().filter((r) => r.status === 'APPROVED'));
 
   ngOnInit(): void {
+    // The dispensing pharmacy is the operator's own working pharmacy only (legacy
+    // "selected pharmacy"); enforce the workspace by gating behind the Select page.
+    if (!this.workingLocation.workingPharmacy()) {
+      void this.router.navigate(['/pharmacy/select']);
+      return;
+    }
     this.patientUid = this.route.snapshot.paramMap.get('patientUid') ?? '';
     this.klass = (this.route.snapshot.queryParamMap.get('class') as Klass) ?? '';
     if (!this.patientUid) { this.loading.set(false); this.errorMessage.set('Missing patient.'); return; }
@@ -150,37 +156,23 @@ export class PatientDispenseComponent implements OnInit {
   /**
    * Convenience bulk action: dispense every directly-dispensable (APPROVED) script
    * in sequence, reusing the single-dispense service call (no new backend endpoint).
-   * The per-script modal lets the pharmacist choose a pharmacy; for a clean loop we
-   * resolve the pharmacy here. When exactly one active pharmacy exists (the common
-   * case the modal itself auto-selects), we dispense directly from it; otherwise the
-   * pharmacy is ambiguous, so we ask the pharmacist to dispense scripts individually.
-   * Any per-script error is surfaced but does not stop the remaining scripts; the
-   * list is refreshed once the loop finishes.
+   * The dispensing pharmacy is the operator's own working pharmacy only (legacy
+   * "selected pharmacy"); with none set we send the pharmacist to the Select page
+   * (the workspace is enforced — there is no per-screen pharmacy override). Any
+   * per-script error is surfaced but does not stop the remaining scripts; the list
+   * is refreshed once the loop finishes.
    */
   dispenseAllRemaining(): void {
     if (this.bulkBusy() || this.busyUid()) return;
     const targets = this.dispensableScripts();
     if (targets.length === 0) return;
 
+    const working = this.workingLocation.workingPharmacy();
+    if (!working) { void this.router.navigate(['/pharmacy/select']); return; }
+
     this.bulkBusy.set(true);
     this.errorMessage.set(null);
-    this.pharmacyService.search({ active: true, size: 200, sort: 'name,asc' }).subscribe({
-      next: (page) => {
-        if (page.content.length !== 1) {
-          this.bulkBusy.set(false);
-          this.errorMessage.set(
-            'More than one active pharmacy is configured, so the dispensing pharmacy is ambiguous. ' +
-            'Please dispense these scripts individually so you can choose the pharmacy.'
-          );
-          return;
-        }
-        this.dispenseSequentially(page.content[0].uid, targets, 0, []);
-      },
-      error: (err) => {
-        this.bulkBusy.set(false);
-        this.errorMessage.set(err?.error?.message ?? 'Could not resolve the dispensing pharmacy.');
-      }
-    });
+    this.dispenseSequentially(working.uid, targets, 0, []);
   }
 
   /** Dispense the target scripts one after another, collecting any failures, then refresh. */

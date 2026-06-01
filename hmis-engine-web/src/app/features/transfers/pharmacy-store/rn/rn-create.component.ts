@@ -1,23 +1,28 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 
+import { WorkingLocationService } from '../../../../core/working-location/working-location.service';
 import { RnService } from './rn.service';
 import { CreateRNLineRequest, RNDto, ToPickDetail, ToPickSummary } from './rn.types';
 
 @Component({
   selector: 'app-rn-create',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './rn-create.component.html'
 })
 export class RnCreateComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly rnService = inject(RnService);
+  private readonly workingLocation = inject(WorkingLocationService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+
+  /** The receiving location = the operator's own working pharmacy (read-only, legacy). */
+  readonly workingPharmacy = this.workingLocation.workingPharmacy;
 
   /** Issued TOs the pharmacy can receive against (picker, when no ?toUid). */
   readonly tos = signal<ToPickSummary[]>([]);
@@ -40,6 +45,11 @@ export class RnCreateComponent implements OnInit {
   get linesArray(): FormArray<FormGroup> { return this.form.get('lines') as FormArray<FormGroup>; }
 
   ngOnInit(): void {
+    // The receiving pharmacy is the operator's own working pharmacy; enforce the workspace.
+    if (!this.workingPharmacy()) {
+      void this.router.navigate(['/pharmacy/select']);
+      return;
+    }
     const toUid = this.route.snapshot.queryParamMap.get('toUid');
     if (toUid) {
       this.loadTo(toUid);
@@ -129,10 +139,10 @@ export class RnCreateComponent implements OnInit {
       note: raw.note?.trim() || null,
       lines
     }).pipe(finalize(() => this.submitting.set(false))).subscribe({
-      next: (rn: RNDto) => { void this.router.navigate(['/transfers/rn', rn.uid]); },
+      next: (rn: RNDto) => { void this.router.navigate(['..', rn.uid], { relativeTo: this.route }); },
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not create the receive note.')
     });
   }
 
-  cancel(): void { void this.router.navigate(['/transfers/rn']); }
+  cancel(): void { void this.router.navigate(['..'], { relativeTo: this.route }); }
 }

@@ -58,6 +58,7 @@ export class ShellComponent {
         { label: 'Consultations', path: '/encounters/consultations', icon: 'bi-clipboard2-pulse', privileges: ['ENCOUNTER_ACCESS'] },
         { label: 'Nursing worklist', path: '/encounters/nurse-queue', icon: 'bi-heart-pulse',    privileges: ['ENCOUNTER_ACCESS'] },
         { label: 'Admissions',  path: '/encounters/admissions',   icon: 'bi-hospital',         privileges: ['ENCOUNTER_ACCESS'] },
+        { label: 'Closure worklist', path: '/encounters/closure-worklist', icon: 'bi-clipboard2-check', privileges: ['ENCOUNTER_ACCESS'] },
         { label: 'Orders & Results', path: '/orders',            icon: 'bi-card-list',        privileges: ['ENCOUNTER_ACCESS'] },
         { label: 'Lab batches', path: '/encounters/lab-batches',  icon: 'bi-collection',       privileges: ['ENCOUNTER_ACCESS'] }
       ]

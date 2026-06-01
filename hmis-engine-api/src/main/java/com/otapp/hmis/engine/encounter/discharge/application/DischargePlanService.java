@@ -1,5 +1,6 @@
 package com.otapp.hmis.engine.encounter.discharge.application;
 
+import com.otapp.hmis.engine.common.api.PageResponse;
 import com.otapp.hmis.engine.common.error.BusinessRuleException;
 import com.otapp.hmis.engine.common.error.ConflictException;
 import com.otapp.hmis.engine.common.error.NotFoundException;
@@ -13,6 +14,7 @@ import com.otapp.hmis.engine.encounter.consultation.domain.Consultation;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationRepository;
 import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationStatus;
 import com.otapp.hmis.engine.encounter.discharge.application.DischargePlanDtos.CancelPlanRequest;
+import com.otapp.hmis.engine.encounter.discharge.application.DischargePlanDtos.ClosureWorklistItem;
 import com.otapp.hmis.engine.encounter.discharge.application.DischargePlanDtos.CreatePlanRequest;
 import com.otapp.hmis.engine.encounter.discharge.application.DischargePlanDtos.DischargePlanDto;
 import com.otapp.hmis.engine.encounter.discharge.application.DischargePlanDtos.UpdatePlanRequest;
@@ -20,10 +22,15 @@ import com.otapp.hmis.engine.encounter.discharge.domain.ClosureSubject;
 import com.otapp.hmis.engine.encounter.discharge.domain.DischargePlan;
 import com.otapp.hmis.engine.encounter.discharge.domain.DischargePlanKind;
 import com.otapp.hmis.engine.encounter.discharge.domain.DischargePlanRepository;
+import com.otapp.hmis.engine.encounter.discharge.domain.DischargePlanStatus;
 import com.otapp.hmis.engine.masterdata.externalprovider.domain.ExternalMedicalProvider;
 import com.otapp.hmis.engine.masterdata.externalprovider.domain.ExternalMedicalProviderRepository;
+import com.otapp.hmis.engine.patient.domain.Patient;
+import com.otapp.hmis.engine.patient.domain.PatientRepository;
 import com.otapp.hmis.engine.patient.application.PatientService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,7 +61,9 @@ public class DischargePlanService {
     private final ConsultationRepository consultationRepository;
     private final ConsultationService consultationService;
     private final PatientService patientService;
+    private final PatientRepository patientRepository;
     private final ExternalMedicalProviderRepository externalProviderRepository;
+    private final ClosureProperties closureProperties;
 
     // ===== Admission-subject closure ======================================
 
@@ -98,7 +107,7 @@ public class DischargePlanService {
         }
         validateRequiredForApproval(plan);
 
-        plan.approve(currentUsername());
+        plan.approve(currentUsername(), closureProperties.allowSelfApproval());
 
         // Drive the admission closure through AdmissionService so the closure
         // gate (which now requires this APPROVED plan) and bed release run in
@@ -164,7 +173,7 @@ public class DischargePlanService {
         requireOpenConsultation(consultation, "approved");
         validateRequiredForApproval(plan);
 
-        plan.approve(currentUsername());
+        plan.approve(currentUsername(), closureProperties.allowSelfApproval());
 
         switch (plan.getKind()) {
             case DECEASED -> {
@@ -188,6 +197,24 @@ public class DischargePlanService {
     @Transactional(readOnly = true)
     public DischargePlanDto findByConsultation(String consultationUid) {
         return toDto(loadByConsultation(consultationUid));
+    }
+
+    // ===== Closure worklist ===============================================
+
+    /**
+     * The closure worklist (DISCH-1): PENDING closure plans awaiting a second
+     * approver, across BOTH subjects (inpatient discharges/deaths/referrals and
+     * outpatient deaths/referrals), oldest first. Optionally scoped to one
+     * subject type. This is the single surface a second clinician works to
+     * approve or cancel pending closures.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<ClosureWorklistItem> worklist(ClosureSubject subjectType, Pageable pageable) {
+        Page<DischargePlan> page = subjectType == null
+                ? planRepository.findByStatusOrderByAuthoredAtAsc(DischargePlanStatus.PENDING, pageable)
+                : planRepository.findByStatusAndSubjectTypeOrderByAuthoredAtAsc(
+                        DischargePlanStatus.PENDING, subjectType, pageable);
+        return PageResponse.from(page.map(this::toWorklistItem));
     }
 
     // ----- helpers ---------------------------------------------------------
@@ -322,6 +349,40 @@ public class DischargePlanService {
                 p.getApprovedByUsername(), p.getApprovedAt(),
                 p.getCancelledByUsername(), p.getCancelledAt(), p.getCancelReason(),
                 p.getCreatedAt(), p.getUpdatedAt());
+    }
+
+    private ClosureWorklistItem toWorklistItem(DischargePlan p) {
+        String admissionNo = null;
+        String consultationNo = null;
+        String patientUid = null;
+        if (p.getSubjectType() == ClosureSubject.ADMISSION && p.getAdmissionUid() != null) {
+            Admission a = admissionRepository.findByUid(p.getAdmissionUid()).orElse(null);
+            if (a != null) {
+                admissionNo = a.getAdmissionNo();
+                patientUid = a.getPatientUid();
+            }
+        } else if (p.getSubjectType() == ClosureSubject.CONSULTATION && p.getConsultationUid() != null) {
+            Consultation c = consultationRepository.findByUid(p.getConsultationUid()).orElse(null);
+            if (c != null) {
+                consultationNo = c.getConsultationNo();
+                patientUid = c.getPatientUid();
+            }
+        }
+        Patient patient = patientUid == null ? null
+                : patientRepository.findByUid(patientUid).orElse(null);
+
+        return new ClosureWorklistItem(
+                p.getUid(),
+                p.getSubjectType(),
+                p.getKind(),
+                p.getStatus(),
+                p.getAdmissionUid(), admissionNo,
+                p.getConsultationUid(), consultationNo,
+                patientUid,
+                patient == null ? null : patient.getPatientNo(),
+                patient == null ? null : patient.fullName(),
+                p.getReferralFacility(),
+                p.getAuthoredByUsername(), p.getAuthoredAt());
     }
 
     private static String currentUsername() {

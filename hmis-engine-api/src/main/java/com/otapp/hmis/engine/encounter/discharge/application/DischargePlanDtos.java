@@ -81,4 +81,26 @@ public final class DischargePlanDtos {
             String cancelReason,
             Instant createdAt,
             Instant updatedAt) {}
+
+    /**
+     * A row in the closure worklist (DISCH-1): a PENDING closure plan awaiting a
+     * second approver, carrying the patient + subject identifiers needed to list
+     * and deep-link it (admission detail or consultation detail) without a
+     * second round-trip. Spans both subjects.
+     */
+    public record ClosureWorklistItem(
+            String uid,
+            ClosureSubject subjectType,
+            DischargePlanKind kind,
+            DischargePlanStatus status,
+            String admissionUid,
+            String admissionNo,
+            String consultationUid,
+            String consultationNo,
+            String patientUid,
+            String patientNo,
+            String patientName,
+            String referralFacility,
+            String authoredByUsername,
+            Instant authoredAt) {}
 }

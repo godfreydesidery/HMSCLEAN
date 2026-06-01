@@ -1,22 +1,30 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
-import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
 
 import { PrescriptionService } from '../../encounter/prescription/prescription.service';
-import {
-  PRESCRIPTION_STATUSES, Prescription, PrescriptionStatus, PrescriptionWorklistRow
-} from '../../encounter/prescription/prescription.types';
+import { PrescriptionWorklistRow } from '../../encounter/prescription/prescription.types';
 import {
   PATIENT_CLASS_SCOPES, PatientClassScope, patientClassBadgeClass, patientClassLabel
 } from '../../../shared/patient-class/patient-class';
-import { DispensePrescriptionComponent } from '../stock/dispense-prescription.component';
+
+type Klass = 'OUTPATIENT' | 'INPATIENT' | 'OUTSIDER';
+
+interface PatientGroup {
+  patientUid: string;
+  patientNo: string | null;
+  patientName: string | null;
+  patientClass: Klass;
+  pendingCount: number;
+  earliestRequestedAt: string;
+}
 
 /**
- * The pharmacy dispensing queue — prescriptions awaiting pharmacy action,
- * scoped by patient class. Each row exposes the next lifecycle action
- * (accept → verify → approve → dispense) so the pharmacist works the script
- * from one screen, replacing the previous "search/paste a prescription" gap.
+ * The pharmacy dispensing queue — legacy "Attend patient" model: a list of PATIENTS
+ * with pending scripts (scoped by class), not a flat per-script list. Picking a
+ * patient opens their per-patient dispensing screen with all their scripts together,
+ * the final diagnosis, and the drug-repeat advisory.
  */
 @Component({
   selector: 'app-dispense-worklist',
@@ -26,95 +34,55 @@ import { DispensePrescriptionComponent } from '../stock/dispense-prescription.co
 })
 export class DispenseWorklistComponent implements OnInit {
   private readonly service = inject(PrescriptionService);
-  private readonly modal = inject(NgbModal);
+  private readonly router = inject(Router);
 
   readonly classes = PATIENT_CLASS_SCOPES;
   readonly classLabel = patientClassLabel;
   readonly classBadge = patientClassBadgeClass;
 
   readonly rows = signal<PrescriptionWorklistRow[]>([]);
-  readonly page = signal(0);
-  readonly totalPages = signal(0);
-  readonly totalElements = signal(0);
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
-  readonly busyUid = signal<string | null>(null);
   readonly classFilter = signal<PatientClassScope | ''>('');
 
-  private readonly size = 20;
+  // The queue is bounded (only pending scripts) so we pull it in one page and group
+  // by patient client-side; counts are correct because there is no server paging.
+  private readonly size = 500;
+
+  readonly patients = computed<PatientGroup[]>(() => {
+    const byPatient = new Map<string, PatientGroup>();
+    for (const r of this.rows()) {
+      const g = byPatient.get(r.patientUid);
+      if (g) {
+        g.pendingCount++;
+        if (r.requestedAt < g.earliestRequestedAt) g.earliestRequestedAt = r.requestedAt;
+      } else {
+        byPatient.set(r.patientUid, {
+          patientUid: r.patientUid, patientNo: r.patientNo, patientName: r.patientName,
+          patientClass: r.patientClass, pendingCount: 1, earliestRequestedAt: r.requestedAt
+        });
+      }
+    }
+    return [...byPatient.values()].sort((a, b) => (a.earliestRequestedAt < b.earliestRequestedAt ? -1 : 1));
+  });
 
   ngOnInit(): void { this.load(); }
 
   load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
-    this.service.worklist({
-      patientClass: this.classFilter() || undefined,
-      page: this.page(),
-      size: this.size
-    }).pipe(finalize(() => this.loading.set(false))).subscribe({
-      next: (res) => {
-        this.rows.set(res.content);
-        this.totalPages.set(res.totalPages);
-        this.totalElements.set(res.totalElements);
-      },
-      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load the dispensing queue.')
+    this.service.worklist({ patientClass: this.classFilter() || undefined, page: 0, size: this.size })
+      .pipe(finalize(() => this.loading.set(false))).subscribe({
+        next: (res) => this.rows.set(res.content),
+        error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load the dispensing queue.')
+      });
+  }
+
+  setClass(c: PatientClassScope | ''): void { this.classFilter.set(c); this.load(); }
+
+  attend(g: PatientGroup): void {
+    void this.router.navigate(['/pharmacy/dispense-queue/patient', g.patientUid], {
+      queryParams: { class: g.patientClass }
     });
-  }
-
-  setClass(c: PatientClassScope | ''): void { this.classFilter.set(c); this.page.set(0); this.load(); }
-
-  /** Label for the button that advances this row's lifecycle. */
-  nextActionLabel(s: PrescriptionStatus): string {
-    switch (s) {
-      case 'PENDING':  return 'Accept';
-      case 'ACCEPTED': return 'Verify';
-      case 'HELD':     return 'Verify';
-      case 'VERIFIED': return 'Approve';
-      case 'APPROVED': return 'Dispense';
-      default:         return '';
-    }
-  }
-
-  advance(row: PrescriptionWorklistRow): void {
-    if (this.busyUid()) return;
-    if (row.status === 'APPROVED') { this.openDispense(row); return; }
-    this.busyUid.set(row.uid);
-    this.errorMessage.set(null);
-    const op =
-      row.status === 'PENDING'  ? this.service.accept(row.uid)
-      : row.status === 'ACCEPTED' ? this.service.verify(row.uid)
-      : row.status === 'HELD'     ? this.service.verify(row.uid)
-      : row.status === 'VERIFIED' ? this.service.approve(row.uid)
-      : null;
-    if (!op) { this.busyUid.set(null); return; }
-    op.pipe(finalize(() => this.busyUid.set(null))).subscribe({
-      next: () => this.load(),
-      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not advance the prescription.')
-    });
-  }
-
-  private openDispense(row: PrescriptionWorklistRow): void {
-    const ref = this.modal.open(DispensePrescriptionComponent, { backdrop: 'static' });
-    // The dispense modal only needs uid + the display fields below.
-    (ref.componentInstance as DispensePrescriptionComponent).prescription = {
-      uid: row.uid,
-      prescriptionNo: row.prescriptionNo,
-      medicineName: row.medicineName,
-      dose: row.dose,
-      frequency: row.frequency,
-      quantity: row.quantity
-    } as Prescription;
-    ref.closed.subscribe((movements) => { if (movements) this.load(); });
-  }
-
-  prev(): void { if (this.page() > 0) { this.page.update((p) => p - 1); this.load(); } }
-  next(): void { if (this.page() < this.totalPages() - 1) { this.page.update((p) => p + 1); this.load(); } }
-
-  statusBadgeClass(s: PrescriptionStatus): string {
-    return 'badge ' + (PRESCRIPTION_STATUSES.find((x) => x.value === s)?.badgeClass ?? '');
-  }
-  statusLabel(s: PrescriptionStatus): string {
-    return PRESCRIPTION_STATUSES.find((x) => x.value === s)?.label ?? s;
   }
 }

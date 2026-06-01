@@ -1,0 +1,86 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title d-flex align-items-center gap-2">
+      <i class="bi bi-capsule-pill text-primary"></i>{{ patientName() || 'Patient' }}
+    </h1>
+    <p class="hmis-muted mb-0 small">
+      @if (patientNo()) { <span class="hmis-code">{{ patientNo() }}</span> · }
+      @if (patientClass()) { <span [class]="classBadge(patientClass()!)">{{ classLabel(patientClass()!) }}</span> }
+      Dispense all of this patient's pending scripts.
+    </p>
+  </div>
+  <button type="button" class="btn btn-light border" (click)="back()"><i class="bi bi-arrow-left me-1"></i>Back to queue</button>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+@if (loading()) {
+  <div class="card"><div class="card-body p-4"><span class="hmis-skeleton" style="width:280px;"></span></div></div>
+} @else {
+
+  <!-- Drug-repeat advisory -->
+  @for (a of alerts(); track $index) {
+    <div class="alert d-flex align-items-center gap-2 py-2 px-3" [class]="alertClass(a)" role="alert">
+      <i class="bi" [class.bi-info-circle]="a.severity === 'INFO'" [class.bi-exclamation-triangle]="a.severity === 'WARN'"></i>
+      <span class="small">{{ a.message }}</span>
+    </div>
+  }
+
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-clipboard2-pulse me-2 text-primary"></i>Final diagnosis</div>
+        <div class="card-body">
+          @if (diagnoses().length === 0) {
+            <div class="hmis-muted small">No final diagnosis recorded (or walk-in script).</div>
+          } @else {
+            <ul class="list-unstyled mb-0">
+              @for (d of diagnoses(); track d.uid) {
+                <li class="mb-1">
+                  @if (d.primaryDiagnosis) { <i class="bi bi-star-fill text-warning me-1" title="Primary"></i> }
+                  <span class="fw-semibold">{{ d.diagnosisName }}</span>
+                  @if (d.diagnosisCode) { <span class="hmis-muted small">({{ d.diagnosisCode }})</span> }
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-capsule me-2 text-primary"></i>Prescriptions ({{ scripts().length }})</div>
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead><tr><th>Rx</th><th>Medicine</th><th>Dose · Freq · Qty</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+            <tbody>
+              @if (scripts().length === 0) {
+                <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-capsule"></i><div class="small">No pending scripts for this patient.</div></div></td></tr>
+              } @else {
+                @for (r of scripts(); track r.uid) {
+                  <tr>
+                    <td><span class="hmis-code">{{ r.prescriptionNo }}</span></td>
+                    <td class="fw-semibold">{{ r.medicineName }}</td>
+                    <td class="hmis-muted small">{{ r.dose }} · {{ r.frequency }} · {{ r.quantity ?? '—' }}</td>
+                    <td><span [class]="statusBadgeClass(r.status)">{{ statusLabel(r.status) }}</span></td>
+                    <td class="text-end">
+                      @if (nextActionLabel(r.status)) {
+                        <button type="button" class="btn btn-sm btn-primary" [disabled]="busyUid() !== null" (click)="advance(r)">
+                          @if (busyUid() === r.uid) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                          {{ nextActionLabel(r.status) }}
+                        </button>
+                      }
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+}

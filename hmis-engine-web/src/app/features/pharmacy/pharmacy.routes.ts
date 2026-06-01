@@ -9,6 +9,12 @@ export const PHARMACY_ROUTES: Routes = [
     data: { title: 'Dispensing queue' }
   },
   {
+    path: 'dispense-queue/patient/:patientUid',
+    loadComponent: () =>
+      import('./dispense-worklist/patient-dispense.component').then((m) => m.PatientDispenseComponent),
+    data: { title: 'Dispense — patient' }
+  },
+  {
     path: 'stock',
     loadComponent: () =>
       import('./stock/stock-list.component').then((m) => m.StockListComponent),

@@ -6,7 +6,8 @@ import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { PageResponse } from '../../core/http/page.types';
 import {
-  AdmissionBillingSummary, Invoice, InvoiceSearchParams, InvoiceSummary, RecordPaymentRequest
+  AdmissionBillingSummary, CreateCreditNoteRequest, CreateRefundRequest, CreditNote, Invoice,
+  InvoiceSearchParams, InvoiceSummary, OverrideLinePriceRequest, RecordPaymentRequest, Refund
 } from './invoice.types';
 
 @Injectable({ providedIn: 'root' })
@@ -81,6 +82,25 @@ export class InvoiceService {
 
   recordPayment(uid: string, req: RecordPaymentRequest): Observable<Invoice> {
     return this.http.post<Invoice>(`${this.base}/invoices/uid/${uid}/payments`, req);
+  }
+
+  /** Renegotiate a line's unit price within its [min,max] band; returns the updated invoice. */
+  overrideLinePrice(invoiceUid: string, lineUid: string, req: OverrideLinePriceRequest): Observable<Invoice> {
+    return this.http.put<Invoice>(`${this.base}/invoices/uid/${invoiceUid}/lines/uid/${lineUid}/price`, req);
+  }
+
+  // ----- credit notes (write-downs) + refunds (return cash) --------------------
+  listCreditNotes(invoiceUid: string): Observable<CreditNote[]> {
+    return this.http.get<CreditNote[]>(`${this.base}/invoices/uid/${invoiceUid}/credit-notes`);
+  }
+  raiseCreditNote(invoiceUid: string, req: CreateCreditNoteRequest): Observable<CreditNote> {
+    return this.http.post<CreditNote>(`${this.base}/invoices/uid/${invoiceUid}/credit-notes`, req);
+  }
+  listRefunds(invoiceUid: string): Observable<Refund[]> {
+    return this.http.get<Refund[]>(`${this.base}/invoices/uid/${invoiceUid}/refunds`);
+  }
+  raiseRefund(invoiceUid: string, req: CreateRefundRequest): Observable<Refund> {
+    return this.http.post<Refund>(`${this.base}/invoices/uid/${invoiceUid}/refunds`, req);
   }
 
   /** Admission discharge bill-clearance gate read (V66). 204 → null when no invoice yet. */

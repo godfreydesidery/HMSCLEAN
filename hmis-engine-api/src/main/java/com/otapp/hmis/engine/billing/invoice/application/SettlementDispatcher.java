@@ -68,27 +68,42 @@ public class SettlementDispatcher {
                 admissionService.confirmDeposit(invoice.getAdmissionUid());
             }
         }
-        if (invoice.getStatus() != InvoiceStatus.PAID) {
-            return;
+        // Per-line release (legacy per-PatientBill settlement): a fully-paid — or
+        // insurer-COVERED — line's order / prescription is settled on its own, so a
+        // paid lab order releases its result even while the rest of the invoice is
+        // still unpaid. When the WHOLE invoice is PAID every referenced line is
+        // released regardless of its individual paidAmount — this also clears lines
+        // whose remaining cash was a credit-note write-down rather than collected.
+        settleLines(invoice, invoice.getStatus() == InvoiceStatus.PAID);
+        if (invoice.getStatus() == InvoiceStatus.PAID) {
+            settleScope(invoice);
         }
-        settle(invoice);
     }
 
-    /** Mark the encounter aggregates referenced by a settled invoice. */
-    private void settle(Invoice invoice) {
-        if (invoice.getScope() == InvoiceScope.CONSULTATION && invoice.getConsultationUid() != null) {
-            consultationService.markFeeSettled(invoice.getConsultationUid());
-        }
-        if (invoice.getScope() == InvoiceScope.ADMISSION && invoice.getAdmissionUid() != null) {
-            admissionService.markBillsCleared(invoice.getAdmissionUid());
-        }
+    /**
+     * Settle the order / prescription behind each line. When {@code all} is true
+     * (the invoice reached PAID) every referenced line is released; otherwise only
+     * the lines that are individually fully paid are. All targets are idempotent.
+     */
+    private void settleLines(Invoice invoice, boolean all) {
         for (InvoiceLine line : invoiceLineRepository.findAllByInvoiceUidOrderByCreatedAtAsc(invoice.getUid())) {
-            if (line.getReferenceUid() == null) continue;
+            boolean release = line.getReferenceUid() != null && (all || line.fullyPaid());
+            if (!release) continue;
             switch (line.getKind()) {
                 case MEDICINE -> prescriptionService.markSettled(line.getReferenceUid());
                 case LAB_TEST, RADIOLOGY, PROCEDURE -> clinicalOrderService.markSettled(line.getReferenceUid());
                 default -> { /* CONSULTATION / WARD / REGISTRATION / CONSUMABLE — no order-level flag */ }
             }
+        }
+    }
+
+    /** Scope-level settlement that only applies once the whole invoice is PAID. */
+    private void settleScope(Invoice invoice) {
+        if (invoice.getScope() == InvoiceScope.CONSULTATION && invoice.getConsultationUid() != null) {
+            consultationService.markFeeSettled(invoice.getConsultationUid());
+        }
+        if (invoice.getScope() == InvoiceScope.ADMISSION && invoice.getAdmissionUid() != null) {
+            admissionService.markBillsCleared(invoice.getAdmissionUid());
         }
     }
 }

@@ -8,6 +8,7 @@ import com.otapp.hmis.engine.billing.payment.domain.PaymentMethod;
 import com.otapp.hmis.engine.patient.domain.PaymentType;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -28,6 +29,10 @@ public final class InvoiceDtos {
             BigDecimal quantity,
             BigDecimal unitPrice,
             BigDecimal amount,
+            /** Cash applied to this line; {@code paidAmount == amount} means fully paid. */
+            BigDecimal paidAmount,
+            /** Cash still owed on this line ({@code amount - paidAmount}); zero for COVERED. */
+            BigDecimal outstanding,
             /** Negotiable floor for this line's unit price (null = no lower bound). */
             BigDecimal minUnitPrice,
             /** Negotiable ceiling for this line's unit price (null = no upper bound). */
@@ -130,4 +135,46 @@ public final class InvoiceDtos {
     /** Negotiate a line's unit price within the service's [min, max] band. */
     public record OverrideLinePriceRequest(
             @NotNull @DecimalMin(value = "0.00", inclusive = true) BigDecimal unitPrice) {}
+
+    /**
+     * One cash-payable line in a patient's cashier queue (legacy UNPAID
+     * {@code PatientBill}), flattened across the patient's open invoices with its
+     * parent invoice's identity. The cashier ticks these and collects
+     * {@code outstanding} per ticked line.
+     */
+    public record PayableLineDto(
+            String invoiceUid,
+            String invoiceNo,
+            InvoiceScope scope,
+            String lineUid,
+            InvoiceLineKind kind,
+            String description,
+            BigDecimal quantity,
+            BigDecimal unitPrice,
+            BigDecimal amount,
+            BigDecimal paidAmount,
+            BigDecimal outstanding,
+            LineCoverageStatus coverageStatus,
+            String currency) {}
+
+    /**
+     * Collect cash for a selected set of a patient's payable lines (legacy
+     * {@code confirm_bills_payment} over the checked bills). Each selected line is
+     * settled to its full outstanding — legacy pays a bill in full or not at all.
+     * Lines may span several invoices; the service groups them and writes one
+     * payment per invoice.
+     */
+    public record PayLinesRequest(
+            @NotNull PaymentMethod method,
+            @NotBlank @Pattern(regexp = "^[A-Z]{3}$") String currency,
+            @Size(max = 80) String reference,
+            @Size(max = 255) String note,
+            @NotEmpty List<@NotBlank String> lineUids) {}
+
+    /** Outcome of a cashier line-level collection: what was taken, over which invoices. */
+    public record PayLinesResult(
+            BigDecimal totalCollected,
+            String currency,
+            int lineCount,
+            List<InvoiceDto> invoices) {}
 }

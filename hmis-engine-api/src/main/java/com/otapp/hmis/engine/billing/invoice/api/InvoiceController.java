@@ -6,7 +6,11 @@ import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.CancelInvoi
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceDto;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceSummary;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.OverrideLinePriceRequest;
+import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.PayLinesRequest;
+import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.PayLinesResult;
+import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.PayableLineDto;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.RecordPaymentRequest;
+import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLineKind;
 import com.otapp.hmis.engine.billing.creditnote.application.CreditNoteDtos.CreditNoteDto;
 import com.otapp.hmis.engine.billing.invoice.application.AdmissionBillGate;
 import com.otapp.hmis.engine.billing.invoice.application.ConsultationFeeService;
@@ -151,6 +155,28 @@ public class InvoiceController {
     @PostMapping("/billing/patients/uid/{patientUid}/registration-fee")
     public ResponseEntity<InvoiceDto> ensureRegistrationFee(@PathVariable String patientUid) {
         return ResponseEntity.ok(registrationFeeService.ensureFor(patientUid));
+    }
+
+    /**
+     * The cashier "check to pay" queue: a patient's cash-payable lines across all
+     * open invoices (legacy {@code get_*_bills}). {@code kind} narrows it to one
+     * service till (lab / radiology / medication / …).
+     */
+    @GetMapping("/billing/patients/uid/{patientUid}/payable-lines")
+    public ResponseEntity<List<PayableLineDto>> payableLines(@PathVariable String patientUid,
+                                                             @RequestParam(required = false) InvoiceLineKind kind) {
+        return ResponseEntity.ok(invoiceService.payableLinesForPatient(patientUid, kind));
+    }
+
+    /**
+     * Collect cash for the ticked lines (legacy {@code confirm_bills_payment}).
+     * Lines may span several invoices; each selected line is settled to its full
+     * outstanding and its order / Rx released.
+     */
+    @PostMapping("/billing/patients/uid/{patientUid}/pay-lines")
+    public ResponseEntity<PayLinesResult> payLines(@PathVariable String patientUid,
+                                                   @Valid @RequestBody PayLinesRequest request) {
+        return ResponseEntity.ok(invoiceService.payLinesForPatient(patientUid, request));
     }
 
     @PostMapping("/billing/invoices/uid/{invoiceUid}/issue")

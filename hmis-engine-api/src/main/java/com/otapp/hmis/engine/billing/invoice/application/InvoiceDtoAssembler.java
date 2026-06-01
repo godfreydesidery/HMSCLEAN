@@ -78,6 +78,8 @@ class InvoiceDtoAssembler {
                 l.getQuantity(),
                 l.getUnitPrice(),
                 l.getAmount(),
+                l.getPaidAmount(),
+                l.outstanding(),
                 band == null ? null : band.minAmount(),
                 band == null ? null : band.maxAmount(),
                 overridable,

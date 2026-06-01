@@ -186,6 +186,51 @@ public class Consultation extends AuditableEntity {
     }
 
     /**
+     * Raise a <em>pending</em> transfer (OPC-1): the active consultation closes as
+     * TRANSFERRED without a receiver yet — reception books the receiving
+     * consultation later and the link is filled in via {@link #linkTransferTarget}.
+     * Legacy two-phase hand-off; only an active (IN_PROGRESS) consultation can be
+     * handed off.
+     */
+    public void markTransferredPending(String reason) {
+        if (status != ConsultationStatus.IN_PROGRESS) {
+            throw new BusinessRuleException(
+                    "Only an IN_PROGRESS consultation can be transferred (current: " + status + ")");
+        }
+        status = ConsultationStatus.TRANSFERRED;
+        transferReason = reason;
+        transferredAt = Instant.now();
+    }
+
+    /**
+     * Fill in the receiver link once reception has booked the fresh consultation
+     * for a pending transfer. The source is already TRANSFERRED with no receiver.
+     */
+    public void linkTransferTarget(String newConsultationUid) {
+        if (status != ConsultationStatus.TRANSFERRED || transferredToConsultationUid != null) {
+            throw new BusinessRuleException(
+                    "Transfer target can only be linked on a TRANSFERRED consultation with no receiver yet");
+        }
+        transferredToConsultationUid = newConsultationUid;
+    }
+
+    /**
+     * Revert a pending transfer (OPC-1): the initiating doctor cancelled the
+     * request before pickup, so the consultation returns to IN_PROGRESS. Only a
+     * TRANSFERRED consultation that has not yet been picked up (no receiver) can be
+     * reverted.
+     */
+    public void revertTransfer() {
+        if (status != ConsultationStatus.TRANSFERRED || transferredToConsultationUid != null) {
+            throw new BusinessRuleException(
+                    "Only a pending (not-yet-accepted) transfer can be reverted (current: " + status + ")");
+        }
+        status = ConsultationStatus.IN_PROGRESS;
+        transferReason = null;
+        transferredAt = null;
+    }
+
+    /**
      * Outpatient closure — patient died during the encounter. Driven by an
      * approved DECEASED closure plan (legacy DeceasedNote on a consultation).
      * Only an open (IN_PROGRESS) consultation can be closed this way; terminal

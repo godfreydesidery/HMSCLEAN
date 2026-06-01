@@ -1,0 +1,36 @@
+<div class="modal-header">
+  <h5 class="modal-title"><i class="bi bi-check2-all me-2 text-success"></i>Sign out consultation</h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss('x')"></button>
+</div>
+
+<div class="modal-body">
+  <p class="mb-2">You are about to sign out the consultation for:</p>
+  <div class="card bg-light border-0 mb-3">
+    <div class="card-body py-2">
+      <div class="fw-semibold">{{ patientName || '—' }}</div>
+      @if (patientNo) { <div class="hmis-muted small hmis-code">{{ patientNo }}</div> }
+    </div>
+  </div>
+
+  <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
+    <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+    <div>
+      Signing out will <strong>cancel any UNPAID lab / radiology / pharmacy orders</strong> on this
+      consultation. <strong>Paid orders are kept.</strong> This cannot be undone.
+    </div>
+  </div>
+
+  <div class="form-check">
+    <input id="signOutIdentity" type="checkbox" class="form-check-input"
+           [checked]="identityConfirmed()" (change)="toggleIdentity($any($event.target).checked)">
+    <label for="signOutIdentity" class="form-check-label">I confirm the patient identity shown above.</label>
+  </div>
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.dismiss('cancel')">Cancel</button>
+  <button type="button" class="btn btn-success d-flex align-items-center gap-2"
+          [disabled]="!identityConfirmed()" (click)="confirm()">
+    <i class="bi bi-check2-all"></i>Sign out
+  </button>
+</div>

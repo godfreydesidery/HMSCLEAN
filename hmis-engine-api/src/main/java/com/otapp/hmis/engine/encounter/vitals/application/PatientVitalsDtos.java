@@ -1,5 +1,7 @@
 package com.otapp.hmis.engine.encounter.vitals.application;
 
+import com.otapp.hmis.engine.encounter.consultation.domain.ConsultationStatus;
+import com.otapp.hmis.engine.encounter.vitals.domain.VitalsStatus;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
@@ -17,6 +19,7 @@ public final class PatientVitalsDtos {
             String uid,
             String consultationUid,
             String patientUid,
+            VitalsStatus status,
             Instant takenAt,
             BigDecimal temperatureC,
             Integer pulseBpm,
@@ -30,8 +33,29 @@ public final class PatientVitalsDtos {
             BigDecimal bsa,
             String bmiComment,
             String notes,
+            Instant submittedAt,
+            Instant archivedAt,
             Instant createdAt,
             Instant updatedAt) {}
+
+    /**
+     * One row of the outpatient nurse-triage worklist: a fee-settled consultation
+     * that may need vitals, enriched with who the patient is and the current
+     * status of their vitals capture (null when no row has been materialised yet).
+     */
+    public record VitalsWorklistRow(
+            Long consultationId,
+            String consultationUid,
+            String consultationNo,
+            String patientUid,
+            String patientNo,
+            String patientName,
+            ConsultationStatus consultationStatus,
+            boolean feeSettled,
+            String vitalsUid,
+            VitalsStatus vitalsStatus,
+            Instant bookedAt,
+            Instant startedAt) {}
 
     public record RecordVitalsRequest(
             @DecimalMin("25.0") @DecimalMax("45.0")  BigDecimal temperatureC,

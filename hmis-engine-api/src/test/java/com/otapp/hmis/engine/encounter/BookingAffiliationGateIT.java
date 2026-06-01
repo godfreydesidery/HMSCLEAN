@@ -57,24 +57,34 @@ class BookingAffiliationGateIT extends AuthenticatedIntegrationTest {
 
         Map<String, Object> booked = bookAs(patientUid, OPD_CLINIC_UID, clinician[1]).getBody();
         String consultationUid = (String) booked.get("uid");
+        // OPC-1: a transfer can only be raised from an IN_PROGRESS consultation.
+        openConsultation(consultationUid);
 
-        // Transfer to PED with the same clinician, who is NOT affiliated with PED → rejected.
-        ResponseEntity<Map> denied = post(
+        // Phase 1 — raise the PENDING transfer to PED (clinic only).
+        ResponseEntity<Map> transfer = post(
                 "/encounters/consultations/uid/" + consultationUid + "/transfer",
-                Map.of("targetClinicUid", PED_CLINIC_UID,
-                        "targetClinicianUsername", clinician[1], "reason", "specialist"),
+                Map.of("targetClinicUid", PED_CLINIC_UID, "reason", "specialist"),
+                Map.class);
+        assertThat(transfer.getStatusCode().is2xxSuccessful()).as("raise pending transfer").isTrue();
+        String transferUid = (String) transfer.getBody().get("uid");
+
+        // Phase 2 — the receiving-clinic membership gate fires at pickup: the
+        // chosen clinician is NOT affiliated with PED → rejected.
+        ResponseEntity<Map> denied = post(
+                "/encounters/consultations/transfers/uid/" + transferUid + "/accept",
+                Map.of("clinicianUsername", clinician[1]),
                 Map.class);
         assertThat(denied.getStatusCode().is4xxClientError())
-                .as("Transfer to a clinic the clinician is not affiliated with must be refused").isTrue();
+                .as("Accepting with a clinician not affiliated with the target clinic must be refused").isTrue();
 
-        // Affiliate with PED, then the transfer succeeds.
+        // Affiliate with PED, then the accept succeeds and books the receiver.
         assignClinician(PED_CLINIC_UID, clinician[0]);
         ResponseEntity<Map> ok = post(
-                "/encounters/consultations/uid/" + consultationUid + "/transfer",
-                Map.of("targetClinicUid", PED_CLINIC_UID,
-                        "targetClinicianUsername", clinician[1], "reason", "specialist"),
+                "/encounters/consultations/transfers/uid/" + transferUid + "/accept",
+                Map.of("clinicianUsername", clinician[1]),
                 Map.class);
         assertThat(ok.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(ok.getBody().get("clinicUid")).isEqualTo(PED_CLINIC_UID);
     }
 
     // ----- helpers -----------------------------------------------------------

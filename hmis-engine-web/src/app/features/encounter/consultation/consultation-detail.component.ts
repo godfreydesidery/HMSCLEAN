@@ -32,12 +32,15 @@ import {
 } from '../prescription/prescription.types';
 import { VitalsFormComponent } from '../vitals/vitals-form.component';
 import { VitalsService } from '../vitals/vitals.service';
-import { PatientVitals } from '../vitals/vitals.types';
+import { PatientVitals, VitalsStatus } from '../vitals/vitals.types';
 import { ConsultationClosureService } from './consultation-closure.service';
 import { ConsultationClosureModalComponent } from './consultation-closure-modal.component';
 import { CONSULTATION_CLOSURE_KINDS, ClosurePlan } from './consultation-closure.types';
 import { ConsultationService } from './consultation.service';
-import { CONSULTATION_STATUSES, Consultation, ConsultationStatus } from './consultation.types';
+import {
+  CONSULTATION_STATUSES, Consultation, ConsultationStatus, ConsultationTransfer
+} from './consultation.types';
+import { SignOutConfirmModalComponent } from './sign-out-confirm-modal.component';
 
 type TabKey = 'overview' | 'vitals' | 'notes' | 'diagnoses' | 'orders' | 'billing';
 
@@ -73,7 +76,11 @@ export class ConsultationDetailComponent {
   readonly prescriptionStatuses = PRESCRIPTION_STATUSES;
   readonly invoiceStatuses = INVOICE_STATUSES;
   readonly consultation = signal<Consultation | null>(null);
+  /** The still-PENDING transfer for a TRANSFERRED consultation (for the revert affordance). */
+  readonly pendingTransfer = signal<ConsultationTransfer | null>(null);
   readonly vitals = signal<PatientVitals[]>([]);
+  /** uid of the vitals row whose consume action is in flight (disables that row's button). */
+  readonly vitalsBusy = signal<string | null>(null);
   readonly diagnoses = signal<ConsultationDiagnosis[]>([]);
   readonly orders = signal<ClinicalOrder[]>([]);
   readonly prescriptions = signal<Prescription[]>([]);
@@ -160,6 +167,7 @@ export class ConsultationDetailComponent {
     }).subscribe({
       next: ({ consultation, vitals, note, diagnoses, orders, prescriptions, invoice }) => {
         this.consultation.set(consultation);
+        if (consultation.status === 'TRANSFERRED') this.loadPendingTransfer(consultation.uid);
         this.vitals.set(vitals);
         this.diagnoses.set(diagnoses);
         this.orders.set(orders);
@@ -192,10 +200,17 @@ export class ConsultationDetailComponent {
   complete(): void {
     const c = this.consultation();
     if (!c) return;
-    if (!globalThis.confirm('Mark this consultation as completed?')) return;
-    this.consultationService.complete(c.uid).subscribe({
-      next: (updated) => this.consultation.set(updated),
-      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not complete consultation.')
+    // Operator-confirmation gate: sign-out voids UNPAID downstream orders (paid kept).
+    const ref = this.modal.open(SignOutConfirmModalComponent, { backdrop: 'static' });
+    const inst = ref.componentInstance as SignOutConfirmModalComponent;
+    inst.patientName = c.patientName;
+    inst.patientNo = c.patientNo;
+    ref.closed.subscribe((confirmed: boolean | undefined) => {
+      if (!confirmed) return;
+      this.consultationService.complete(c.uid).subscribe({
+        next: (updated) => this.consultation.set(updated),
+        error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not complete consultation.')
+      });
     });
   }
 
@@ -290,6 +305,37 @@ export class ConsultationDetailComponent {
       next: () => this.refreshVitals(),
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not delete vitals.')
     });
+  }
+
+  /** Doctor consume: take a SUBMITTED set into the exam (SUBMITTED → ARCHIVED). */
+  consumeVitals(v: PatientVitals): void {
+    const c = this.consultation();
+    if (!c || v.status !== 'SUBMITTED' || this.vitalsBusy()) return;
+    this.vitalsBusy.set(v.uid);
+    this.errorMessage.set(null);
+    this.vitalsService.consume(c.uid, v.uid)
+      .pipe(finalize(() => this.vitalsBusy.set(null))).subscribe({
+        next: () => this.refreshVitals(),
+        error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not take vitals into the exam.')
+      });
+  }
+
+  vitalsBadgeClass(s: VitalsStatus | null): string {
+    switch (s) {
+      case 'PENDING': return 'badge text-bg-warning';
+      case 'SUBMITTED': return 'badge text-bg-info';
+      case 'ARCHIVED': return 'badge text-bg-success';
+      default: return 'badge text-bg-secondary';
+    }
+  }
+
+  vitalsLabel(s: VitalsStatus | null): string {
+    switch (s) {
+      case 'PENDING': return 'In progress';
+      case 'SUBMITTED': return 'Ready';
+      case 'ARCHIVED': return 'Recorded';
+      default: return 'Needs vitals';
+    }
   }
 
   saveNote(): void {
@@ -410,8 +456,42 @@ export class ConsultationDetailComponent {
     const ref = this.modal.open(TransferConsultationModalComponent, { size: 'lg', backdrop: 'static' });
     const inst = ref.componentInstance as TransferConsultationModalComponent;
     inst.sourceUid = c.uid;
-    ref.closed.subscribe((receiver) => {
-      if (receiver?.uid) void this.router.navigate(['/encounters/consultations', receiver.uid]);
+    // Two-phase transfer: raising it only flips the source to TRANSFERRED and queues
+    // a PENDING transfer for reception — there is no receiving consultation to open yet.
+    ref.closed.subscribe((transfer: ConsultationTransfer | undefined) => {
+      if (transfer) {
+        this.pendingTransfer.set(transfer);
+        this.refreshConsultation();
+      }
+    });
+  }
+
+  /** Find this consultation's still-PENDING transfer (for the revert affordance). */
+  private loadPendingTransfer(consultationUid: string): void {
+    this.consultationService.transferQueue({ status: 'PENDING', size: 200 }).subscribe({
+      next: (res) => this.pendingTransfer.set(
+        res.content.find((t) => t.sourceConsultationUid === consultationUid) ?? null),
+      error: () => { /* no affordance — the queue page is the primary surface */ }
+    });
+  }
+
+  /** Initiating doctor reverts a still-PENDING transfer (source returns to IN_PROGRESS). */
+  revertTransfer(): void {
+    const t = this.pendingTransfer();
+    if (!t) return;
+    const reason = globalThis.prompt('Reason for reverting this transfer?')?.trim() || null;
+    this.consultationService.cancelTransfer(t.uid, { reason }).subscribe({
+      next: (updated) => { this.consultation.set(updated); this.pendingTransfer.set(null); },
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not revert the transfer.')
+    });
+  }
+
+  private refreshConsultation(): void {
+    const c = this.consultation();
+    if (!c) return;
+    this.consultationService.findByUid(c.uid).subscribe({
+      next: (updated) => this.consultation.set(updated),
+      error: () => { /* keep previous */ }
     });
   }
 

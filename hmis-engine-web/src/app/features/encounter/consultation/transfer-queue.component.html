@@ -1,0 +1,63 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">Transfer queue</h1>
+    <p class="hmis-muted mb-0 small">Incoming consultation transfers awaiting acceptance. Accept to book the receiving consultation, or cancel to revert.</p>
+  </div>
+  <span class="hmis-muted small align-self-center">{{ totalElements() }} pending</span>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 hmis-table">
+      <thead><tr><th>Patient</th><th>From consultation</th><th>Target clinic</th><th>Reason</th><th class="hmis-muted small">Raised</th><th class="text-end"></th></tr></thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div></td></tr>
+        } @else if (rows().length === 0) {
+          <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-arrow-left-right"></i><div class="fw-semibold mb-1">Nothing pending</div><div class="small">No consultation transfers are awaiting acceptance right now.</div></div></td></tr>
+        } @else {
+          @for (t of rows(); track t.uid) {
+            <tr>
+              <td>
+                <div class="fw-semibold">{{ t.patientName || '—' }}</div>
+                @if (t.patientNo) { <div class="hmis-muted small hmis-code">{{ t.patientNo }}</div> }
+              </td>
+              <td class="hmis-code">{{ t.sourceConsultationNo || '—' }}</td>
+              <td>{{ t.targetClinicName || t.targetClinicUid }}</td>
+              <td><span class="hmis-muted small">{{ t.reason || '—' }}</span></td>
+              <td class="hmis-muted small">{{ t.createdAt | date:'short' }}</td>
+              <td class="text-end">
+                <div class="btn-group btn-group-sm">
+                  <button type="button" class="btn btn-primary d-flex align-items-center gap-1"
+                          (click)="accept(t)" [disabled]="busyUid() === t.uid">
+                    <i class="bi bi-check2"></i> Accept
+                  </button>
+                  <button type="button" class="btn btn-light border text-danger d-flex align-items-center gap-1"
+                          (click)="cancel(t)" [disabled]="busyUid() === t.uid">
+                    @if (busyUid() === t.uid) {
+                      <output class="spinner-border spinner-border-sm" aria-live="polite"><span class="visually-hidden">Cancelling</span></output>
+                    } @else { <i class="bi bi-x-circle"></i> }
+                    Cancel
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (totalPages() > 1) {
+    <div class="card-footer bg-white d-flex align-items-center justify-content-between">
+      <span class="hmis-muted small">Page {{ page() + 1 }} of {{ totalPages() }}</span>
+      <div class="btn-group btn-group-sm">
+        <button type="button" class="btn btn-light border" (click)="prev()" [disabled]="page() === 0"><i class="bi bi-chevron-left"></i> Prev</button>
+        <button type="button" class="btn btn-light border" (click)="next()" [disabled]="page() >= totalPages() - 1">Next <i class="bi bi-chevron-right"></i></button>
+      </div>
+    </div>
+  }
+</div>

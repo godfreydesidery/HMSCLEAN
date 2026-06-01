@@ -33,6 +33,19 @@ export interface ConsumableSearchParams {
   sort?: string;
 }
 
+export interface CreateConsumableRequest {
+  code: string;
+  name: string;
+  unitOfMeasure: string | null;
+  description: string | null;
+}
+
+export interface UpdateConsumableRequest {
+  name: string;
+  unitOfMeasure: string | null;
+  description: string | null;
+}
+
 // ----- Source discriminator --------------------------------------------------
 
 export type ConsumableSourceKind = 'STORE' | 'PHARMACY';

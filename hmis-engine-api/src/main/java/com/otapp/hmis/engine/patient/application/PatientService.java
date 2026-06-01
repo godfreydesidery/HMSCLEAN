@@ -12,6 +12,7 @@ import com.otapp.hmis.engine.patient.application.dto.CreatePatientRequest;
 import com.otapp.hmis.engine.patient.application.dto.PatientDto;
 import com.otapp.hmis.engine.patient.application.dto.PatientSummary;
 import com.otapp.hmis.engine.patient.application.dto.UpdatePatientRequest;
+import com.otapp.hmis.engine.patient.application.event.PatientLeftOutsiderEvent;
 import com.otapp.hmis.engine.patient.application.event.PatientRegisteredEvent;
 import com.otapp.hmis.engine.patient.domain.Gender;
 import com.otapp.hmis.engine.patient.domain.Patient;
@@ -101,13 +102,20 @@ public class PatientService {
     @Transactional
     public PatientDto changeType(String uid, PatientType type) {
         Patient patient = loadOrThrow(uid);
+        PatientType oldType = patient.getType();
         // Legacy change_type gate: block while an encounter is ongoing. No-op
         // changes (same type) are allowed through unguarded.
-        if (patient.getType() != type && encounterActivityPort.hasActiveEncounter(patient.getUid())) {
+        if (oldType != type && encounterActivityPort.hasActiveEncounter(patient.getUid())) {
             throw new BusinessRuleException(
                     "Patient has an active consultation or admission; cannot change type");
         }
         patient.setType(type);
+        // Leaving OUTSIDER → sweep the now-orphaned walk-in work (REG-2): open
+        // outsider orders / prescriptions (encounter) + the draft outsider invoice
+        // (billing). After-commit so the type change is durable first.
+        if (oldType == PatientType.OUTSIDER && type != PatientType.OUTSIDER) {
+            eventPublisher.publishEvent(new PatientLeftOutsiderEvent(patient.getUid()));
+        }
         return toDto(patient);
     }
 

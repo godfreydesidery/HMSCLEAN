@@ -18,11 +18,12 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
     @Query("""
             SELECT p FROM Patient p
             WHERE (:search IS NULL OR :search = ''
-                   OR LOWER(p.patientNo)   LIKE LOWER(CONCAT('%', :search, '%'))
-                   OR LOWER(p.firstName)   LIKE LOWER(CONCAT('%', :search, '%'))
-                   OR LOWER(p.lastName)    LIKE LOWER(CONCAT('%', :search, '%'))
-                   OR LOWER(p.phoneNo)     LIKE LOWER(CONCAT('%', :search, '%'))
-                   OR LOWER(p.nationalId)  LIKE LOWER(CONCAT('%', :search, '%')))
+                   OR LOWER(p.patientNo)    LIKE LOWER(CONCAT('%', :search, '%'))
+                   OR LOWER(p.firstName)    LIKE LOWER(CONCAT('%', :search, '%'))
+                   OR LOWER(p.lastName)     LIKE LOWER(CONCAT('%', :search, '%'))
+                   OR LOWER(p.phoneNo)      LIKE LOWER(CONCAT('%', :search, '%'))
+                   OR LOWER(p.nationalId)   LIKE LOWER(CONCAT('%', :search, '%'))
+                   OR LOWER(p.membershipNo) LIKE LOWER(CONCAT('%', :search, '%')))
               AND (:active      IS NULL OR p.active      = :active)
               AND (:gender      IS NULL OR p.gender      = :gender)
               AND (:paymentType IS NULL OR p.paymentType = :paymentType)

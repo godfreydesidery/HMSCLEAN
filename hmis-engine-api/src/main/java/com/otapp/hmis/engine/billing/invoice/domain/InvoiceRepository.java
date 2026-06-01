@@ -38,6 +38,22 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     java.util.List<Invoice> findAllOutsiderForPatient(@Param("patientUid") String patientUid);
 
     /**
+     * The patient's unpaid (DRAFT or ISSUED) OUTSIDER invoices — drives the REG-2
+     * discard when a walk-in is converted. Unlike {@link #findDraftOutsiderForPatient}
+     * this also catches an outsider bill that was issued (via the generic issue
+     * endpoint) but never paid, so it is not left orphaned. PAID / PARTIALLY_PAID /
+     * CANCELLED are excluded — they must be preserved.
+     */
+    @Query("""
+            SELECT i FROM Invoice i
+            WHERE i.patientUid = :patientUid
+              AND i.scope = com.otapp.hmis.engine.billing.invoice.domain.InvoiceScope.OUTSIDER
+              AND i.status IN (com.otapp.hmis.engine.billing.invoice.domain.InvoiceStatus.DRAFT,
+                               com.otapp.hmis.engine.billing.invoice.domain.InvoiceStatus.ISSUED)
+            """)
+    java.util.List<Invoice> findUnpaidOutsiderForPatient(@Param("patientUid") String patientUid);
+
+    /**
      * Looks up the registration invoice for a patient. There is at most one
      * (any status) — registration is a one-time fee per patient lifetime.
      */

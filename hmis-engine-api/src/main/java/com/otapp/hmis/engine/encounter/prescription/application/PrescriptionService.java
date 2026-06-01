@@ -183,6 +183,26 @@ public class PrescriptionService {
         return toDto(p);
     }
 
+    /**
+     * Cancels every open (non-SOLD) OUTSIDER prescription for a patient — scripts
+     * raised directly on the patient (no consultation). Drives the REG-2 sweep
+     * when a walk-in is converted to a registered patient; runs REQUIRES_NEW from
+     * the {@code PatientLeftOutsiderEvent} after-commit listener. Returns the count.
+     */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public int cancelOpenOutsiderForPatient(String patientUid, String reason) {
+        int cancelled = 0;
+        for (Prescription p :
+                prescriptionRepository.findAllByPatientUidAndConsultationUidIsNullOrderByRequestedAtDesc(patientUid)) {
+            if (p.getStatus() != PrescriptionStatus.SOLD
+                    && p.getStatus() != PrescriptionStatus.CANCELLED) {
+                p.cancel(reason);
+                cancelled++;
+            }
+        }
+        return cancelled;
+    }
+
     @Transactional(readOnly = true)
     public List<PrescriptionDto> listForConsultation(String consultationUid) {
         return prescriptionRepository.findAllByConsultationUidOrderByRequestedAtDesc(consultationUid).stream()

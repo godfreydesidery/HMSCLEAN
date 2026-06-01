@@ -308,6 +308,24 @@ public class InvoiceService {
     }
 
     /**
+     * Discards a patient's draft OUTSIDER (walk-in) invoice when the patient is
+     * converted out of OUTSIDER (REG-2) — the bill is orphaned because no further
+     * outsider work will be billed onto it. Only an unpaid DRAFT / ISSUED is
+     * cancelled; a settled / part-paid invoice is left untouched. REQUIRES_NEW —
+     * runs from the {@code PatientLeftOutsiderEvent} after-commit listener.
+     */
+    @org.springframework.transaction.annotation.Transactional(
+            propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void discardDraftOutsiderForPatient(String patientUid) {
+        // DRAFT and ISSUED-but-unpaid outsider invoices are both orphaned on
+        // conversion; PAID / PARTIALLY_PAID / CANCELLED are filtered out by the query.
+        for (Invoice invoice : invoiceRepository.findUnpaidOutsiderForPatient(patientUid)) {
+            invoice.cancel("Patient converted from walk-in (no longer an outsider)");
+            settlementDispatcher.onInvoiceMaybeSettled(invoice);
+        }
+    }
+
+    /**
      * Generate or regenerate the OUTSIDER (walk-in) invoice for a patient.
      * Picks up every COMPLETED outsider clinical order and every DISPENSED
      * outsider prescription for the patient that hasn't already been billed

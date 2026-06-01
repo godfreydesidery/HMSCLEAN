@@ -168,6 +168,26 @@ public class ClinicalOrderService {
         return toDto(order);
     }
 
+    /**
+     * Cancels every open (non-terminal) OUTSIDER order for a patient — orders
+     * raised directly on the patient (no consultation). Drives the REG-2 sweep
+     * when a walk-in is converted to a registered patient; runs REQUIRES_NEW from
+     * the {@code PatientLeftOutsiderEvent} after-commit listener. Returns the count.
+     */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public int cancelOpenOutsiderForPatient(String patientUid, String reason) {
+        int cancelled = 0;
+        for (ClinicalOrder order :
+                orderRepository.findAllByPatientUidAndConsultationUidIsNullOrderByRequestedAtDesc(patientUid)) {
+            if (order.getStatus() != ClinicalOrderStatus.COMPLETED
+                    && order.getStatus() != ClinicalOrderStatus.CANCELLED) {
+                order.cancel(reason);
+                cancelled++;
+            }
+        }
+        return cancelled;
+    }
+
     /** Lab / radiology rejection with a reason: REQUESTED/ACCEPTED → REJECTED (recoverable). */
     @Transactional
     public ClinicalOrderDto reject(String uid, RejectOrderRequest request) {

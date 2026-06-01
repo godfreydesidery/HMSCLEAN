@@ -32,6 +32,9 @@
       <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="edit()">
         <i class="bi bi-pencil"></i>Edit
       </button>
+      <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="changePaymentType()" title="Switch CASH / INSURANCE for this patient">
+        <i class="bi bi-cash-coin"></i>Change payment type
+      </button>
       <button type="button" class="btn btn-light border d-flex align-items-center gap-2" (click)="toggleType()" title="Switch routing between OUTPATIENT and OUTSIDER">
         <i class="bi bi-arrow-left-right"></i>{{ p.type === 'OUTSIDER' ? 'Restore to outpatient' : 'Mark as walk-in' }}
       </button>

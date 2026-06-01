@@ -14,6 +14,10 @@ export const BILLING_ROUTES: Routes = [
     loadComponent: () => import('./claims/claim-detail.component').then((m) => m.ClaimDetailComponent)
   },
   {
+    path: 'cashier',
+    loadComponent: () => import('./cashier-pay.component').then((m) => m.CashierPayComponent)
+  },
+  {
     path: 'cashier-shift',
     loadComponent: () => import('./my-shift.component').then((m) => m.MyShiftComponent)
   },

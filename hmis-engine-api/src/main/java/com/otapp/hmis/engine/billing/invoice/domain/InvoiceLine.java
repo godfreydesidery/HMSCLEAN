@@ -38,6 +38,17 @@ public class InvoiceLine extends AuditableEntity {
     @Setter @Column(nullable = false, precision = 14, scale = 2) private BigDecimal amount;
 
     /**
+     * Cash applied to THIS line (legacy {@code PatientBill.paid}). The cashier
+     * settles per line ("check to pay"), so {@code paid_amount == amount} is the
+     * per-line paid flag — and it composes with partial pay. COVERED lines are
+     * settled by the insurer via {@link Invoice#totalCovered}, never by cash, so
+     * their {@code paidAmount} stays {@link BigDecimal#ZERO}. Kept in lock-step
+     * with {@link Invoice#totalPaid}: every cash payment is allocated across lines.
+     */
+    @Column(name = "paid_amount", nullable = false, precision = 14, scale = 2)
+    private BigDecimal paidAmount = BigDecimal.ZERO;
+
+    /**
      * Per-line payer routing (legacy {@code PatientBill.status}). Defaults to
      * {@link LineCoverageStatus#UNPAID} — the cash path — and is promoted to
      * COVERED / VERIFIED by the charge-time coverage resolution.
@@ -145,5 +156,50 @@ public class InvoiceLine extends AuditableEntity {
     /** Release this line from a discarded DRAFT claim so it becomes claimable again. */
     public void releaseClaim() {
         this.claimId = null;
+    }
+
+    /**
+     * Cash still owed on this line — {@code amount - paidAmount}, floored at zero.
+     * A COVERED line owes nothing in cash (the insurer settled it up front), so it
+     * always reports zero and is never offered to the cashier.
+     */
+    public BigDecimal outstanding() {
+        if (coverageStatus == LineCoverageStatus.COVERED) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal owed = amount.subtract(paidAmount);
+        return owed.signum() <= 0 ? BigDecimal.ZERO : owed;
+    }
+
+    /**
+     * Whether this line is fully settled — a COVERED line (insurer-paid) or a cash
+     * line whose {@code paidAmount} has reached its {@code amount}. The signal
+     * {@link com.otapp.hmis.engine.billing.invoice.application.SettlementDispatcher}
+     * uses to release the line's order / prescription on its own, before the rest
+     * of the invoice is paid.
+     */
+    public boolean fullyPaid() {
+        return coverageStatus == LineCoverageStatus.COVERED
+                || paidAmount.compareTo(amount) >= 0;
+    }
+
+    /**
+     * Apply {@code value} of cash to this line. Only cash lines (UNPAID / VERIFIED)
+     * take payment — a COVERED line is the insurer's, and overshooting the line
+     * amount is rejected. The caller allocates a payment across lines so the sum of
+     * {@code paidAmount} stays equal to {@link Invoice#totalPaid}.
+     */
+    public void applyPayment(BigDecimal value) {
+        if (value == null || value.signum() <= 0) {
+            throw new BusinessRuleException("Line payment amount must be positive");
+        }
+        if (coverageStatus == LineCoverageStatus.COVERED) {
+            throw new BusinessRuleException("A COVERED line is settled by the insurer and cannot take cash");
+        }
+        BigDecimal newPaid = paidAmount.add(value);
+        if (newPaid.compareTo(amount) > 0) {
+            throw new BusinessRuleException("Payment exceeds the line balance");
+        }
+        this.paidAmount = newPaid;
     }
 }

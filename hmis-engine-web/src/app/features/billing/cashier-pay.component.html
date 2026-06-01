@@ -1,0 +1,127 @@
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <div>
+    <h1 class="h4 mb-0 d-flex align-items-center gap-2"><i class="bi bi-cash-coin"></i>Cashier</h1>
+    <p class="hmis-muted small mb-0">Find a patient, tick the bills to pay, and collect.</p>
+  </div>
+</div>
+
+<div class="card border mb-3">
+  <div class="card-body">
+    <label class="form-label fw-semibold">Patient</label>
+    <app-patient-search (selectedChange)="onPatientSelected($event)"></app-patient-search>
+  </div>
+</div>
+
+@if (receipt(); as r) {
+  <div class="alert alert-success d-flex align-items-center gap-2 py-2 px-3" role="alert">
+    <i class="bi bi-check-circle-fill"></i>
+    <span class="small">Collected <strong>{{ r.currency }} {{ r.totalCollected | number:'1.2-2' }}</strong> across {{ r.lineCount }} bill(s).</span>
+    <button type="button" class="btn-close ms-auto" aria-label="Dismiss" (click)="receipt.set(null)"></button>
+  </div>
+}
+
+@if (errorMessage(); as msg) {
+  <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3" role="alert">
+    <i class="bi bi-exclamation-triangle"></i><span class="small">{{ msg }}</span>
+  </div>
+}
+
+@if (patient()) {
+  <div class="card border">
+    <!-- Service tills -->
+    <div class="card-header bg-white d-flex flex-wrap gap-2 align-items-center">
+      <div class="btn-group btn-group-sm flex-wrap" role="group" aria-label="Service tills">
+        <button type="button" class="btn" [class.btn-primary]="activeKind() === 'ALL'"
+                [class.btn-outline-secondary]="activeKind() !== 'ALL'" (click)="setKind('ALL')">
+          All <span class="badge text-bg-light ms-1">{{ lines().length }}</span>
+        </button>
+        @for (t of tills(); track t.kind) {
+          <button type="button" class="btn d-flex align-items-center gap-1"
+                  [class.btn-primary]="activeKind() === t.kind"
+                  [class.btn-outline-secondary]="activeKind() !== t.kind" (click)="setKind(t.kind)">
+            <i class="bi {{ t.icon }}"></i>{{ t.label }} <span class="badge text-bg-light">{{ t.count }}</span>
+          </button>
+        }
+      </div>
+      <button type="button" class="btn btn-sm btn-light border ms-auto" (click)="reload()" [disabled]="loading()">
+        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+      </button>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width:2.5rem;">
+              <input type="checkbox" class="form-check-input" [checked]="allVisibleChecked()"
+                     (change)="toggleAllVisible()" [disabled]="visibleLines().length === 0"
+                     aria-label="Select all visible bills">
+            </th>
+            <th>Bill</th>
+            <th>Invoice</th>
+            <th class="text-end">Amount</th>
+            <th class="text-end">Paid</th>
+            <th class="text-end">Outstanding</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            @for (i of [1,2,3]; track i) {
+              <tr><td colspan="6"><span class="placeholder col-8"></span></td></tr>
+            }
+          } @else if (visibleLines().length === 0) {
+            <tr>
+              <td colspan="6" class="text-center hmis-muted py-4">
+                <i class="bi bi-check2-circle me-1"></i>No outstanding bills in this till.
+              </td>
+            </tr>
+          } @else {
+            @for (l of visibleLines(); track l.lineUid) {
+              <tr [class.table-active]="isChecked(l.lineUid)" (click)="toggle(l.lineUid)" style="cursor:pointer;">
+                <td (click)="$event.stopPropagation()">
+                  <input type="checkbox" class="form-check-input" [checked]="isChecked(l.lineUid)"
+                         (change)="toggle(l.lineUid)" aria-label="Select bill">
+                </td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge {{ coverageBadge(l.coverageStatus) }}"><i class="bi {{ kindMeta(l.kind).icon }} me-1"></i>{{ kindMeta(l.kind).label }}</span>
+                    <span>{{ l.description }}</span>
+                  </div>
+                </td>
+                <td><span class="hmis-code">{{ l.invoiceNo }}</span></td>
+                <td class="text-end">{{ l.currency }} {{ l.amount | number:'1.2-2' }}</td>
+                <td class="text-end hmis-muted">{{ l.paidAmount > 0 ? (l.paidAmount | number:'1.2-2') : '—' }}</td>
+                <td class="text-end fw-semibold">{{ l.outstanding | number:'1.2-2' }}</td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Selected bills summary / collect -->
+    <div class="card-footer bg-white d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <div class="small">
+        <span class="hmis-muted"><i class="bi bi-receipt me-1"></i>{{ selectedLines().length }} bill(s) selected</span>
+        @if (mixedCurrency()) {
+          <span class="text-danger ms-2"><i class="bi bi-exclamation-triangle me-1"></i>Selected bills are in different currencies — pay them separately.</span>
+        }
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        <div class="text-end">
+          <div class="hmis-muted small">Selected total</div>
+          <div class="fs-5 fw-semibold">{{ currency() }} {{ runningTotal() | number:'1.2-2' }}</div>
+        </div>
+        <button type="button" class="btn btn-success d-flex align-items-center gap-2"
+                [disabled]="selectedLines().length === 0 || mixedCurrency()" (click)="collect()">
+          <i class="bi bi-cash-coin"></i>Collect payment
+        </button>
+      </div>
+    </div>
+  </div>
+} @else {
+  <div class="text-center hmis-muted py-5">
+    <i class="bi bi-person-badge fs-1 d-block mb-2"></i>
+    Search for a patient to see their outstanding bills.
+  </div>
+}

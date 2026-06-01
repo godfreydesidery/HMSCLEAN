@@ -14,6 +14,22 @@ export type InvoiceLineKind =
   | 'CONSULTATION' | 'LAB_TEST' | 'PROCEDURE' | 'RADIOLOGY' | 'MEDICINE' | 'WARD'
   | 'REGISTRATION' | 'CONSUMABLE';
 
+/**
+ * The cashier service tills (legacy segmented payment screens): Registration |
+ * Consultation | Lab | Radiology | Procedure | Medication | Ward | Consumable.
+ * Used to segment a patient's payable lines into per-service queues.
+ */
+export const INVOICE_LINE_KINDS: { value: InvoiceLineKind; label: string; icon: string }[] = [
+  { value: 'REGISTRATION', label: 'Registration', icon: 'bi-person-plus' },
+  { value: 'CONSULTATION', label: 'Consultation', icon: 'bi-clipboard2-pulse' },
+  { value: 'LAB_TEST',     label: 'Lab',          icon: 'bi-droplet' },
+  { value: 'RADIOLOGY',    label: 'Radiology',    icon: 'bi-radioactive' },
+  { value: 'PROCEDURE',    label: 'Procedure',    icon: 'bi-scissors' },
+  { value: 'MEDICINE',     label: 'Medication',   icon: 'bi-capsule' },
+  { value: 'WARD',         label: 'Ward',         icon: 'bi-hospital' },
+  { value: 'CONSUMABLE',   label: 'Consumable',   icon: 'bi-bandaid' }
+];
+
 /** Discriminator on Invoice — what the invoice was raised for. Phase 36. */
 export type InvoiceScope = 'CONSULTATION' | 'ADMISSION' | 'OUTSIDER' | 'REGISTRATION';
 
@@ -45,6 +61,10 @@ export interface InvoiceLine {
   quantity: number;
   unitPrice: number;
   amount: number;
+  /** Cash applied to this line; paidAmount === amount means fully paid. */
+  paidAmount: number;
+  /** Cash still owed on this line (amount − paidAmount); 0 for insurer-covered. */
+  outstanding: number;
   /** Negotiable price band (null = unbounded on that side). */
   minUnitPrice: number | null;
   maxUnitPrice: number | null;
@@ -216,4 +236,43 @@ export interface CreateRefundRequest {
 
 export interface OverrideLinePriceRequest {
   unitPrice: number;
+}
+
+// ----- Cashier line-level payment (legacy "check to pay") --------------------
+
+/**
+ * One cash-payable line in a patient's cashier queue, flattened across the
+ * patient's open invoices (legacy UNPAID PatientBill). The cashier ticks these
+ * and collects `outstanding` per ticked line.
+ */
+export interface PayableLine {
+  invoiceUid: string;
+  invoiceNo: string;
+  scope: InvoiceScope;
+  lineUid: string;
+  kind: InvoiceLineKind;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+  paidAmount: number;
+  outstanding: number;
+  coverageStatus: LineCoverageStatus;
+  currency: string;
+}
+
+/** Collect cash for the ticked lines (legacy confirm_bills_payment). */
+export interface PayLinesRequest {
+  method: PaymentMethod;
+  currency: string;
+  reference: string | null;
+  note: string | null;
+  lineUids: string[];
+}
+
+export interface PayLinesResult {
+  totalCollected: number;
+  currency: string;
+  lineCount: number;
+  invoices: Invoice[];
 }

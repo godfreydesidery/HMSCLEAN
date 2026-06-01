@@ -4,6 +4,9 @@ import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.CancelInvoi
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceDto;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.InvoiceSummary;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.OverrideLinePriceRequest;
+import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.PayLinesRequest;
+import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.PayLinesResult;
+import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.PayableLineDto;
 import com.otapp.hmis.engine.billing.invoice.application.InvoiceDtos.RecordPaymentRequest;
 import com.otapp.hmis.engine.billing.invoice.domain.Invoice;
 import com.otapp.hmis.engine.billing.invoice.domain.InvoiceLine;
@@ -53,8 +56,11 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -472,10 +478,169 @@ public class InvoiceService {
                 emptyToNull(request.note()));
         paymentRepository.save(payment);
         invoice.applyPayment(request.amount());
-        // If this payment fully settled the invoice, push the settled state to
-        // the encounter module (consultation-fee gate, dispensed prescriptions).
+        // Keep per-line paidAmount in lock-step with the invoice total: allocate this
+        // whole-invoice payment across the open lines (oldest first), so the cashier's
+        // line view stays accurate and each line it fully covers releases its order /
+        // Rx — legacy settled per bill, and we mirror that even for a lump payment.
+        allocateAcrossLines(
+                invoiceLineRepository.findAllByInvoiceUidOrderByCreatedAtAsc(invoice.getUid()),
+                request.amount());
+        // If this payment fully settled the invoice (or any line), push the settled
+        // state to the encounter module (consultation-fee gate, dispensed prescriptions).
         settlementDispatcher.onInvoiceMaybeSettled(invoice);
         return toDto(invoice);
+    }
+
+    /**
+     * A patient's cash-payable lines across all open outpatient invoices — the
+     * cashier "check to pay" queue (legacy {@code get_*_bills}). Optionally narrowed
+     * to a single service kind (the per-service tills). COVERED / fully-paid lines,
+     * DRAFT / CANCELLED / settled invoices, and ADMISSION invoices are excluded by
+     * the query (admission charges settle through the admission's own billing).
+     *
+     * <p>Per-line {@code outstanding} is {@code amount - paidAmount}. Because credit
+     * notes are invoice-level (not line-linked), a partially-credited invoice can
+     * list lines whose outstanding sums above the invoice's own balance; this is a
+     * display-only over-count — {@link #payLinesForPatient} always caps collection at
+     * the invoice balance, and once the invoice is settled its lines drop off here.
+     */
+    @Transactional(readOnly = true)
+    public List<PayableLineDto> payableLinesForPatient(String patientUid, InvoiceLineKind kind) {
+        List<InvoiceLine> lines = invoiceLineRepository.findPayableLinesForPatient(patientUid);
+        Map<String, Invoice> invoiceCache = new HashMap<>();
+        List<PayableLineDto> out = new ArrayList<>();
+        for (InvoiceLine l : lines) {
+            if (kind != null && l.getKind() != kind) {
+                continue;
+            }
+            Invoice inv = invoiceCache.computeIfAbsent(l.getInvoiceUid(),
+                    u -> invoiceRepository.findByUid(u).orElse(null));
+            if (inv == null) {
+                continue;
+            }
+            out.add(new PayableLineDto(
+                    inv.getUid(), inv.getInvoiceNo(), inv.getScope(),
+                    l.getUid(), l.getKind(), l.getDescription(),
+                    l.getQuantity(), l.getUnitPrice(), l.getAmount(),
+                    l.getPaidAmount(), l.outstanding(), l.getCoverageStatus(), inv.getCurrency()));
+        }
+        return out;
+    }
+
+    /**
+     * Collect cash for a selected set of a patient's payable lines (legacy
+     * {@code confirm_bills_payment} over the ticked bills). Each selected line is
+     * settled to its full outstanding; lines may span several invoices, so they are
+     * grouped and one {@link Payment} is written per invoice, capped at that
+     * invoice's balance. Settling a line releases its order / Rx immediately,
+     * before the rest of the invoice is paid.
+     */
+    @Transactional
+    public PayLinesResult payLinesForPatient(String patientUid, PayLinesRequest request) {
+        // Resolve the distinct selected lines (preserve order, drop duplicates) and
+        // group them by invoice — one Payment per invoice.
+        Map<String, List<InvoiceLine>> byInvoice = new LinkedHashMap<>();
+        Set<String> seenLines = new HashSet<>();
+        for (String lineUid : request.lineUids()) {
+            if (lineUid == null || !seenLines.add(lineUid)) {
+                continue;
+            }
+            InvoiceLine line = invoiceLineRepository.findByUid(lineUid)
+                    .orElseThrow(() -> new NotFoundException("Invoice line not found: " + lineUid));
+            byInvoice.computeIfAbsent(line.getInvoiceUid(), k -> new ArrayList<>()).add(line);
+        }
+        if (byInvoice.isEmpty()) {
+            throw new BusinessRuleException("No lines selected for payment");
+        }
+
+        // Validation pass — reject the whole request before mutating anything: the
+        // client may post arbitrary line uids, so re-check ownership, currency, that
+        // each invoice is collectable (not DRAFT / CANCELLED), and that no line is a
+        // COVERED (insurer-settled) line. Validating up front means no Payment row or
+        // paidAmount is written for a request that is going to be rejected.
+        Map<String, Invoice> invoices = new LinkedHashMap<>();
+        for (Map.Entry<String, List<InvoiceLine>> entry : byInvoice.entrySet()) {
+            Invoice invoice = loadOrThrow(entry.getKey());
+            if (!invoice.getPatientUid().equals(patientUid)) {
+                throw new BusinessRuleException(
+                        "Line " + entry.getValue().get(0).getUid() + " does not belong to patient " + patientUid);
+            }
+            if (!invoice.getCurrency().equals(request.currency())) {
+                throw new BusinessRuleException("Payment currency " + request.currency()
+                        + " does not match invoice currency " + invoice.getCurrency());
+            }
+            if (invoice.getStatus() == InvoiceStatus.DRAFT || invoice.getStatus() == InvoiceStatus.CANCELLED) {
+                throw new BusinessRuleException(
+                        "Cannot collect on a " + invoice.getStatus() + " invoice (" + invoice.getInvoiceNo() + ")");
+            }
+            for (InvoiceLine line : entry.getValue()) {
+                if (line.getCoverageStatus() == com.otapp.hmis.engine.billing.invoice.domain.LineCoverageStatus.COVERED) {
+                    throw new BusinessRuleException(
+                            "Line " + line.getUid() + " is insurer-covered and cannot take cash");
+                }
+            }
+            invoices.put(entry.getKey(), invoice);
+        }
+
+        // Collection pass.
+        BigDecimal totalCollected = BigDecimal.ZERO;
+        int lineCount = 0;
+        List<InvoiceDto> affected = new ArrayList<>();
+
+        for (Map.Entry<String, List<InvoiceLine>> entry : byInvoice.entrySet()) {
+            Invoice invoice = invoices.get(entry.getKey());
+            // Collect each line to its full outstanding, but never more than the
+            // invoice still owes (a mid-stream credit note can leave line residuals
+            // above the invoice balance).
+            BigDecimal cap = invoice.balance();
+            BigDecimal toCollect = BigDecimal.ZERO;
+            for (InvoiceLine line : entry.getValue()) {
+                BigDecimal due = line.outstanding().min(cap.subtract(toCollect));
+                if (due.signum() <= 0) {
+                    continue;
+                }
+                line.applyPayment(due);
+                toCollect = toCollect.add(due);
+                lineCount++;
+            }
+            if (toCollect.signum() <= 0) {
+                continue; // every selected line on this invoice was already settled
+            }
+
+            Payment payment = new Payment(
+                    paymentNumberGenerator.next(), invoice.getUid(), request.method(),
+                    toCollect, request.currency(),
+                    emptyToNull(request.reference()), emptyToNull(request.note()));
+            paymentRepository.save(payment);
+            invoice.applyPayment(toCollect);
+            settlementDispatcher.onInvoiceMaybeSettled(invoice);
+            totalCollected = totalCollected.add(toCollect);
+            affected.add(toDto(invoice));
+        }
+
+        if (totalCollected.signum() <= 0) {
+            throw new BusinessRuleException("Selected lines are already settled — nothing to collect");
+        }
+        return new PayLinesResult(totalCollected, request.currency(), lineCount, affected);
+    }
+
+    /**
+     * Distribute {@code amount} of cash across {@code lines} oldest-first, filling
+     * each line's outstanding before moving on (legacy per-bill settlement).
+     * COVERED / already-paid lines (zero outstanding) are skipped. The caller
+     * guarantees {@code amount} fits within the lines' total outstanding.
+     */
+    private static void allocateAcrossLines(List<InvoiceLine> lines, BigDecimal amount) {
+        BigDecimal remaining = amount;
+        for (InvoiceLine line : lines) {
+            BigDecimal due = line.outstanding();
+            if (remaining.signum() <= 0 || due.signum() <= 0) {
+                continue;
+            }
+            BigDecimal portion = due.min(remaining);
+            line.applyPayment(portion);
+            remaining = remaining.subtract(portion);
+        }
     }
 
     @Transactional(readOnly = true)

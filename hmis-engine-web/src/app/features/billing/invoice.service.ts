@@ -7,7 +7,8 @@ import { environment } from '../../../environments/environment';
 import { PageResponse } from '../../core/http/page.types';
 import {
   AdmissionBillingSummary, CreateCreditNoteRequest, CreateRefundRequest, CreditNote, Invoice,
-  InvoiceSearchParams, InvoiceSummary, OverrideLinePriceRequest, RecordPaymentRequest, Refund
+  InvoiceLineKind, InvoiceSearchParams, InvoiceSummary, OverrideLinePriceRequest, PayableLine,
+  PayLinesRequest, PayLinesResult, RecordPaymentRequest, Refund
 } from './invoice.types';
 
 @Injectable({ providedIn: 'root' })
@@ -82,6 +83,20 @@ export class InvoiceService {
 
   recordPayment(uid: string, req: RecordPaymentRequest): Observable<Invoice> {
     return this.http.post<Invoice>(`${this.base}/invoices/uid/${uid}/payments`, req);
+  }
+
+  // ----- cashier line-level payment (legacy patient-first "check to pay") ------
+
+  /** A patient's cash-payable lines across all open invoices; `kind` segments by service till. */
+  payableLines(patientUid: string, kind?: InvoiceLineKind): Observable<PayableLine[]> {
+    let p = new HttpParams();
+    if (kind) p = p.set('kind', kind);
+    return this.http.get<PayableLine[]>(`${this.base}/patients/uid/${patientUid}/payable-lines`, { params: p });
+  }
+
+  /** Collect cash for a selected set of the patient's payable lines (legacy confirm_bills_payment). */
+  payLines(patientUid: string, req: PayLinesRequest): Observable<PayLinesResult> {
+    return this.http.post<PayLinesResult>(`${this.base}/patients/uid/${patientUid}/pay-lines`, req);
   }
 
   /** Renegotiate a line's unit price within its [min,max] band; returns the updated invoice. */

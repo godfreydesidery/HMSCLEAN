@@ -5,8 +5,8 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   AdjustConsumableRequest, Consumable, ConsumableIssue, ConsumableSearchParams,
-  ConsumableSourceKind, ConsumableStockBalanceDto, IssueConsumableRequest, PageResponse,
-  ReceiveConsumableRequest
+  ConsumableSourceKind, ConsumableStockBalanceDto, CreateConsumableRequest, IssueConsumableRequest,
+  PageResponse, ReceiveConsumableRequest, UpdateConsumableRequest
 } from './consumable.types';
 
 /** Consumable masterdata. */
@@ -24,6 +24,12 @@ export class ConsumableMasterdataService {
     if (params.sort)             p = p.set('sort', params.sort);
     return this.http.get<PageResponse<Consumable>>(this.base, { params: p });
   }
+
+  findByUid(uid: string): Observable<Consumable> { return this.http.get<Consumable>(`${this.base}/uid/${uid}`); }
+  create(req: CreateConsumableRequest): Observable<Consumable> { return this.http.post<Consumable>(this.base, req); }
+  update(uid: string, req: UpdateConsumableRequest): Observable<Consumable> { return this.http.put<Consumable>(`${this.base}/uid/${uid}`, req); }
+  setActive(uid: string, active: boolean): Observable<Consumable> { return this.http.put<Consumable>(`${this.base}/uid/${uid}/active`, { active }); }
+  delete(uid: string): Observable<void> { return this.http.delete<void>(`${this.base}/uid/${uid}`); }
 }
 
 /** Patient consumable chart (issues against an admission). */

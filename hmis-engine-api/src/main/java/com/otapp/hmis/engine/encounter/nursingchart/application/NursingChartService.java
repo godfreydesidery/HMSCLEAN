@@ -6,18 +6,26 @@ import com.otapp.hmis.engine.encounter.admission.domain.Admission;
 import com.otapp.hmis.engine.encounter.admission.domain.AdmissionRepository;
 import com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus;
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.CancelCarePlanItemRequest;
+import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.CareActivityEntryDto;
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.CarePlanItemDto;
+import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.CreateCareActivityEntryRequest;
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.CreateCarePlanItemRequest;
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.CreateDressingEntryRequest;
+import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.CreateFluidBalanceEntryRequest;
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.CreateVitalsEntryRequest;
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.DressingEntryDto;
+import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.FluidBalanceEntryDto;
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.ResolveCarePlanItemRequest;
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.UpdateCarePlanItemRequest;
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.VitalsEntryDto;
 import com.otapp.hmis.engine.encounter.nursingchart.domain.AdmissionVitalsEntry;
 import com.otapp.hmis.engine.encounter.nursingchart.domain.AdmissionVitalsEntryRepository;
+import com.otapp.hmis.engine.encounter.nursingchart.domain.CareActivityEntry;
+import com.otapp.hmis.engine.encounter.nursingchart.domain.CareActivityEntryRepository;
 import com.otapp.hmis.engine.encounter.nursingchart.domain.DressingChartEntry;
 import com.otapp.hmis.engine.encounter.nursingchart.domain.DressingChartEntryRepository;
+import com.otapp.hmis.engine.encounter.nursingchart.domain.FluidBalanceEntry;
+import com.otapp.hmis.engine.encounter.nursingchart.domain.FluidBalanceEntryRepository;
 import com.otapp.hmis.engine.encounter.nursingchart.domain.NursingCarePlanItem;
 import com.otapp.hmis.engine.encounter.nursingchart.domain.NursingCarePlanItemRepository;
 import java.util.List;
@@ -40,6 +48,8 @@ public class NursingChartService {
     private final AdmissionVitalsEntryRepository vitalsRepository;
     private final NursingCarePlanItemRepository carePlanRepository;
     private final DressingChartEntryRepository dressingRepository;
+    private final FluidBalanceEntryRepository fluidBalanceRepository;
+    private final CareActivityEntryRepository careActivityRepository;
 
     // ==================================================================
     // Observation chart (vitals)
@@ -144,6 +154,51 @@ public class NursingChartService {
     }
 
     // ==================================================================
+    // Fluid-balance chart (intake / output)
+    // ==================================================================
+
+    @Transactional
+    public FluidBalanceEntryDto recordFluidBalance(String admissionUid, CreateFluidBalanceEntryRequest request) {
+        requireOpenAdmission(admissionUid);
+        FluidBalanceEntry entry = fluidBalanceRepository.save(new FluidBalanceEntry(
+                admissionUid, currentUsername(),
+                request.intakeMl(), request.urineOutputMl(), request.drainageOutputMl(),
+                emptyToNull(request.notes())));
+        return toDto(entry);
+    }
+
+    @Transactional(readOnly = true)
+    public List<FluidBalanceEntryDto> listFluidBalance(String admissionUid) {
+        loadAdmission(admissionUid);
+        return fluidBalanceRepository.findByAdmissionUidOrderByRecordedAtDesc(admissionUid).stream()
+                .map(NursingChartService::toDto)
+                .toList();
+    }
+
+    // ==================================================================
+    // Care-activity chart (per-shift tasks + bedside blood sugar)
+    // ==================================================================
+
+    @Transactional
+    public CareActivityEntryDto recordCareActivity(String admissionUid, CreateCareActivityEntryRequest request) {
+        requireOpenAdmission(admissionUid);
+        CareActivityEntry entry = careActivityRepository.save(new CareActivityEntry(
+                admissionUid, currentUsername(),
+                request.feedingDone(), request.positionChanged(), request.bedBathDone(),
+                request.randomBloodSugarMmol(), request.fastingBloodSugarMmol(),
+                emptyToNull(request.notes())));
+        return toDto(entry);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CareActivityEntryDto> listCareActivity(String admissionUid) {
+        loadAdmission(admissionUid);
+        return careActivityRepository.findByAdmissionUidOrderByRecordedAtDesc(admissionUid).stream()
+                .map(NursingChartService::toDto)
+                .toList();
+    }
+
+    // ==================================================================
     // Helpers + mapping
     // ==================================================================
 
@@ -193,6 +248,24 @@ public class NursingChartService {
                 d.getRecordedAt(), d.getRecordedByUsername(),
                 d.getWoundLocation(), d.getWoundStatus(), d.getDressingApplied(),
                 d.getNotes(), d.getCreatedAt());
+    }
+
+    private static FluidBalanceEntryDto toDto(FluidBalanceEntry e) {
+        return new FluidBalanceEntryDto(
+                e.getUid(), e.getAdmissionUid(),
+                e.getRecordedAt(), e.getRecordedByUsername(),
+                e.getIntakeMl(), e.getUrineOutputMl(), e.getDrainageOutputMl(),
+                e.outputMl(), e.netMl(),
+                e.getNotes(), e.getCreatedAt());
+    }
+
+    private static CareActivityEntryDto toDto(CareActivityEntry e) {
+        return new CareActivityEntryDto(
+                e.getUid(), e.getAdmissionUid(),
+                e.getRecordedAt(), e.getRecordedByUsername(),
+                e.isFeedingDone(), e.isPositionChanged(), e.isBedBathDone(),
+                e.getRandomBloodSugarMmol(), e.getFastingBloodSugarMmol(),
+                e.getNotes(), e.getCreatedAt());
     }
 
     private static String currentUsername() {

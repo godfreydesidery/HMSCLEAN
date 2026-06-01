@@ -95,4 +95,50 @@ public final class NursingChartDtos {
             @NotNull  WoundStatus woundStatus,
             @NotBlank @Size(max = 500)  String dressingApplied,
             @Size(max = 1000) String notes) {}
+
+    // -------------------------------------------------------- fluid balance
+
+    public record FluidBalanceEntryDto(
+            String uid,
+            String admissionUid,
+            Instant recordedAt,
+            String recordedByUsername,
+            Integer intakeMl,
+            Integer urineOutputMl,
+            Integer drainageOutputMl,
+            /** Urine + drainage for this entry. */
+            int outputMl,
+            /** Intake − total output for this entry (can be negative). */
+            int netMl,
+            String notes,
+            Instant createdAt) {}
+
+    public record CreateFluidBalanceEntryRequest(
+            @Min(0) @Max(100000) Integer intakeMl,
+            @Min(0) @Max(100000) Integer urineOutputMl,
+            @Min(0) @Max(100000) Integer drainageOutputMl,
+            @Size(max = 500) String notes) {}
+
+    // -------------------------------------------------------- care activity
+
+    public record CareActivityEntryDto(
+            String uid,
+            String admissionUid,
+            Instant recordedAt,
+            String recordedByUsername,
+            boolean feedingDone,
+            boolean positionChanged,
+            boolean bedBathDone,
+            BigDecimal randomBloodSugarMmol,
+            BigDecimal fastingBloodSugarMmol,
+            String notes,
+            Instant createdAt) {}
+
+    public record CreateCareActivityEntryRequest(
+            boolean feedingDone,
+            boolean positionChanged,
+            boolean bedBathDone,
+            BigDecimal randomBloodSugarMmol,
+            BigDecimal fastingBloodSugarMmol,
+            @Size(max = 500) String notes) {}
 }

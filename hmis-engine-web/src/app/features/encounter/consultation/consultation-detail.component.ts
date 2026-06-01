@@ -113,6 +113,8 @@ export class ConsultationDetailComponent {
   });
   /** Once a visit is complete the next visit is a follow-up; before then it's just the current one. */
   readonly canFollowUp = computed(() => this.consultation()?.status === 'COMPLETED');
+  /** Legacy "Send To Ward" — admit straight from the live consultation. */
+  readonly canSendToWard = computed(() => this.consultation()?.status === 'IN_PROGRESS');
   // Clinical authoring (notes/orders/Rx/diagnoses) is IN_PROGRESS-only — mirror the
   // server gate (Consultation.requireAuthorable) via the DTO's authorable flag, so a
   // BOOKED consultation correctly disables authoring instead of erroring on save.
@@ -342,6 +344,16 @@ export class ConsultationDetailComponent {
     if (!c) return;
     void this.router.navigate(['/encounters/consultations/new'], {
       queryParams: { patientUid: c.patientUid, followUpOf: c.uid }
+    });
+  }
+
+  /** Admit the patient to a ward straight from the consultation (legacy "Send To Ward"):
+   *  opens the admit form pre-filled with this patient + consultation. */
+  sendToWard(): void {
+    const c = this.consultation();
+    if (!c) return;
+    void this.router.navigate(['/encounters/admissions/new'], {
+      queryParams: { patientUid: c.patientUid, consultationUid: c.uid }
     });
   }
 

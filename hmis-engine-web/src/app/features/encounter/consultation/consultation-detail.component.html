@@ -32,6 +32,11 @@
             <i class="bi bi-cash-coin"></i>Fee unpaid — awaiting cashier
           </span>
         }
+        @if (canSendToWard()) {
+          <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2" (click)="sendToWard()">
+            <i class="bi bi-hospital"></i>Send to ward
+          </button>
+        }
         @if (canComplete()) {
           <button type="button" class="btn btn-success d-flex align-items-center gap-2" (click)="complete()">
             <i class="bi bi-check2-all"></i>Complete

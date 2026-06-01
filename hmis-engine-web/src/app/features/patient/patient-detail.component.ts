@@ -14,6 +14,7 @@ import {
 } from '../encounter/consultation/consultation.types';
 import { AddOrderComponent } from '../encounter/order/add-order.component';
 import { AddPrescriptionComponent } from '../encounter/prescription/add-prescription.component';
+import { ChangePaymentTypeComponent } from './change-payment-type.component';
 import { PatientService } from './patient.service';
 import { GENDERS, Gender, PATIENT_TYPES, PAYMENT_TYPES, Patient, PatientType, PaymentType } from './patient.types';
 
@@ -145,6 +146,13 @@ export class PatientDetailComponent {
       next: (updated) => this.patient.set(updated),
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not change patient type.')
     });
+  }
+
+  changePaymentType(): void {
+    const p = this.patient(); if (!p) return;
+    const ref = this.modal.open(ChangePaymentTypeComponent, { backdrop: 'static' });
+    (ref.componentInstance as ChangePaymentTypeComponent).patient = p;
+    ref.closed.subscribe((updated: Patient | undefined) => { if (updated) this.patient.set(updated); });
   }
 
   raiseOutsiderOrder(): void {

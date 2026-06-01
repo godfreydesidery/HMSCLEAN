@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../../../../environments/environment';
 import { PageResponse } from '../../../core/http/page.types';
-import { PatientVitals, RecordVitalsRequest, VitalsWorklistRow } from './vitals.types';
+import { PatientVitals, SaveVitalsRequest, VitalsWorklistRow } from './vitals.types';
 
 @Injectable({ providedIn: 'root' })
 export class VitalsService {
@@ -20,7 +20,7 @@ export class VitalsService {
   }
 
   /** Nurse fill / save — create-or-update the open row, leaving it PENDING. */
-  record(consultationUid: string, req: RecordVitalsRequest): Observable<PatientVitals> {
+  save(consultationUid: string, req: SaveVitalsRequest): Observable<PatientVitals> {
     return this.http.post<PatientVitals>(this.base(consultationUid), req);
   }
 

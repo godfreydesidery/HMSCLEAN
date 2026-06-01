@@ -23,6 +23,9 @@ public interface ClinicalOrderRepository extends JpaRepository<ClinicalOrder, Lo
 
     boolean existsByPatientUidAndConsultationUidIsNullAndKindAndServiceUid(String patientUid, ClinicalOrderKind kind, String serviceUid);
 
+    /** Un-acted-order guard for consultation transfer (OPC-1, legacy parity). */
+    boolean existsByConsultationUidAndStatus(String consultationUid, ClinicalOrderStatus status);
+
     /**
      * Cross-patient worklist for the Orders &amp; Results module — optional
      * kind / status / patient-class filters and the pay-before-service gate.

@@ -90,7 +90,7 @@ export class VitalsFormComponent implements OnInit {
     this.submitting.set(true);
     this.errorMessage.set(null);
     const v = this.form.value;
-    this.vitalsService.record(this.consultationUid, {
+    this.vitalsService.save(this.consultationUid, {
       temperatureC: v.temperatureC ?? null,
       pulseBpm: v.pulseBpm ?? null,
       respirationBpm: v.respirationBpm ?? null,

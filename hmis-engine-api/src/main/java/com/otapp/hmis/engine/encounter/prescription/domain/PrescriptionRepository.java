@@ -13,6 +13,9 @@ public interface PrescriptionRepository extends JpaRepository<Prescription, Long
 
     Optional<Prescription> findByUid(String uid);
 
+    /** Un-acted-prescription guard for consultation transfer (OPC-1, legacy parity). */
+    boolean existsByConsultationUidAndStatus(String consultationUid, PrescriptionStatus status);
+
     List<Prescription> findAllByConsultationUidOrderByRequestedAtDesc(String consultationUid);
 
     /** Prescriptions raised directly on a patient (consultation_uid IS NULL — OUTSIDER pathway). */

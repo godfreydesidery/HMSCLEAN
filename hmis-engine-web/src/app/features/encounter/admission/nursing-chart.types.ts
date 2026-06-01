@@ -97,3 +97,51 @@ export interface CreateDressingEntryRequest {
   dressingApplied: string;
   notes: string | null;
 }
+
+// ----- fluid balance --------------------------------------------------------
+
+export interface FluidBalanceEntry {
+  uid: string;
+  admissionUid: string;
+  recordedAt: string;
+  recordedByUsername: string | null;
+  intakeMl: number | null;
+  urineOutputMl: number | null;
+  drainageOutputMl: number | null;
+  outputMl: number;
+  netMl: number;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface CreateFluidBalanceEntryRequest {
+  intakeMl: number | null;
+  urineOutputMl: number | null;
+  drainageOutputMl: number | null;
+  notes: string | null;
+}
+
+// ----- care activity --------------------------------------------------------
+
+export interface CareActivityEntry {
+  uid: string;
+  admissionUid: string;
+  recordedAt: string;
+  recordedByUsername: string | null;
+  feedingDone: boolean;
+  positionChanged: boolean;
+  bedBathDone: boolean;
+  randomBloodSugarMmol: number | null;
+  fastingBloodSugarMmol: number | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface CreateCareActivityEntryRequest {
+  feedingDone: boolean;
+  positionChanged: boolean;
+  bedBathDone: boolean;
+  randomBloodSugarMmol: number | null;
+  fastingBloodSugarMmol: number | null;
+  notes: string | null;
+}

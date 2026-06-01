@@ -24,12 +24,14 @@ import { RecordAdministrationModalComponent } from './record-administration-moda
 import { ProgressNoteService } from './progress-note.service';
 import { PROGRESS_NOTE_KINDS, ProgressNote, ProgressNoteKind } from './progress-note.types';
 import { NursingChartService } from './nursing-chart.service';
-import { CARE_PLAN_STATUSES, CarePlanItem, CarePlanStatus, DressingEntry, VitalsEntry, WOUND_STATUSES, WoundStatus } from './nursing-chart.types';
+import { CARE_PLAN_STATUSES, CareActivityEntry, CarePlanItem, CarePlanStatus, DressingEntry, FluidBalanceEntry, VitalsEntry, WOUND_STATUSES, WoundStatus } from './nursing-chart.types';
 import { RecordVitalsModalComponent } from './record-vitals-modal.component';
 import { RecordDressingModalComponent } from './record-dressing-modal.component';
+import { RecordFluidBalanceModalComponent } from './record-fluid-balance-modal.component';
+import { RecordCareActivityModalComponent } from './record-care-activity-modal.component';
 import { CarePlanItemModalComponent } from './care-plan-item-modal.component';
 
-type TabKey = 'overview' | 'notes' | 'vitals' | 'care-plan' | 'dressings' | 'meds' | 'consumables' | 'billing';
+type TabKey = 'overview' | 'notes' | 'vitals' | 'care-plan' | 'dressings' | 'fluid' | 'care-activity' | 'meds' | 'consumables' | 'billing';
 
 @Component({
   selector: 'app-admission-detail',
@@ -70,6 +72,10 @@ export class AdmissionDetailComponent {
   readonly carePlanLoaded = signal(false);
   readonly dressings = signal<DressingEntry[]>([]);
   readonly dressingsLoaded = signal(false);
+  readonly fluidBalance = signal<FluidBalanceEntry[]>([]);
+  readonly fluidBalanceLoaded = signal(false);
+  readonly careActivity = signal<CareActivityEntry[]>([]);
+  readonly careActivityLoaded = signal(false);
   readonly billingSummary = signal<AdmissionBillingSummary | null>(null);
 
   readonly loading = signal(true);
@@ -148,6 +154,8 @@ export class AdmissionDetailComponent {
     if (tab === 'vitals' && !this.vitalsLoaded()) this.loadVitals();
     if (tab === 'care-plan' && !this.carePlanLoaded()) this.loadCarePlan();
     if (tab === 'dressings' && !this.dressingsLoaded()) this.loadDressings();
+    if (tab === 'fluid' && !this.fluidBalanceLoaded()) this.loadFluidBalance();
+    if (tab === 'care-activity' && !this.careActivityLoaded()) this.loadCareActivity();
   }
 
   private loadMeds(): void {
@@ -179,6 +187,22 @@ export class AdmissionDetailComponent {
     this.nursingChartService.listDressings(a.uid).subscribe({
       next: (rows) => { this.dressings.set(rows); this.dressingsLoaded.set(true); },
       error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load dressings.')
+    });
+  }
+
+  private loadFluidBalance(): void {
+    const a = this.admission(); if (!a) return;
+    this.nursingChartService.listFluidBalance(a.uid).subscribe({
+      next: (rows) => { this.fluidBalance.set(rows); this.fluidBalanceLoaded.set(true); },
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load the fluid-balance chart.')
+    });
+  }
+
+  private loadCareActivity(): void {
+    const a = this.admission(); if (!a) return;
+    this.nursingChartService.listCareActivity(a.uid).subscribe({
+      next: (rows) => { this.careActivity.set(rows); this.careActivityLoaded.set(true); },
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not load the care-activity chart.')
     });
   }
 
@@ -215,6 +239,24 @@ export class AdmissionDetailComponent {
     (ref.componentInstance as RecordDressingModalComponent).admissionUid = a.uid;
     ref.closed.subscribe((entry?: DressingEntry) => {
       if (entry) { this.dressings.update((rows) => [entry, ...rows]); this.dressingsLoaded.set(true); }
+    });
+  }
+
+  openRecordFluidBalance(): void {
+    const a = this.admission(); if (!a) return;
+    const ref = this.modal.open(RecordFluidBalanceModalComponent, { size: 'lg', backdrop: 'static' });
+    (ref.componentInstance as RecordFluidBalanceModalComponent).admissionUid = a.uid;
+    ref.closed.subscribe((entry?: FluidBalanceEntry) => {
+      if (entry) { this.fluidBalance.update((rows) => [entry, ...rows]); this.fluidBalanceLoaded.set(true); }
+    });
+  }
+
+  openRecordCareActivity(): void {
+    const a = this.admission(); if (!a) return;
+    const ref = this.modal.open(RecordCareActivityModalComponent, { size: 'lg', backdrop: 'static' });
+    (ref.componentInstance as RecordCareActivityModalComponent).admissionUid = a.uid;
+    ref.closed.subscribe((entry?: CareActivityEntry) => {
+      if (entry) { this.careActivity.update((rows) => [entry, ...rows]); this.careActivityLoaded.set(true); }
     });
   }
 

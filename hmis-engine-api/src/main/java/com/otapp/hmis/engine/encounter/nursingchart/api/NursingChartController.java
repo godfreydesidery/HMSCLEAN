@@ -1,11 +1,15 @@
 package com.otapp.hmis.engine.encounter.nursingchart.api;
 
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.CancelCarePlanItemRequest;
+import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.CareActivityEntryDto;
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.CarePlanItemDto;
+import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.CreateCareActivityEntryRequest;
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.CreateCarePlanItemRequest;
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.CreateDressingEntryRequest;
+import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.CreateFluidBalanceEntryRequest;
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.CreateVitalsEntryRequest;
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.DressingEntryDto;
+import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.FluidBalanceEntryDto;
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.ResolveCarePlanItemRequest;
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.UpdateCarePlanItemRequest;
 import com.otapp.hmis.engine.encounter.nursingchart.application.NursingChartDtos.VitalsEntryDto;
@@ -81,5 +85,31 @@ public class NursingChartController {
     public ResponseEntity<DressingEntryDto> recordDressing(@PathVariable String admissionUid,
                                                            @Valid @RequestBody CreateDressingEntryRequest request) {
         return ResponseEntity.ok(service.recordDressing(admissionUid, request));
+    }
+
+    // ----- fluid-balance chart ---------------------------------------------
+
+    @GetMapping("/encounters/admissions/uid/{admissionUid}/fluid-balance")
+    public ResponseEntity<List<FluidBalanceEntryDto>> listFluidBalance(@PathVariable String admissionUid) {
+        return ResponseEntity.ok(service.listFluidBalance(admissionUid));
+    }
+
+    @PostMapping("/encounters/admissions/uid/{admissionUid}/fluid-balance")
+    public ResponseEntity<FluidBalanceEntryDto> recordFluidBalance(@PathVariable String admissionUid,
+                                                                   @Valid @RequestBody CreateFluidBalanceEntryRequest request) {
+        return ResponseEntity.ok(service.recordFluidBalance(admissionUid, request));
+    }
+
+    // ----- care-activity chart ---------------------------------------------
+
+    @GetMapping("/encounters/admissions/uid/{admissionUid}/care-activities")
+    public ResponseEntity<List<CareActivityEntryDto>> listCareActivity(@PathVariable String admissionUid) {
+        return ResponseEntity.ok(service.listCareActivity(admissionUid));
+    }
+
+    @PostMapping("/encounters/admissions/uid/{admissionUid}/care-activities")
+    public ResponseEntity<CareActivityEntryDto> recordCareActivity(@PathVariable String admissionUid,
+                                                                   @Valid @RequestBody CreateCareActivityEntryRequest request) {
+        return ResponseEntity.ok(service.recordCareActivity(admissionUid, request));
     }
 }

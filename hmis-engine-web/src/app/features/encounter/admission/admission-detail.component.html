@@ -48,6 +48,8 @@
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'vitals'" (click)="setTab('vitals')"><i class="bi bi-thermometer-half me-1"></i>Vitals</button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'care-plan'" (click)="setTab('care-plan')"><i class="bi bi-clipboard2-pulse me-1"></i>Care plan</button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'dressings'" (click)="setTab('dressings')"><i class="bi bi-bandaid-fill me-1"></i>Dressings</button></li>
+    <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'fluid'" (click)="setTab('fluid')"><i class="bi bi-droplet-half me-1"></i>Fluid balance</button></li>
+    <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'care-activity'" (click)="setTab('care-activity')"><i class="bi bi-list-check me-1"></i>Care activities</button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'meds'" (click)="setTab('meds')"><i class="bi bi-capsule me-1"></i>Medications (MAR)</button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'consumables'" (click)="setTab('consumables')"><i class="bi bi-bandaid me-1"></i>Consumables <span class="badge text-bg-light border ms-1">{{ consumables().length }}</span></button></li>
     <li class="nav-item"><button type="button" class="nav-link" [class.active]="activeTab() === 'billing'" (click)="setTab('billing')"><i class="bi bi-cash-coin me-1"></i>Billing @if (invoice()) { <i class="bi bi-check-circle text-success ms-1"></i> }</button></li>
@@ -284,6 +286,82 @@
                     <td class="hmis-muted small">{{ d.recordedByUsername || '—' }}</td>
                   </tr>
                   @if (d.notes) { <tr><td colspan="5" class="hmis-muted small fst-italic">{{ d.notes }}</td></tr> }
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+    @case ('fluid') {
+      <div class="card">
+        <div class="card-header bg-white d-flex align-items-center">
+          <h2 class="h6 mb-0"><i class="bi bi-droplet-half me-2 hmis-muted"></i>Fluid-balance chart</h2>
+          @if (isActive()) {
+            <button type="button" class="btn btn-sm btn-primary ms-auto" (click)="openRecordFluidBalance()">
+              <i class="bi bi-plus-lg me-1"></i> Record fluid balance
+            </button>
+          }
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 hmis-table">
+            <thead><tr><th>When</th><th class="text-end">Intake (mL)</th><th class="text-end">Urine (mL)</th><th class="text-end">Other (mL)</th><th class="text-end">Net (mL)</th><th>By</th></tr></thead>
+            <tbody>
+              @if (!fluidBalanceLoaded()) {
+                <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div></td></tr>
+              } @else if (fluidBalance().length === 0) {
+                <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-droplet-half"></i><div class="fw-semibold mb-1">No fluid-balance entries</div><div class="small">Use 'Record fluid balance' to chart intake and output at the bedside.</div></div></td></tr>
+              } @else {
+                @for (f of fluidBalance(); track f.uid) {
+                  <tr>
+                    <td class="hmis-muted small">{{ f.recordedAt | date:'short' }}</td>
+                    <td class="text-end">{{ f.intakeMl ?? '—' }}</td>
+                    <td class="text-end">{{ f.urineOutputMl ?? '—' }}</td>
+                    <td class="text-end">{{ f.drainageOutputMl ?? '—' }}</td>
+                    <td class="text-end fw-semibold" [class.text-danger]="f.netMl < 0">{{ f.netMl }}</td>
+                    <td class="hmis-muted small">{{ f.recordedByUsername || '—' }}</td>
+                  </tr>
+                  @if (f.notes) { <tr><td colspan="6" class="hmis-muted small fst-italic">{{ f.notes }}</td></tr> }
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+    @case ('care-activity') {
+      <div class="card">
+        <div class="card-header bg-white d-flex align-items-center">
+          <h2 class="h6 mb-0"><i class="bi bi-list-check me-2 hmis-muted"></i>Care-activity chart</h2>
+          @if (isActive()) {
+            <button type="button" class="btn btn-sm btn-primary ms-auto" (click)="openRecordCareActivity()">
+              <i class="bi bi-plus-lg me-1"></i> Record care activity
+            </button>
+          }
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 hmis-table">
+            <thead><tr><th>When</th><th>Activities</th><th class="text-end">RBS</th><th class="text-end">FBS</th><th>By</th></tr></thead>
+            <tbody>
+              @if (!careActivityLoaded()) {
+                <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div></td></tr>
+              } @else if (careActivity().length === 0) {
+                <tr><td colspan="5"><div class="hmis-empty"><i class="bi bi-list-check"></i><div class="fw-semibold mb-1">No care activities recorded</div><div class="small">Use 'Record care activity' to log feeding, repositioning, bed bath and bedside blood sugar.</div></div></td></tr>
+              } @else {
+                @for (c of careActivity(); track c.uid) {
+                  <tr>
+                    <td class="hmis-muted small">{{ c.recordedAt | date:'short' }}</td>
+                    <td>
+                      @if (c.feedingDone) { <span class="badge text-bg-light border me-1"><i class="bi bi-cup-hot me-1"></i>Feeding</span> }
+                      @if (c.positionChanged) { <span class="badge text-bg-light border me-1"><i class="bi bi-arrow-repeat me-1"></i>Repositioned</span> }
+                      @if (c.bedBathDone) { <span class="badge text-bg-light border me-1"><i class="bi bi-droplet me-1"></i>Bed bath</span> }
+                      @if (!c.feedingDone && !c.positionChanged && !c.bedBathDone) { <span class="hmis-muted small">—</span> }
+                    </td>
+                    <td class="text-end">{{ c.randomBloodSugarMmol ?? '—' }}</td>
+                    <td class="text-end">{{ c.fastingBloodSugarMmol ?? '—' }}</td>
+                    <td class="hmis-muted small">{{ c.recordedByUsername || '—' }}</td>
+                  </tr>
+                  @if (c.notes) { <tr><td colspan="5" class="hmis-muted small fst-italic">{{ c.notes }}</td></tr> }
                 }
               }
             </tbody>

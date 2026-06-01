@@ -4,7 +4,8 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../../../../environments/environment';
 import {
-  CarePlanItem, CreateDressingEntryRequest, CreateVitalsEntryRequest, DressingEntry,
+  CareActivityEntry, CarePlanItem, CreateCareActivityEntryRequest, CreateDressingEntryRequest,
+  CreateFluidBalanceEntryRequest, CreateVitalsEntryRequest, DressingEntry, FluidBalanceEntry,
   SaveCarePlanItemRequest, VitalsEntry
 } from './nursing-chart.types';
 
@@ -58,5 +59,25 @@ export class NursingChartService {
 
   recordDressing(admissionUid: string, req: CreateDressingEntryRequest): Observable<DressingEntry> {
     return this.http.post<DressingEntry>(`${this.base}/admissions/uid/${admissionUid}/dressings`, req);
+  }
+
+  // ----- fluid balance ------------------------------------------------------
+
+  listFluidBalance(admissionUid: string): Observable<FluidBalanceEntry[]> {
+    return this.http.get<FluidBalanceEntry[]>(`${this.base}/admissions/uid/${admissionUid}/fluid-balance`);
+  }
+
+  recordFluidBalance(admissionUid: string, req: CreateFluidBalanceEntryRequest): Observable<FluidBalanceEntry> {
+    return this.http.post<FluidBalanceEntry>(`${this.base}/admissions/uid/${admissionUid}/fluid-balance`, req);
+  }
+
+  // ----- care activity ------------------------------------------------------
+
+  listCareActivity(admissionUid: string): Observable<CareActivityEntry[]> {
+    return this.http.get<CareActivityEntry[]>(`${this.base}/admissions/uid/${admissionUid}/care-activities`);
+  }
+
+  recordCareActivity(admissionUid: string, req: CreateCareActivityEntryRequest): Observable<CareActivityEntry> {
+    return this.http.post<CareActivityEntry>(`${this.base}/admissions/uid/${admissionUid}/care-activities`, req);
   }
 }

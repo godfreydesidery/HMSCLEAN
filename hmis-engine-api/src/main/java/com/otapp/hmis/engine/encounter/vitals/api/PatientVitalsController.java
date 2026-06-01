@@ -16,7 +16,8 @@ import org.springframework.web.bind.annotation.*;
  * Outpatient vitals capture (OPC-3) — the two-actor lifecycle
  * EMPTY → PENDING → SUBMITTED → ARCHIVED, mounted under the consultation it
  * belongs to. The outpatient nurse-triage worklist lives on
- * {@code ConsultationController} (collection-level, not uid-scoped).
+ * {@code OutpatientNurseWorklistController}, mounted at
+ * {@code /encounters/consultations/nurse-worklist} (collection-level, not uid-scoped).
  */
 @Tag(name = "Patient vitals")
 @RestController

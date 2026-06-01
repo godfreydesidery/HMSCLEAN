@@ -1,0 +1,53 @@
+<div class="hmis-page-header">
+  <div>
+    <h1 class="hmis-page-title">My consultations</h1>
+    <p class="hmis-muted mb-0 small">Your active encounters — booked, in progress and transferred. Open one to continue.</p>
+  </div>
+  <span class="hmis-muted small align-self-center">{{ totalElements() }} open</span>
+</div>
+
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center gap-2" role="alert"><i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span></div>
+}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 hmis-table">
+      <thead><tr><th>Consultation</th><th>Patient</th><th>Status</th><th>Clinic</th><th class="hmis-muted small">Booked</th><th class="text-end"></th></tr></thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-hourglass-split"></i><div class="small">Loading…</div></div></td></tr>
+        } @else if (rows().length === 0) {
+          <tr><td colspan="6"><div class="hmis-empty"><i class="bi bi-person-vcard"></i><div class="fw-semibold mb-1">No open consultations</div><div class="small">You have no active consultations right now.</div></div></td></tr>
+        } @else {
+          @for (c of rows(); track c.uid) {
+            <tr (click)="view(c)" style="cursor:pointer;">
+              <td><a class="hmis-code" [routerLink]="['/encounters', 'consultations', c.uid]" (click)="$event.stopPropagation()">{{ c.consultationNo }}</a></td>
+              <td>
+                <div class="fw-semibold">{{ c.patientName || '—' }}</div>
+                @if (c.patientNo) { <div class="hmis-muted small hmis-code">{{ c.patientNo }}</div> }
+              </td>
+              <td><span [class]="statusBadgeClass(c.status)">{{ statusLabel(c.status) }}</span></td>
+              <td>{{ c.clinicName || '—' }}</td>
+              <td class="hmis-muted small">{{ c.bookedAt | date:'short' }}</td>
+              <td class="text-end">
+                <button type="button" class="btn btn-sm btn-light border" (click)="view(c); $event.stopPropagation()">
+                  Open <i class="bi bi-arrow-right ms-1"></i>
+                </button>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (totalPages() > 1) {
+    <div class="card-footer bg-white d-flex align-items-center justify-content-between">
+      <span class="hmis-muted small">Page {{ page() + 1 }} of {{ totalPages() }}</span>
+      <div class="btn-group btn-group-sm">
+        <button type="button" class="btn btn-light border" (click)="prev()" [disabled]="page() === 0"><i class="bi bi-chevron-left"></i> Prev</button>
+        <button type="button" class="btn btn-light border" (click)="next()" [disabled]="page() >= totalPages() - 1">Next <i class="bi bi-chevron-right"></i></button>
+      </div>
+    </div>
+  }
+</div>

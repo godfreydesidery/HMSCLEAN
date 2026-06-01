@@ -85,4 +85,21 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Long
             ORDER BY c.bookedAt ASC
             """)
     Page<Consultation> findOutpatientNurseWorklist(Pageable pageable);
+
+    /**
+     * The clinician's own open consultations (OPC-4): consultations assigned to
+     * the clinician that are still active — BOOKED, IN_PROGRESS or TRANSFERRED —
+     * newest first. Status literals are pinned (no nullable enum param) to avoid
+     * the Hibernate-6 {@code :p IS NULL} enum-binding trap.
+     */
+    @Query("""
+            SELECT c FROM Consultation c
+            WHERE c.clinicianUsername = :clinician
+              AND c.status IN (
+                    com.otapp.hmis.engine.encounter.consultation.domain.ConsultationStatus.BOOKED,
+                    com.otapp.hmis.engine.encounter.consultation.domain.ConsultationStatus.IN_PROGRESS,
+                    com.otapp.hmis.engine.encounter.consultation.domain.ConsultationStatus.TRANSFERRED)
+            ORDER BY c.bookedAt DESC
+            """)
+    Page<Consultation> findMyOpenFor(@Param("clinician") String clinicianUsername, Pageable pageable);
 }

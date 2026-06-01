@@ -36,6 +36,14 @@ export class ConsultationService {
     return this.http.get<PageResponse<ConsultationSummary>>(`${this.base}/reception-queue`, { params: p });
   }
 
+  /** The signed-in clinician's OWN active consultations (BOOKED / IN_PROGRESS / TRANSFERRED), newest first. */
+  myOpen(params: { page?: number; size?: number } = {}): Observable<PageResponse<ConsultationSummary>> {
+    let p = new HttpParams();
+    if (params.page !== undefined) p = p.set('page', String(params.page));
+    if (params.size !== undefined) p = p.set('size', String(params.size));
+    return this.http.get<PageResponse<ConsultationSummary>>(`${this.base}/my-open`, { params: p });
+  }
+
   findByUid(uid: string): Observable<Consultation> { return this.http.get<Consultation>(`${this.base}/uid/${uid}`); }
   book(req: StartConsultationRequest): Observable<Consultation> { return this.http.post<Consultation>(this.base, req); }
   start(uid: string): Observable<Consultation> { return this.http.post<Consultation>(`${this.base}/uid/${uid}/start`, {}); }

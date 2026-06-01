@@ -5,26 +5,22 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { Subject, debounceTime, distinctUntilChanged, finalize, startWith, switchMap, tap } from 'rxjs';
 
-import { ItemPricesComponent } from '../pricing/item-prices.component';
-import { MedicineFormComponent } from './medicine-form.component';
-import { MedicineUnitsComponent } from './medicine-units.component';
-import { MedicineService } from './medicine.service';
-import { MEDICINE_FORMS, Medicine, MedicineForm } from './medicine.types';
+import { AdministrationRouteFormComponent } from './administration-route-form.component';
+import { AdministrationRouteService } from './administration-route.service';
+import { AdministrationRoute } from './administration-route.types';
 
 @Component({
-  selector: 'app-medicine-list',
+  selector: 'app-administration-route-list',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, NgbDropdownModule],
-  templateUrl: './medicine-list.component.html'
+  templateUrl: './administration-route-list.component.html'
 })
-export class MedicineListComponent {
-  private readonly service = inject(MedicineService);
+export class AdministrationRouteListComponent {
+  private readonly service = inject(AdministrationRouteService);
   private readonly modal = inject(NgbModal);
 
-  readonly forms = MEDICINE_FORMS;
   readonly query = new FormControl('', { nonNullable: true });
   readonly activeFilter = signal<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
-  readonly formFilter = signal<MedicineForm | 'ALL'>('ALL');
   readonly page = signal(0);
   readonly pageSize = signal(10);
   readonly loading = signal(false);
@@ -45,11 +41,10 @@ export class MedicineListComponent {
         return this.service.search({
           query: this.searchQuery() || undefined,
           active: this.activeFilter() === 'ALL' ? undefined : this.activeFilter() === 'ACTIVE',
-          form: this.formFilter() === 'ALL' ? undefined : (this.formFilter() as MedicineForm),
           page: this.page(), size: this.pageSize(), sort: 'name,asc'
         }).pipe(finalize(() => this.loading.set(false)));
       }),
-      tap({ error: (err) => { this.errorMessage.set(err?.error?.message ?? 'Could not load medicines.'); this.loading.set(false); } }),
+      tap({ error: (err) => { this.errorMessage.set(err?.error?.message ?? 'Could not load administration routes.'); this.loading.set(false); } }),
       takeUntilDestroyed()
     ),
     { initialValue: null }
@@ -72,40 +67,23 @@ export class MedicineListComponent {
   }
 
   setActiveFilter(v: 'ALL' | 'ACTIVE' | 'INACTIVE'): void { this.activeFilter.set(v); this.page.set(0); this.refresh$.next(); }
-  setFormFilter(v: MedicineForm | 'ALL'): void { this.formFilter.set(v); this.page.set(0); this.refresh$.next(); }
   goToPage(p: number): void { if (p < 0 || p >= this.totalPages() || p === this.page()) return; this.page.set(p); this.refresh$.next(); }
   changePageSize(s: number): void { this.pageSize.set(s); this.page.set(0); this.refresh$.next(); }
 
-  openCreate(): void { const r = this.modal.open(MedicineFormComponent, { size: 'lg', backdrop: 'static' }); r.closed.subscribe(() => this.refresh$.next()); }
-  openEdit(m: Medicine): void { const r = this.modal.open(MedicineFormComponent, { size: 'lg', backdrop: 'static' }); (r.componentInstance as MedicineFormComponent).existing = m; r.closed.subscribe(() => this.refresh$.next()); }
-  openPrices(m: Medicine): void {
-    const r = this.modal.open(ItemPricesComponent, { size: 'lg', backdrop: 'static' });
-    const inst = r.componentInstance as ItemPricesComponent;
-    inst.kind = 'MEDICINE'; inst.serviceUid = m.uid; inst.serviceLabel = `${m.name}${m.strength ? ' ' + m.strength : ''}`;
-  }
+  openCreate(): void { const r = this.modal.open(AdministrationRouteFormComponent, { size: 'lg', backdrop: 'static' }); r.closed.subscribe(() => this.refresh$.next()); }
+  openEdit(d: AdministrationRoute): void { const r = this.modal.open(AdministrationRouteFormComponent, { size: 'lg', backdrop: 'static' }); (r.componentInstance as AdministrationRouteFormComponent).existing = d; r.closed.subscribe(() => this.refresh$.next()); }
 
-  openUnits(m: Medicine): void {
-    const r = this.modal.open(MedicineUnitsComponent, { size: 'lg', backdrop: 'static' });
-    const inst = r.componentInstance as MedicineUnitsComponent;
-    inst.medicineUid = m.uid; inst.medicineName = `${m.name}${m.strength ? ' ' + m.strength : ''}`;
-    r.closed.subscribe(() => this.refresh$.next());
-  }
-
-  toggleActive(m: Medicine): void {
-    this.service.setActive(m.uid, !m.active).subscribe({
+  toggleActive(d: AdministrationRoute): void {
+    this.service.setActive(d.uid, !d.active).subscribe({
       next: () => this.refresh$.next(),
-      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not update medicine.')
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not update administration route.')
     });
   }
-  delete(m: Medicine): void {
-    if (!globalThis.confirm(`Delete medicine "${m.name}"? This cannot be undone.`)) return;
-    this.service.delete(m.uid).subscribe({
+  delete(d: AdministrationRoute): void {
+    if (!globalThis.confirm(`Delete administration route "${d.name}"? This cannot be undone.`)) return;
+    this.service.delete(d.uid).subscribe({
       next: () => this.refresh$.next(),
-      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not delete medicine.')
+      error: (err) => this.errorMessage.set(err?.error?.message ?? 'Could not delete administration route.')
     });
-  }
-
-  formLabel(f: MedicineForm): string {
-    return this.forms.find((x) => x.value === f)?.label ?? f;
   }
 }

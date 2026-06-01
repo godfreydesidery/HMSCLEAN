@@ -55,3 +55,14 @@ export interface MedicineUnit {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface CreateMedicineUnitRequest {
+  code: string;
+  name: string;
+  factorToBase: number;
+}
+
+export interface UpdateMedicineUnitRequest {
+  name: string;
+  factorToBase: number;
+}

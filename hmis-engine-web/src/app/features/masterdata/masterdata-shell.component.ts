@@ -82,6 +82,9 @@ export class MasterdataShellComponent {
     { label: 'Insurance plans',  path: 'insurance-plans',  icon: 'bi-card-checklist' },
     { label: 'Pricing',          path: 'pricing',          icon: 'bi-cash-stack' },
     { label: 'Currencies',       path: 'currencies',       icon: 'bi-currency-exchange' },
-    { label: 'Consumables',      path: 'consumables',      icon: 'bi-bandaid' }
+    { label: 'Consumables',      path: 'consumables',      icon: 'bi-bandaid' },
+    { label: 'Dosing frequencies', path: 'dosing-frequencies', icon: 'bi-clock' },
+    { label: 'Dosages',          path: 'dosages',          icon: 'bi-prescription2' },
+    { label: 'Routes',           path: 'administration-routes', icon: 'bi-signpost-split' }
   ];
 }

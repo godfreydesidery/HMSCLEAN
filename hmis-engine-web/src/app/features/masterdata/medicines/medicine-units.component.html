@@ -1,0 +1,90 @@
+<div class="modal-header">
+  <h5 class="modal-title d-flex align-items-center gap-2">
+    <i class="bi bi-rulers text-primary"></i>Units — {{ medicineName }}
+  </h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss()"></button>
+</div>
+
+<div class="modal-body">
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-circle"></i><span>{{ errorMessage() }}</span>
+    </div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="row g-2 align-items-end mb-3">
+    <div class="col-sm-3">
+      <label class="form-label" for="unit-code">Code <span class="text-danger">*</span></label>
+      <input id="unit-code" type="text" class="form-control text-uppercase" formControlName="code" maxlength="16" placeholder="e.g. BOX">
+    </div>
+    <div class="col-sm-4">
+      <label class="form-label" for="unit-name">Name <span class="text-danger">*</span></label>
+      <input id="unit-name" type="text" class="form-control" formControlName="name" maxlength="80" placeholder="e.g. Box of 100">
+    </div>
+    <div class="col-sm-2">
+      <label class="form-label" for="unit-factor">× to base <span class="text-danger">*</span></label>
+      <input id="unit-factor" type="number" class="form-control" formControlName="factorToBase" min="1" step="1" placeholder="100">
+    </div>
+    <div class="col-sm-3 d-flex gap-2">
+      <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" [disabled]="submitting() || form.invalid">
+        @if (submitting()) { <span class="spinner-border spinner-border-sm"></span> }
+        <i class="bi" [class.bi-plus-lg]="!editing()" [class.bi-check-lg]="editing()"></i>
+        {{ editing() ? 'Save' : 'Add unit' }}
+      </button>
+      @if (editing()) {
+        <button type="button" class="btn btn-light border" (click)="cancelEdit()">Cancel</button>
+      }
+    </div>
+  </form>
+
+  @if (loading()) {
+    <div class="text-center text-muted py-3"><span class="spinner-border spinner-border-sm"></span> Loading…</div>
+  } @else if (units().length === 0) {
+    <div class="text-center text-muted py-4"><i class="bi bi-inbox me-1"></i>No units yet — add the medicine's units above.</div>
+  } @else {
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Factor</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (u of units(); track u.uid) {
+            <tr [class.opacity-50]="!u.active">
+              <td class="fw-semibold">
+                {{ u.code }}
+                @if (u.base) { <span class="badge text-bg-primary ms-1">Base</span> }
+              </td>
+              <td>
+                {{ u.name }}
+                @if (!u.active) { <span class="badge text-bg-light border ms-1">Inactive</span> }
+              </td>
+              <td class="hmis-muted small">× {{ u.factorToBase }} to base</td>
+              <td class="text-end">
+                <div class="btn-group btn-group-sm">
+                  <button type="button" class="btn btn-outline-secondary" (click)="startEdit(u)" [disabled]="u.base" title="Edit">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary" (click)="toggleActive(u)" [disabled]="u.base" [title]="u.active ? 'Deactivate' : 'Activate'">
+                    <i class="bi" [class.bi-toggle-on]="u.active" [class.bi-toggle-off]="!u.active"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-danger" (click)="delete(u)" [disabled]="u.base" title="Delete">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-light border" (click)="activeModal.close()">Close</button>
+</div>

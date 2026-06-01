@@ -66,6 +66,18 @@ export const MASTERDATA_ROUTES: Routes = [
       {
         path: 'consumables',
         loadComponent: () => import('../consumables/consumable-list.component').then((m) => m.ConsumableListComponent)
+      },
+      {
+        path: 'dosing-frequencies',
+        loadComponent: () => import('./dosing-frequencies/dosing-frequency-list.component').then((m) => m.DosingFrequencyListComponent)
+      },
+      {
+        path: 'dosages',
+        loadComponent: () => import('./dosages/dosage-list.component').then((m) => m.DosageListComponent)
+      },
+      {
+        path: 'administration-routes',
+        loadComponent: () => import('./administration-routes/administration-route-list.component').then((m) => m.AdministrationRouteListComponent)
       }
     ]
   }

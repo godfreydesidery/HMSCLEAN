@@ -46,6 +46,8 @@ export class OrderWorklistComponent implements OnInit {
   readonly kindFilter = signal<ClinicalOrderKind | ''>('');
   readonly statusFilter = signal<ClinicalOrderStatus | ''>('');
   readonly classFilter = signal<PatientClassScope | ''>('');
+  /** Pay-before-service gate: off (default) hides unpaid ambulatory orders. */
+  readonly showUnpaid = signal(false);
   readonly busyUid = signal<string | null>(null);
 
   private readonly size = 20;
@@ -59,6 +61,7 @@ export class OrderWorklistComponent implements OnInit {
       kind: this.kindFilter() || undefined,
       status: this.statusFilter() || undefined,
       patientClass: this.classFilter() || undefined,
+      hideUnpaid: !this.showUnpaid(),
       page: this.page(),
       size: this.size
     }).pipe(finalize(() => this.loading.set(false))).subscribe({
@@ -74,6 +77,7 @@ export class OrderWorklistComponent implements OnInit {
   setKind(k: ClinicalOrderKind | ''): void { this.kindFilter.set(k); this.page.set(0); this.load(); }
   setStatus(s: ClinicalOrderStatus | ''): void { this.statusFilter.set(s); this.page.set(0); this.load(); }
   setClass(c: PatientClassScope | ''): void { this.classFilter.set(c); this.page.set(0); this.load(); }
+  toggleUnpaid(): void { this.showUnpaid.update((v) => !v); this.page.set(0); this.load(); }
 
   prev(): void { if (this.page() > 0) { this.page.update((p) => p - 1); this.load(); } }
   next(): void { if (this.page() < this.totalPages() - 1) { this.page.update((p) => p + 1); this.load(); } }

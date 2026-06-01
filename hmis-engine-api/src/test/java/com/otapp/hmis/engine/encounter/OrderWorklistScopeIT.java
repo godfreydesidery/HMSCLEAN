@@ -72,8 +72,10 @@ class OrderWorklistScopeIT extends AuthenticatedIntegrationTest {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private boolean worklistContains(String orderUid, String kind, String patientClass) {
+        // hideUnpaid=false so this scope-focused check still sees the freshly
+        // created (unpaid, ambulatory) orders the pay-gate would otherwise hide.
         Map<String, Object> page = expectOk(get(
-                "/encounters/orders?size=200&kind=" + kind + "&patientClass=" + patientClass, Map.class));
+                "/encounters/orders?size=200&hideUnpaid=false&kind=" + kind + "&patientClass=" + patientClass, Map.class));
         List<Map<String, Object>> content = (List<Map<String, Object>>) page.get("content");
         return content != null && content.stream().anyMatch(r -> orderUid.equals(r.get("uid")));
     }

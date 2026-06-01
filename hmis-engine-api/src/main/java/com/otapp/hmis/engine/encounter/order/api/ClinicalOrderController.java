@@ -35,9 +35,9 @@ public class ClinicalOrderController {
             @RequestParam(required = false) ClinicalOrderKind kind,
             @RequestParam(required = false) ClinicalOrderStatus status,
             @RequestParam(required = false) PatientClassScope patientClass,
-            @RequestParam(defaultValue = "false") boolean settledOnly,
+            @RequestParam(defaultValue = "true") boolean hideUnpaid,
             Pageable pageable) {
-        return ResponseEntity.ok(orderService.searchWorklist(kind, status, patientClass, settledOnly, pageable));
+        return ResponseEntity.ok(orderService.searchWorklist(kind, status, patientClass, hideUnpaid, pageable));
     }
 
     @GetMapping("/encounters/consultations/uid/{consultationUid}/orders")

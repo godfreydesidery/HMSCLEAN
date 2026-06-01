@@ -224,12 +224,12 @@ public class ClinicalOrderService {
      */
     @Transactional(readOnly = true)
     public PageResponse<OrderWorklistDto> searchWorklist(ClinicalOrderKind kind, ClinicalOrderStatus status,
-                                                         PatientClassScope scope, boolean settledOnly, Pageable pageable) {
+                                                         PatientClassScope scope, boolean hideUnpaid, Pageable pageable) {
         Pageable effective = pageable.getSort().isSorted()
                 ? pageable
                 : PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.DESC, "requestedAt"));
         return PageResponse.from(orderRepository
-                .searchWorklist(kind, status, scope == null ? null : scope.name(), settledOnly, effective)
+                .searchWorklist(kind, status, scope == null ? null : scope.name(), hideUnpaid, effective)
                 .map(this::toWorklistDto));
     }
 

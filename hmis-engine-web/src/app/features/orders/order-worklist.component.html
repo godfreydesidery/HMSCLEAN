@@ -31,9 +31,17 @@
         <button type="button" class="btn btn-outline-secondary" [class.active]="classFilter() === c.value" (click)="setClass(c.value)">{{ c.label }}</button>
       }
     </div>
-    <span class="hmis-muted small ms-auto">{{ totalElements() }} order(s)</span>
+    <div class="form-check form-switch ms-auto mb-0">
+      <input class="form-check-input" type="checkbox" role="switch" id="show-unpaid"
+             [checked]="showUnpaid()" [attr.aria-checked]="showUnpaid()" (change)="toggleUnpaid()">
+      <label class="form-check-label small" for="show-unpaid">Show unpaid</label>
+    </div>
+    <span class="hmis-muted small">{{ totalElements() }} order(s)</span>
   </div>
 </div>
+@if (!showUnpaid()) {
+  <p class="hmis-muted small mb-3"><i class="bi bi-info-circle me-1"></i>Unpaid outpatient / walk-in orders are hidden until their bill is settled. Inpatient orders stay visible (they clear at discharge). Toggle <em>Show unpaid</em> to see all.</p>
+}
 
 <div class="card">
   <div class="table-responsive">
@@ -56,7 +64,12 @@
               <td><span [class]="classBadge(o.patientClass)">{{ classLabel(o.patientClass) }}</span></td>
               <td>{{ o.serviceName || o.serviceCode || '—' }}</td>
               <td><span [class]="urgencyBadgeClass(o.urgency)">{{ o.urgency }}</span></td>
-              <td><span [class]="statusBadgeClass(o.status)">{{ statusLabel(o.status) }}</span></td>
+              <td>
+                <span [class]="statusBadgeClass(o.status)">{{ statusLabel(o.status) }}</span>
+                @if (!o.settled) {
+                  <span class="badge text-bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-1" title="Bill not yet settled">Unpaid</span>
+                }
+              </td>
               <td class="hmis-muted small">{{ o.requestedAt | date:'short' }}</td>
               <td class="text-end">
                 <div class="d-inline-flex gap-1 justify-content-end">

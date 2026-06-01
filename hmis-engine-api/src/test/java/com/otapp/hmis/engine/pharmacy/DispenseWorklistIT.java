@@ -76,7 +76,9 @@ class DispenseWorklistIT extends AuthenticatedIntegrationTest {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private boolean worklistContains(String rxUid, String patientClass) {
-        String path = "/encounters/prescriptions/worklist?size=200"
+        // hideUnpaid=false so this scope-focused check still sees the freshly
+        // created (unpaid, ambulatory) scripts the pay-gate would otherwise hide.
+        String path = "/encounters/prescriptions/worklist?size=200&hideUnpaid=false"
                 + (patientClass == null ? "" : "&patientClass=" + patientClass);
         Map<String, Object> page = expectOk(get(path, Map.class));
         List<Map<String, Object>> content = (List<Map<String, Object>>) page.get("content");

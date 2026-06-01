@@ -25,16 +25,27 @@ public interface ClinicalOrderRepository extends JpaRepository<ClinicalOrder, Lo
 
     /**
      * Cross-patient worklist for the Orders &amp; Results module — optional
-     * kind / status / patient-class / settled filters. {@code scope} is passed
-     * as a String ('OUTPATIENT' / 'INPATIENT' / 'OUTSIDER') to avoid Hibernate's
-     * enum value-mapping inference failure on literal-only comparisons. Sort
-     * comes from the {@link Pageable}.
+     * kind / status / patient-class filters and the pay-before-service gate.
+     * {@code scope} is passed as a String ('OUTPATIENT' / 'INPATIENT' /
+     * 'OUTSIDER') to avoid Hibernate's enum value-mapping inference failure on
+     * literal-only comparisons. Sort comes from the {@link Pageable}.
+     *
+     * <p>When {@code hideUnpaid} is true (the legacy default) an ambulatory
+     * order is only worked once its bill is settled (PAID / COVERED → the
+     * {@code settled} flag), but an INPATIENT order (consultation-bound, patient
+     * has an active admission) stays visible regardless — inpatient care
+     * proceeds on the deposit/credit and the bill clears at discharge.
      */
     @Query("""
             SELECT o FROM ClinicalOrder o
             WHERE (:kind   IS NULL OR o.kind = :kind)
               AND (:status IS NULL OR o.status = :status)
-              AND (:settledOnly = false OR o.settled = true)
+              AND (:hideUnpaid = false
+                   OR o.settled = true
+                   OR (o.consultationUid IS NOT NULL
+                       AND EXISTS (SELECT 1 FROM com.otapp.hmis.engine.encounter.admission.domain.Admission a
+                                   WHERE a.patientUid = o.patientUid
+                                     AND a.status IN (com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.ADMITTED, com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.AWAITING_DEPOSIT))))
               AND (
                     :scope IS NULL
                  OR (:scope = 'OUTSIDER'
@@ -54,7 +65,7 @@ public interface ClinicalOrderRepository extends JpaRepository<ClinicalOrder, Lo
     Page<ClinicalOrder> searchWorklist(@Param("kind") ClinicalOrderKind kind,
                                        @Param("status") ClinicalOrderStatus status,
                                        @Param("scope") String scope,
-                                       @Param("settledOnly") boolean settledOnly,
+                                       @Param("hideUnpaid") boolean hideUnpaid,
                                        Pageable pageable);
 
     List<ClinicalOrder> findAllByConsultationUidOrderByRequestedAtDesc(String consultationUid);

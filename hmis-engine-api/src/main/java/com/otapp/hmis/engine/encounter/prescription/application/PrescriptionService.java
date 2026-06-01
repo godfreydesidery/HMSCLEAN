@@ -193,15 +193,16 @@ public class PrescriptionService {
     /**
      * The pharmacy dispensing queue — prescriptions awaiting pharmacy action,
      * optionally scoped by patient class. When {@code status} is null the queue
-     * shows all active pharmacy states (PENDING…APPROVED). {@code settledOnly}
-     * defaults to false (medicines bill at point of dispense, not before).
+     * shows all active pharmacy states (PENDING…APPROVED). When {@code hideUnpaid}
+     * is true (the legacy default) unpaid ambulatory scripts are hidden until
+     * settled; inpatient scripts stay visible (they clear at discharge).
      */
     @Transactional(readOnly = true)
     public PageResponse<PrescriptionWorklistRow> searchDispenseWorklist(
-            PrescriptionStatus status, PatientClassScope scope, boolean settledOnly, Pageable pageable) {
+            PrescriptionStatus status, PatientClassScope scope, boolean hideUnpaid, Pageable pageable) {
         return PageResponse.from(
                 prescriptionRepository.searchDispenseWorklist(
-                                status, ACTIVE_PHARMACY_STATES, settledOnly,
+                                status, ACTIVE_PHARMACY_STATES, hideUnpaid,
                                 scope == null ? null : scope.name(), pageable)
                         .map(this::toWorklistRow));
     }

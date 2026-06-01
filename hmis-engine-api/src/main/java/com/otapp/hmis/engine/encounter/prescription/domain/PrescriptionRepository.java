@@ -44,12 +44,22 @@ public interface PrescriptionRepository extends JpaRepository<Prescription, Long
      * outsider lists). OUTSIDER = raised directly on the patient; INPATIENT =
      * consultation-bound for a patient with an active admission; OUTPATIENT =
      * consultation-bound, no active admission. Oldest first.
+     *
+     * <p>When {@code hideUnpaid} is true (the legacy default) an ambulatory
+     * script is only dispensable once its bill is settled (PAID / COVERED → the
+     * {@code settled} flag), but an INPATIENT script stays visible regardless —
+     * inpatient medication proceeds on the deposit/credit and clears at discharge.
      */
     @Query("""
             SELECT p FROM Prescription p
             WHERE (:status IS NULL OR p.status = :status)
               AND (:status IS NOT NULL OR p.status IN :activeStatuses)
-              AND (:settledOnly = false OR p.settled = true)
+              AND (:hideUnpaid = false
+                   OR p.settled = true
+                   OR (p.consultationUid IS NOT NULL
+                       AND EXISTS (SELECT 1 FROM com.otapp.hmis.engine.encounter.admission.domain.Admission a
+                                   WHERE a.patientUid = p.patientUid
+                                     AND a.status IN (com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.ADMITTED, com.otapp.hmis.engine.encounter.admission.domain.AdmissionStatus.AWAITING_DEPOSIT))))
               AND (
                     :scope IS NULL
                  OR (:scope = 'OUTSIDER'
@@ -69,7 +79,7 @@ public interface PrescriptionRepository extends JpaRepository<Prescription, Long
             """)
     Page<Prescription> searchDispenseWorklist(@Param("status") PrescriptionStatus status,
                                               @Param("activeStatuses") Collection<PrescriptionStatus> activeStatuses,
-                                              @Param("settledOnly") boolean settledOnly,
+                                              @Param("hideUnpaid") boolean hideUnpaid,
                                               @Param("scope") String scope,
                                               Pageable pageable);
 }

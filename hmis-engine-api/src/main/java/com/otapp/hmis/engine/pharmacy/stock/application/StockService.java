@@ -74,7 +74,7 @@ public class StockService {
         MedicineUnit unit = unitConversion.resolveUnit(request.medicineUid(), request.unitUid());
         int baseQty = unitConversion.toBaseQuantity(unit, request.quantity());
         return doReceive(pharmacyUid, request.medicineUid(), request.batchNo(),
-                request.expiresAt(), baseQty,
+                null, request.expiresAt(), baseQty,
                 StockMovementKind.RECEIPT, null, emptyToNull(request.note()));
     }
 
@@ -82,32 +82,52 @@ public class StockService {
      * Cross-module entry point used by the pharmacy↔store transfer service
      * when an RN is completed. Records a {@code TRANSFER_IN} movement
      * referencing the source TO so the stock card explains the receipt.
+     * Back-compatible overload that drops the source batch's manufactured
+     * date — prefer the 8-arg form so traceability survives the hop.
      */
     @Transactional
     public StockBatchDto receiveFromStore(String pharmacyUid, String medicineUid,
                                           String batchNo, LocalDate expiresAt,
                                           int quantity, String referenceUid, String note) {
+        return receiveFromStore(pharmacyUid, medicineUid, batchNo, null, expiresAt,
+                quantity, referenceUid, note);
+    }
+
+    /**
+     * Cross-module entry point used by the pharmacy↔store transfer service,
+     * carrying the source batch's manufactured date so it survives the hop
+     * onto the destination pharmacy batch.
+     */
+    @Transactional
+    public StockBatchDto receiveFromStore(String pharmacyUid, String medicineUid,
+                                          String batchNo, LocalDate manufacturedDate,
+                                          LocalDate expiresAt, int quantity,
+                                          String referenceUid, String note) {
         if (quantity <= 0) {
             throw new BusinessRuleException("Receipt quantity must be positive");
         }
-        return doReceive(pharmacyUid, medicineUid, batchNo, expiresAt, quantity,
+        return doReceive(pharmacyUid, medicineUid, batchNo, manufacturedDate, expiresAt, quantity,
                 StockMovementKind.TRANSFER_IN, emptyToNull(referenceUid), emptyToNull(note));
     }
 
     private StockBatchDto doReceive(String pharmacyUid, String medicineUid, String batchNo,
-                                    LocalDate expiresAt, int quantity, StockMovementKind kind,
-                                    String referenceUid, String note) {
+                                    LocalDate manufacturedDate, LocalDate expiresAt, int quantity,
+                                    StockMovementKind kind, String referenceUid, String note) {
         Pharmacy pharmacy = activePharmacy(pharmacyUid);
         Medicine medicine = activeMedicine(medicineUid);
 
         StockBatch batch = batchRepository
                 .findByPharmacyUidAndMedicineUidAndBatchNo(pharmacy.getUid(), medicine.getUid(), batchNo)
                 .orElseGet(() -> batchRepository.save(
-                        new StockBatch(pharmacy.getUid(), medicine.getUid(), batchNo, expiresAt)));
+                        new StockBatch(pharmacy.getUid(), medicine.getUid(), batchNo,
+                                manufacturedDate, expiresAt)));
         // If the caller supplied an expiry for an existing batch and it differs,
         // prefer the supplied one (typo correction). Otherwise keep current.
         if (expiresAt != null && !expiresAt.equals(batch.getExpiresAt())) {
             batch.setExpiresAt(expiresAt);
+        }
+        if (manufacturedDate != null && !manufacturedDate.equals(batch.getManufacturedDate())) {
+            batch.setManufacturedDate(manufacturedDate);
         }
         batch.applyDelta(quantity);
 
@@ -166,8 +186,8 @@ public class StockService {
                         StockMovementKind.TRANSFER_OUT, -take,
                         emptyToNull(referenceUid), emptyToNull(note));
                 picks.add(new BatchPickResult(
-                        batch.getUid(), batch.getBatchNo(), batch.getExpiresAt(),
-                        take, movement.getUid()));
+                        batch.getUid(), batch.getBatchNo(), batch.getManufacturedDate(),
+                        batch.getExpiresAt(), take, movement.getUid()));
                 remaining -= take;
             }
         }
@@ -188,10 +208,24 @@ public class StockService {
     public StockBatchDto receiveFromPharmacy(String pharmacyUid, String medicineUid,
                                              String batchNo, LocalDate expiresAt,
                                              int quantity, String referenceUid, String note) {
+        return receiveFromPharmacy(pharmacyUid, medicineUid, batchNo, null, expiresAt,
+                quantity, referenceUid, note);
+    }
+
+    /**
+     * Cross-module entry point used by the pharmacy↔pharmacy transfer
+     * service, carrying the source batch's manufactured date so it survives
+     * the hop onto the destination pharmacy batch.
+     */
+    @Transactional
+    public StockBatchDto receiveFromPharmacy(String pharmacyUid, String medicineUid,
+                                             String batchNo, LocalDate manufacturedDate,
+                                             LocalDate expiresAt, int quantity,
+                                             String referenceUid, String note) {
         if (quantity <= 0) {
             throw new BusinessRuleException("Receipt quantity must be positive");
         }
-        return doReceive(pharmacyUid, medicineUid, batchNo, expiresAt, quantity,
+        return doReceive(pharmacyUid, medicineUid, batchNo, manufacturedDate, expiresAt, quantity,
                 StockMovementKind.TRANSFER_IN, emptyToNull(referenceUid), emptyToNull(note));
     }
 
@@ -256,6 +290,39 @@ public class StockService {
         StockMovement movement = recordMovement(balance, batch, StockMovementKind.WASTAGE,
                 -baseQty, null, emptyToNull(request.note()));
         movement.setWastageReason(request.reason());
+        return toBatchDto(batch, medicine);
+    }
+
+    /**
+     * Writes off short-received units at the RECEIVING pharmacy as a transit
+     * loss. Used by the transfer chains when an RN records fewer units than
+     * the TO issued: the full issued quantity is first credited per pick, then
+     * the shortfall is written off here against the relevant pick's batch so
+     * inventory doesn't silently disappear. Records a {@code WASTAGE} movement
+     * tagged {@link WastageReason#LOST} so the shrinkage report can categorise
+     * it. No-op when {@code quantity <= 0}.
+     */
+    @Transactional
+    public StockBatchDto recordTransitLoss(String pharmacyUid, String medicineUid, String batchNo,
+                                           int quantity, String referenceUid, String note) {
+        if (quantity <= 0) {
+            return null;
+        }
+        Pharmacy pharmacy = activePharmacy(pharmacyUid);
+        Medicine medicine = activeMedicine(medicineUid);
+
+        StockBatch batch = batchRepository
+                .findByPharmacyUidAndMedicineUidAndBatchNo(pharmacy.getUid(), medicine.getUid(), batchNo)
+                .orElseThrow(() -> new NotFoundException(
+                        "Batch not found for transit loss: " + batchNo + " @ " + pharmacy.getName()));
+
+        batch.applyDelta(-quantity);
+        StockBalance balance = lockOrCreateBalance(pharmacy.getUid(), medicine.getUid());
+        balance.applyDelta(-quantity);
+
+        StockMovement movement = recordMovement(balance, batch, StockMovementKind.WASTAGE,
+                -quantity, emptyToNull(referenceUid), emptyToNull(note));
+        movement.setWastageReason(WastageReason.LOST);
         return toBatchDto(batch, medicine);
     }
 
@@ -539,7 +606,8 @@ public class StockService {
                 b.getExpiresAt(),
                 b.isExpired(),
                 b.getQuantity(),
-                b.getReceivedAt());
+                b.getReceivedAt(),
+                b.getManufacturedDate());
     }
 
     private static StockMovementDto toMovementDto(StockMovement m, Pharmacy pharmacy, Medicine medicine) {

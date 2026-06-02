@@ -55,3 +55,6 @@ yarn-error.log*
 
 # --- QA deploy state (instance ids, public dns) ---
 deploy/.qa-state
+
+# --- Local manual transfer test/probe drivers (not product code) ---
+/transfer-*.ps1

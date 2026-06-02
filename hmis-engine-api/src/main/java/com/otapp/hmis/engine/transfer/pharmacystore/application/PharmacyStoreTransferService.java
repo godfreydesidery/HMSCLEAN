@@ -261,6 +261,7 @@ public class PharmacyStoreTransferService {
                         line.getUid(),
                         pick.batchUid(),
                         pick.batchNo(),
+                        pick.manufacturedDate(),
                         pick.expiresAt(),
                         pick.quantity()));
             }
@@ -355,7 +356,7 @@ public class PharmacyStoreTransferService {
                     receivedBase));
 
             if (receivedBase > 0) {
-                allocateAcrossPicks(to, toLine, rnLine, receivedBase);
+                allocateAcrossPicks(rn, to, toLine, rnLine, receivedBase);
                 toLine.recordReceipt(receivedBase);
             }
         }
@@ -367,34 +368,55 @@ public class PharmacyStoreTransferService {
     }
 
     /**
-     * Walks the TO line's picks in insertion order, crediting each pick's
-     * full quantity to pharmacy stock until {@code received} is exhausted.
-     * If a pick is only partially covered, only the covered portion lands
-     * in pharmacy stock; the uncovered portion stays uncredited (treated
-     * as transit loss).
+     * Credits every pick its FULL quantity (sum == issued) to the receiving
+     * pharmacy, then — if the RN short-received — writes off the shortfall as
+     * a transit loss at the receiving pharmacy. The write-off walks the picks
+     * in REVERSE so the loss is attributed to the latest-expiry tail batches.
+     * Net effect on the destination balance is exactly {@code received}: a
+     * TRANSFER_IN of {@code issued} plus a WASTAGE/LOST of the shortfall.
      */
-    private void allocateAcrossPicks(StoreToPharmacyTO to, StoreToPharmacyTOLine toLine,
+    private void allocateAcrossPicks(StoreToPharmacyRN rn, StoreToPharmacyTO to,
+                                     StoreToPharmacyTOLine toLine,
                                      StoreToPharmacyRNLine rnLine, int received) {
         List<StoreToPharmacyTOBatchPick> picks = toPickRepository
                 .findAllByToLineUidOrderByCreatedAtAsc(toLine.getUid());
-        int remaining = received;
+
+        // Credit each pick its full issued quantity to pharmacy stock.
         for (StoreToPharmacyTOBatchPick pick : picks) {
-            if (remaining <= 0) break;
-            int credit = Math.min(remaining, pick.getQuantity());
             pharmacyStockService.receiveFromStore(
                     to.getPharmacyUid(),
                     toLine.getMedicineUid(),
                     pick.getBatchNo(),
+                    pick.getManufacturedDate(),
                     pick.getExpiresAt(),
-                    credit,
+                    pick.getQuantity(),
                     to.getUid(),
                     "RN " + rnLine.getRnUid() + " pick " + pick.getUid());
             pick.setRnLineUid(rnLine.getUid());
-            remaining -= credit;
         }
+
+        // Write off any shortfall as a transit loss, walking picks in reverse
+        // so the latest-expiry tail batches absorb the loss first.
+        int shortfall = toLine.getIssuedQuantity() - received;
+        int remaining = shortfall;
+        for (int i = picks.size() - 1; i >= 0 && remaining > 0; i--) {
+            StoreToPharmacyTOBatchPick pick = picks.get(i);
+            int loss = Math.min(remaining, pick.getQuantity());
+            pharmacyStockService.recordTransitLoss(
+                    to.getPharmacyUid(),
+                    toLine.getMedicineUid(),
+                    pick.getBatchNo(),
+                    loss,
+                    to.getUid(),
+                    "Transit loss on RN " + rn.getRnNo() + " TO " + to.getToNo());
+            remaining -= loss;
+        }
+        // Defensive only: unreachable while sum(picks) == issuedQuantity (the
+        // issue path fully allocates), so shortfall can never exceed the picks.
+        // Kept as a tripwire against future data corruption.
         if (remaining > 0) {
             throw new BusinessRuleException(
-                    "Received qty exceeds sum of TO picks — TO data is inconsistent");
+                    "Shortfall exceeds sum of TO picks — TO data is inconsistent");
         }
     }
 
@@ -561,8 +583,8 @@ public class PharmacyStoreTransferService {
         List<TOBatchPickDto> pickDtos = new ArrayList<>(picks.size());
         for (StoreToPharmacyTOBatchPick p : picks) {
             pickDtos.add(new TOBatchPickDto(
-                    p.getSourceBatchUid(), p.getBatchNo(), p.getExpiresAt(),
-                    p.getQuantity(), p.getRnLineUid()));
+                    p.getSourceBatchUid(), p.getBatchNo(), p.getManufacturedDate(),
+                    p.getExpiresAt(), p.getQuantity(), p.getRnLineUid()));
         }
         return new TOLineDto(
                 line.getUid(),

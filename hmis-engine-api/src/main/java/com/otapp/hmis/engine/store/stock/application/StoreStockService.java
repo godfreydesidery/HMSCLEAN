@@ -98,6 +98,20 @@ public class StoreStockService {
     public StoreStockBatchDto receiveFromPharmacyReturn(String storeUid, String medicineUid,
                                                         String batchNo, LocalDate expiresAt,
                                                         int quantity, String referenceUid, String note) {
+        return receiveFromPharmacyReturn(storeUid, medicineUid, batchNo, null, expiresAt,
+                quantity, referenceUid, note);
+    }
+
+    /**
+     * Cross-module entry point used by the pharmacy-to-store return service,
+     * carrying the source batch's manufactured date so it survives the hop
+     * back onto the store batch.
+     */
+    @Transactional
+    public StoreStockBatchDto receiveFromPharmacyReturn(String storeUid, String medicineUid,
+                                                        String batchNo, LocalDate manufacturedDate,
+                                                        LocalDate expiresAt, int quantity,
+                                                        String referenceUid, String note) {
         if (quantity <= 0) {
             throw new BusinessRuleException("Return quantity must be positive");
         }
@@ -107,9 +121,13 @@ public class StoreStockService {
         StoreStockBatch batch = batchRepository
                 .findByStoreUidAndMedicineUidAndBatchNo(store.getUid(), medicine.getUid(), batchNo)
                 .orElseGet(() -> batchRepository.save(
-                        new StoreStockBatch(store.getUid(), medicine.getUid(), batchNo, expiresAt)));
+                        new StoreStockBatch(store.getUid(), medicine.getUid(), batchNo,
+                                manufacturedDate, expiresAt)));
         if (expiresAt != null && !expiresAt.equals(batch.getExpiresAt())) {
             batch.setExpiresAt(expiresAt);
+        }
+        if (manufacturedDate != null && !manufacturedDate.equals(batch.getManufacturedDate())) {
+            batch.setManufacturedDate(manufacturedDate);
         }
         batch.applyDelta(quantity);
 
@@ -195,8 +213,8 @@ public class StoreStockService {
                         StoreStockMovementKind.ISSUE, -take,
                         emptyToNull(referenceUid), emptyToNull(note));
                 picks.add(new BatchPickResult(
-                        batch.getUid(), batch.getBatchNo(), batch.getExpiresAt(),
-                        take, movement.getUid()));
+                        batch.getUid(), batch.getBatchNo(), batch.getManufacturedDate(),
+                        batch.getExpiresAt(), take, movement.getUid()));
                 remaining -= take;
             }
         }

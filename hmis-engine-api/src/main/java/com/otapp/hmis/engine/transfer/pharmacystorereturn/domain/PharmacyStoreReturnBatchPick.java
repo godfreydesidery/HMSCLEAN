@@ -38,18 +38,21 @@ public class PharmacyStoreReturnBatchPick extends AuditableEntity {
     @Column(name = "return_line_uid",  nullable = false, length = 26) private String returnLineUid;
     @Column(name = "source_batch_uid", nullable = false, length = 26) private String sourceBatchUid;
     @Column(name = "batch_no",         nullable = false, length = 64) private String batchNo;
+    @Column(name = "manufactured_date") private LocalDate manufacturedDate;
     @Column(name = "expires_at")       private LocalDate expiresAt;
 
     @Column(nullable = false) private int quantity;
 
     public PharmacyStoreReturnBatchPick(String returnLineUid, String sourceBatchUid,
-                                        String batchNo, LocalDate expiresAt, int quantity) {
+                                        String batchNo, LocalDate manufacturedDate,
+                                        LocalDate expiresAt, int quantity) {
         if (quantity <= 0) {
             throw new BusinessRuleException("Pick quantity must be positive");
         }
         this.returnLineUid = returnLineUid;
         this.sourceBatchUid = sourceBatchUid;
         this.batchNo = batchNo;
+        this.manufacturedDate = manufacturedDate;
         this.expiresAt = expiresAt;
         this.quantity = quantity;
     }

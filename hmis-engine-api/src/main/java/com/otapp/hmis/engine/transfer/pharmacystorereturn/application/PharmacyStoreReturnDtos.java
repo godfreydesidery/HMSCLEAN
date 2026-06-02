@@ -52,6 +52,7 @@ public final class PharmacyStoreReturnDtos {
     public record BatchPickDto(
             String batchUid,
             String batchNo,
+            LocalDate manufacturedDate,
             LocalDate expiresAt,
             int quantity) {}
 

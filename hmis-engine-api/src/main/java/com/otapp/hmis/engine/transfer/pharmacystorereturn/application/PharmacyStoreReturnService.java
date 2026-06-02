@@ -10,6 +10,7 @@ import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineUnit;
 import com.otapp.hmis.engine.masterdata.medicine.domain.MedicineUnitRepository;
 import com.otapp.hmis.engine.masterdata.pharmacy.domain.Pharmacy;
 import com.otapp.hmis.engine.masterdata.pharmacy.domain.PharmacyRepository;
+import com.otapp.hmis.engine.masterdata.store.application.StoreStaffService;
 import com.otapp.hmis.engine.masterdata.store.domain.Store;
 import com.otapp.hmis.engine.masterdata.store.domain.StoreRepository;
 import com.otapp.hmis.engine.pharmacy.stock.application.StockDtos.BatchPickResult;
@@ -58,6 +59,7 @@ public class PharmacyStoreReturnService {
     private final UnitConversionService unitConversionService;
     private final StockService pharmacyStockService;
     private final StoreStockService storeStockService;
+    private final StoreStaffService storeStaffService;
     private final PharmacyStoreReturnNumberGenerator numberGenerator;
 
     @Transactional
@@ -102,6 +104,7 @@ public class PharmacyStoreReturnService {
     @Transactional
     public ReturnDto complete(String returnUid) {
         PharmacyStoreReturn r = loadOrThrow(returnUid);
+        requireStoreMembership(r.getStoreUid());
         if (r.getStatus() != PharmacyStoreReturnStatus.SUBMITTED) {
             throw new BusinessRuleException(
                     "Only SUBMITTED returns can be completed (current: " + r.getStatus() + ")");
@@ -119,12 +122,12 @@ public class PharmacyStoreReturnService {
             for (BatchPickResult pick : picks) {
                 pickRepository.save(new PharmacyStoreReturnBatchPick(
                         line.getUid(),
-                        pick.batchUid(), pick.batchNo(), pick.expiresAt(),
+                        pick.batchUid(), pick.batchNo(), pick.manufacturedDate(), pick.expiresAt(),
                         pick.quantity()));
                 storeStockService.receiveFromPharmacyReturn(
                         r.getStoreUid(),
                         line.getMedicineUid(),
-                        pick.batchNo(), pick.expiresAt(),
+                        pick.batchNo(), pick.manufacturedDate(), pick.expiresAt(),
                         pick.quantity(),
                         r.getUid(),
                         "Return from pharmacy " + r.getPharmacyUid() + " — " + r.getReturnNo());
@@ -221,7 +224,7 @@ public class PharmacyStoreReturnService {
         List<BatchPickDto> pickDtos = new ArrayList<>(picks.size());
         for (PharmacyStoreReturnBatchPick p : picks) {
             pickDtos.add(new BatchPickDto(p.getSourceBatchUid(), p.getBatchNo(),
-                    p.getExpiresAt(), p.getQuantity()));
+                    p.getManufacturedDate(), p.getExpiresAt(), p.getQuantity()));
         }
         return new ReturnLineDto(
                 line.getUid(),
@@ -253,6 +256,20 @@ public class PharmacyStoreReturnService {
     private MedicineUnit lookupUnit(String unitUid) {
         if (unitUid == null || unitUid.isBlank()) return null;
         return medicineUnitRepository.findByUid(unitUid).orElse(null);
+    }
+
+    /**
+     * Legacy fidelity gate: only a store keeper affiliated with the
+     * destination store ({@code StorePerson.stores}) may complete a return
+     * into it — the coarse PHARMACY_ACCESS/STORE_ACCESS authority isn't
+     * enough on its own.
+     */
+    private void requireStoreMembership(String storeUid) {
+        String username = currentUsername();
+        if (!storeStaffService.isAssigned(storeUid, username)) {
+            throw new BusinessRuleException(
+                    "User " + username + " is not assigned to store " + storeUid);
+        }
     }
 
     private static String currentUsername() {

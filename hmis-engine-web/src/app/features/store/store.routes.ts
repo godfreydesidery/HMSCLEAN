@@ -1,12 +1,16 @@
 import { Routes } from '@angular/router';
 
 import { hasPrivilegeGuard } from '../../core/auth/auth.guard';
+import { requireWorkingLocationGuard } from '../../core/working-location/working-location.guard';
 
 export const STORE_ROUTES: Routes = [
   {
     path: '',
     loadComponent: () =>
       import('./store-workspace.component').then((m) => m.StoreWorkspaceComponent),
+    // Cold start with no working store → bounce to the picker instead of an
+    // operation screen with no toolbar (the 'select' child is exempt).
+    canActivateChild: [requireWorkingLocationGuard('store')],
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'stock' },
       {

@@ -1,12 +1,16 @@
 import { Routes } from '@angular/router';
 
 import { hasPrivilegeGuard } from '../../core/auth/auth.guard';
+import { requireWorkingLocationGuard } from '../../core/working-location/working-location.guard';
 
 export const PHARMACY_ROUTES: Routes = [
   {
     path: '',
     loadComponent: () =>
       import('./pharmacy-workspace.component').then((m) => m.PharmacyWorkspaceComponent),
+    // Cold start with no working pharmacy → bounce to the picker instead of an
+    // operation screen with no toolbar (the 'select' child is exempt).
+    canActivateChild: [requireWorkingLocationGuard('pharmacy')],
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dispense-queue' },
       {

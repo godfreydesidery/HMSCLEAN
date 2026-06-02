@@ -80,6 +80,7 @@ public final class StoreStockDtos {
     public record BatchPickResult(
             String batchUid,
             String batchNo,
+            LocalDate manufacturedDate,
             LocalDate expiresAt,
             int quantity,
             String movementUid) {}

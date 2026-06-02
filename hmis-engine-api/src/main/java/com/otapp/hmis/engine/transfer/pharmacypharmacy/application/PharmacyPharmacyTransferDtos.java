@@ -107,6 +107,7 @@ public final class PharmacyPharmacyTransferDtos {
     public record TOBatchPickDto(
             String batchUid,
             String batchNo,
+            LocalDate manufacturedDate,
             LocalDate expiresAt,
             int quantity,
             String rnLineUid) {}

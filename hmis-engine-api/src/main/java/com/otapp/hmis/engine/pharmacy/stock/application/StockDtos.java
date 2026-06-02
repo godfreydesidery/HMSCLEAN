@@ -26,7 +26,8 @@ public final class StockDtos {
             LocalDate expiresAt,
             boolean expired,
             int quantity,
-            Instant receivedAt) {}
+            Instant receivedAt,
+            LocalDate manufacturedDate) {}
 
     /** Aggregate row used by the list view — sums batches per medicine. */
     public record StockBalanceDto(
@@ -102,6 +103,7 @@ public final class StockDtos {
     public record BatchPickResult(
             String batchUid,
             String batchNo,
+            LocalDate manufacturedDate,
             LocalDate expiresAt,
             int quantity,
             String movementUid) {}
